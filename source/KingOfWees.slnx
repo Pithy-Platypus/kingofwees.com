@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/KingOfWees.E2E/KingOfWees.E2E.csproj" />
+    <Project Path="tests/KingOfWees.Server.Tests/KingOfWees.Server.Tests.csproj" />
+  </Folder>
+  <Project Path="KingOfWees.AppHost/KingOfWees.AppHost.csproj" />
+  <Project Path="KingOfWees.Server/KingOfWees.Server.csproj" />
+</Solution>

@@ -1,0 +1,266 @@
+{
+  "about.contact": {
+    "defaultMessage": "Questions or ideas? Email <mail>{email}</mail>.",
+    "description": "Contact line; keep the <mail></mail> tags around {email}"
+  },
+  "about.honor": {
+    "defaultMessage": "Anyone can post — we trust our neighbors. If spam shows up, we’ll add a neighborhood code or sign-in. Kids are welcome to help with a grown-up’s OK.",
+    "description": "Explains open posting and what happens if it is abused"
+  },
+  "about.honor.title": {
+    "defaultMessage": "Built on trust",
+    "description": "Heading over the honor-system paragraph"
+  },
+  "about.how.fed": {
+    "defaultMessage": "Fed King? Tap “I fed King”, pick what he ate, and log it.",
+    "description": "How-to step for feedings"
+  },
+  "about.how.seen": {
+    "defaultMessage": "Saw King? Tap “I saw King”.",
+    "description": "How-to step for sightings"
+  },
+  "about.how.title": {
+    "defaultMessage": "How it works",
+    "description": "Heading over the how-to list"
+  },
+  "about.how.undo": {
+    "defaultMessage": "Made a mistake? You can undo for 10 minutes.",
+    "description": "How-to step for undo"
+  },
+  "about.purpose": {
+    "defaultMessage": "This site helps us share the job: when he last ate, what he had, and where he was last seen — so nobody has to guess.",
+    "description": "Why the site exists"
+  },
+  "about.story": {
+    "defaultMessage": "King is an 11-year-old grey long-haired cat. His owner left him behind two years ago, so the neighbors on his street decided to look after him together.",
+    "description": "King’s story, first paragraph of the About page"
+  },
+  "about.title": {
+    "defaultMessage": "About King",
+    "description": "About page heading"
+  },
+  "app.loading": {
+    "defaultMessage": "Finding King…",
+    "description": "Shown while the status loads"
+  },
+  "app.name": {
+    "defaultMessage": "King of Wees",
+    "description": "Site name shown in the header"
+  },
+  "app.tryAgain": {
+    "defaultMessage": "Try again",
+    "description": "Retry loading the status"
+  },
+  "app.unreachable": {
+    "defaultMessage": "Couldn’t reach King’s tracker. Check your connection and try again.",
+    "description": "Shown when the status cannot be loaded"
+  },
+  "feed.back": {
+    "defaultMessage": "Back",
+    "description": "Return home without logging"
+  },
+  "feed.hint": {
+    "defaultMessage": "Tap everything he had. Not sure? Just log it.",
+    "description": "Explains that several foods can be picked, or none"
+  },
+  "feed.log": {
+    "defaultMessage": "Log feeding",
+    "description": "Saves the feeding with the picked foods"
+  },
+  "feed.title": {
+    "defaultMessage": "What did King eat?",
+    "description": "Heading over the food choices"
+  },
+  "food.dry": {
+    "defaultMessage": "Dry food",
+    "description": "Kibble"
+  },
+  "food.treats": {
+    "defaultMessage": "Treats",
+    "description": "Cat treats"
+  },
+  "food.wet": {
+    "defaultMessage": "Wet food",
+    "description": "Canned or pouch cat food"
+  },
+  "footer.about": {
+    "defaultMessage": "About",
+    "description": "Footer link to the About page"
+  },
+  "footer.copyright": {
+    "defaultMessage": "© 2026",
+    "description": "Copyright year for the site content"
+  },
+  "footer.credit": {
+    "defaultMessage": "Brought to you by King’s neighbors on Guy St.",
+    "description": "Footer credit; Guy St. is the street name and stays as is"
+  },
+  "footer.privacy": {
+    "defaultMessage": "Privacy",
+    "description": "Footer link to the Privacy page"
+  },
+  "footer.siteLinks": {
+    "defaultMessage": "Site",
+    "description": "Accessible name for the footer link list"
+  },
+  "home.aNeighbor": {
+    "defaultMessage": "a neighbor",
+    "description": "Used as {name} when the reporter gave no name"
+  },
+  "home.fedAgo": {
+    "defaultMessage": "Fed {when}",
+    "description": "Chip; {when} is e.g. “2 hours ago” or “just now”"
+  },
+  "home.fedBy": {
+    "defaultMessage": "Fed by {name}",
+    "description": "Activity item; {name} is who fed King"
+  },
+  "home.iFedKing": {
+    "defaultMessage": "I fed King",
+    "description": "Big button to log a feeding"
+  },
+  "home.iSawKing": {
+    "defaultMessage": "I saw King",
+    "description": "Big button to log a sighting"
+  },
+  "home.lately": {
+    "defaultMessage": "Lately",
+    "description": "Heading over the recent activity list"
+  },
+  "home.mood.content": {
+    "defaultMessage": "King is content",
+    "description": "Heading when King was fed recently"
+  },
+  "home.mood.contentDetail": {
+    "defaultMessage": "His Majesty is satisfied.",
+    "description": "Playful royal line under the content heading"
+  },
+  "home.mood.hungry": {
+    "defaultMessage": "King is hungry",
+    "description": "Heading when King has not been fed for over 12 hours"
+  },
+  "home.mood.hungryDetail": {
+    "defaultMessage": "His Majesty awaits a feast.",
+    "description": "Playful royal line under the hungry heading"
+  },
+  "home.notFed": {
+    "defaultMessage": "Not fed yet",
+    "description": "Chip when no feeding has been logged"
+  },
+  "home.notSeen": {
+    "defaultMessage": "Not seen yet",
+    "description": "Chip when no sighting has been logged"
+  },
+  "home.nothingYet": {
+    "defaultMessage": "Nothing logged yet. Be the first!",
+    "description": "Shown when the activity list is empty"
+  },
+  "home.photoAlt": {
+    "defaultMessage": "King, a fluffy grey long-haired cat",
+    "description": "Alt text for King’s photo"
+  },
+  "home.seenAgo": {
+    "defaultMessage": "Seen {when}",
+    "description": "Chip; {when} is e.g. “25 minutes ago”"
+  },
+  "home.seenBy": {
+    "defaultMessage": "Seen by {name}",
+    "description": "Activity item; {name} is who saw King"
+  },
+  "home.tagline": {
+    "defaultMessage": "A whimsical, neighborly way to keep track of King, the 11-year-old long-hair our street co-parents. Who saw him, where, and when he last ate.",
+    "description": "One-line explanation of the site under the header on the home page"
+  },
+  "logged.done": {
+    "defaultMessage": "Done",
+    "description": "Return home"
+  },
+  "logged.fed.detail": {
+    "defaultMessage": "King was fed just now. Thank you!",
+    "description": "Confirmation after logging a feeding"
+  },
+  "logged.fed.title": {
+    "defaultMessage": "Feast logged!",
+    "description": "Heading after logging a feeding"
+  },
+  "logged.seen.detail": {
+    "defaultMessage": "Everyone can see he was spotted just now.",
+    "description": "Confirmation after logging a sighting"
+  },
+  "logged.seen.title": {
+    "defaultMessage": "Thanks for spotting King!",
+    "description": "Heading after logging a sighting"
+  },
+  "logged.undo": {
+    "defaultMessage": "Undo",
+    "description": "Remove the entry just logged"
+  },
+  "logged.undoExpired": {
+    "defaultMessage": "It’s too late to undo — entries can only be undone for 10 minutes.",
+    "description": "Shown when the server refuses an undo because the entry is older than 10 minutes"
+  },
+  "page.backToKing": {
+    "defaultMessage": "Back to King",
+    "description": "Link from About/Privacy back to the home page"
+  },
+  "privacy.intro": {
+    "defaultMessage": "We keep as little as possible.",
+    "description": "Opening line of the Privacy page"
+  },
+  "privacy.not.fonts": {
+    "defaultMessage": "Our fonts are hosted here, so visiting doesn’t contact Google.",
+    "description": "Fonts are self-hosted"
+  },
+  "privacy.not.ip": {
+    "defaultMessage": "Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and isn’t stored. We remove it from our technical logs.",
+    "description": "IP addresses: used briefly for rate limiting, stripped from telemetry"
+  },
+  "privacy.not.title": {
+    "defaultMessage": "What we don’t do",
+    "description": "Heading over the list of things not collected"
+  },
+  "privacy.not.tracking": {
+    "defaultMessage": "No accounts, ads, trackers or cookies. We don’t ask for your name.",
+    "description": "Not collected: accounts, ads, trackers, cookies, names"
+  },
+  "privacy.parents": {
+    "defaultMessage": "For parents: kids can help without sharing anything about themselves.",
+    "description": "Note for parents about children using the site"
+  },
+  "privacy.retention": {
+    "defaultMessage": "Entries are kept as King’s history. Want one removed? Email <mail>{email}</mail>.",
+    "description": "Retention and removal requests; keep the <mail></mail> tags around {email}"
+  },
+  "privacy.stored.code": {
+    "defaultMessage": "A random code saved in your browser, so you can undo your own entries. It isn’t linked to who you are.",
+    "description": "Stored data: the per-device undo key"
+  },
+  "privacy.stored.events": {
+    "defaultMessage": "When King was fed or seen, and what he ate.",
+    "description": "Stored data: the entries themselves"
+  },
+  "privacy.stored.title": {
+    "defaultMessage": "What we keep",
+    "description": "Heading over the list of stored data"
+  },
+  "privacy.title": {
+    "defaultMessage": "Privacy",
+    "description": "Privacy page heading"
+  },
+  "time.justNow": {
+    "defaultMessage": "just now",
+    "description": "Something happened less than a minute ago"
+  },
+  "title.about": {
+    "defaultMessage": "About · King of Wees",
+    "description": "Browser tab title of the About page"
+  },
+  "title.home": {
+    "defaultMessage": "King of Wees",
+    "description": "Browser tab title of the home page"
+  },
+  "title.privacy": {
+    "defaultMessage": "Privacy · King of Wees",
+    "description": "Browser tab title of the Privacy page"
+  }
+}

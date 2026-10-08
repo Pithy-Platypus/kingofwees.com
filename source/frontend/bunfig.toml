@@ -1,0 +1,4 @@
+[install]
+exact = true
+# Seconds (7 days): refuse package versions newer than this — supply-chain cooldown.
+minimumReleaseAge = 604800

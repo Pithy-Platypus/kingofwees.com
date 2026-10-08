@@ -1,0 +1,247 @@
+@import 'tailwindcss';
+@import '@fontsource/fredoka/500.css';
+@import '@fontsource/fredoka/600.css';
+@import '@fontsource/fredoka/700.css';
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
+
+@plugin 'daisyui' {
+  themes: false;
+}
+
+/* Palette pulled from King (mood board). Every text/fill pairing below passes WCAG 2.2 AA. */
+@plugin 'daisyui/theme' {
+  name: 'king';
+  default: true;
+  color-scheme: light;
+  --color-base-100: #f7f4fb;
+  --color-base-200: #ece6f5;
+  --color-base-300: #dcd3ea;
+  --color-base-content: #2e2b3a;
+  --color-primary: #f29cb0;
+  --color-primary-content: #2e2b3a;
+  --color-secondary: #1e7a4c;
+  --color-secondary-content: #ffffff;
+  --color-accent: #f4bf4f;
+  --color-accent-content: #2e2b3a;
+  --color-neutral: #5b5a6e;
+  --color-neutral-content: #ffffff;
+  --color-info: #5b5a6e;
+  --color-info-content: #ffffff;
+  --color-success: #b5c95a;
+  --color-success-content: #2e2b3a;
+  --color-warning: #f4bf4f;
+  --color-warning-content: #2e2b3a;
+  --color-error: #b23a5e;
+  --color-error-content: #ffffff;
+  --radius-selector: 1rem;
+  --radius-field: 1.25rem;
+  --radius-box: 1.5rem;
+  --border: 2px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-display: 'Fredoka', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --color-muted: #5e5a6e;
+}
+
+@layer base {
+  body {
+    @apply bg-base-100 text-base-content text-lg;
+  }
+
+  /* A solid ink ring for keyboard focus — daisyUI's default is semi-transparent. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-base-content);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+@layer components {
+  .app-frame {
+    @apply flex min-h-dvh flex-col;
+  }
+
+  .app-screen {
+    @apply mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 py-5;
+  }
+
+  .page {
+    @apply gap-5 leading-relaxed;
+  }
+
+  .page-list {
+    @apply flex list-disc flex-col gap-2 ps-6;
+  }
+
+  .text-link {
+    @apply font-bold underline underline-offset-4;
+  }
+
+  .site-footer {
+    @apply mx-auto flex w-full max-w-md flex-col items-center gap-2 px-4 pt-2 pb-6 text-center text-base text-muted;
+  }
+
+  .footer-links {
+    @apply flex gap-6;
+  }
+
+  .footer-link {
+    @apply inline-flex min-h-12 items-center font-bold text-base-content underline underline-offset-4;
+  }
+
+  .app-header {
+    @apply flex items-center gap-2;
+  }
+
+  .app-name {
+    @apply font-display text-2xl font-bold;
+  }
+
+  .app-tagline {
+    @apply -mt-2 text-base leading-snug text-muted;
+  }
+
+  .crown-icon {
+    @apply size-8 fill-accent stroke-[#8a6a12];
+  }
+
+  .status-card {
+    @apply flex items-center gap-4 rounded-box bg-white p-4 shadow-sm;
+  }
+
+  .status-photo {
+    @apply relative shrink-0;
+  }
+
+  .king-avatar {
+    @apply size-22 rounded-full border-4 border-primary object-cover;
+    object-position: 60% 18%;
+  }
+
+  .avatar-crown {
+    @apply absolute -top-5 start-6 size-10 -rotate-12 fill-accent stroke-[#8a6a12];
+  }
+
+  .mood-title {
+    @apply font-display text-2xl leading-tight font-semibold;
+  }
+
+  .mood-subtitle {
+    @apply text-base text-muted;
+  }
+
+  .status-chips {
+    @apply mt-1 flex flex-wrap gap-2;
+  }
+
+  .status-chip {
+    @apply badge badge-lg font-bold;
+  }
+
+  .big-actions {
+    @apply grid grid-cols-2 gap-3;
+  }
+
+  .big-action {
+    @apply btn h-auto min-h-32 flex-col gap-2 rounded-box font-display text-xl font-semibold;
+  }
+
+  .big-action svg {
+    @apply size-10;
+  }
+
+  .section-title {
+    @apply font-display text-xl font-semibold;
+  }
+
+  .activity-list {
+    @apply flex flex-col gap-2;
+  }
+
+  .activity-item {
+    @apply flex items-center gap-3 rounded-box bg-white px-4 py-3;
+  }
+
+  .activity-icon {
+    @apply flex size-10 shrink-0 items-center justify-center rounded-full;
+  }
+
+  .activity-icon svg {
+    @apply size-6;
+  }
+
+  .activity-text {
+    @apply flex min-w-0 flex-1 flex-col;
+  }
+
+  .activity-detail,
+  .activity-time {
+    @apply text-base text-muted;
+  }
+
+  .screen-title {
+    @apply font-display text-3xl font-bold;
+  }
+
+  .back-button {
+    @apply btn btn-ghost min-h-12 self-start text-base;
+  }
+
+  .food-choices {
+    @apply grid grid-cols-2 gap-3;
+  }
+
+  .screen-hint {
+    @apply text-muted;
+  }
+
+  .food-choice {
+    @apply btn btn-outline h-auto min-h-24 rounded-box border-secondary font-display text-xl font-semibold text-base-content;
+  }
+
+  /* Picked foods are filled and show a check mark, so the state never relies on color alone. */
+  .food-choice[aria-pressed='true'] {
+    @apply btn-secondary text-secondary-content;
+  }
+
+  .log-button {
+    @apply btn btn-primary mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
+  }
+
+  .logged-screen {
+    @apply items-center text-center;
+  }
+
+  .logged-photo {
+    @apply size-44 rounded-full border-[6px] border-secondary object-cover;
+  }
+
+  .logged-actions {
+    @apply mt-auto grid w-full grid-cols-2 gap-3;
+  }
+
+  .undo-button {
+    @apply btn btn-outline min-h-14 rounded-field text-lg;
+  }
+
+  .done-button {
+    @apply btn btn-secondary min-h-14 rounded-field text-lg;
+  }
+
+  .button-icon {
+    @apply size-6;
+  }
+}
