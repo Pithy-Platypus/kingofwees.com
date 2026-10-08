@@ -20,6 +20,9 @@ public sealed class InMemoryKingEventStore : IKingEventStore
     public Task<KingEvent?> GetLatestAsync(KingEventKind kind, CancellationToken cancellationToken) =>
         Task.FromResult(_events.Values.Where(e => e.Kind == kind).MaxBy(e => e.OccurredAt));
 
+    public Task<KingEvent?> GetLatestSightingAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(_events.Values.Where(e => e.SawKing).MaxBy(e => e.OccurredAt));
+
     public Task<IReadOnlyList<KingEvent>> GetRecentAsync(int count, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<KingEvent>>(
             [.. _events.Values.OrderByDescending(e => e.OccurredAt).Take(count)]);

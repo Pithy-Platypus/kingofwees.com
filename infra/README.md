@@ -13,4 +13,5 @@ Option B (every container on Container Apps, billed per second) was ruled out: a
 
 - **Frontend build image.** `WithBun()` builds the SPA in an `oven/bun` image during publish; confirm Vite builds there (that image may lack Node), or pin an image with both.
 - **Free-tier terms.** Re-verify the Container Apps grant, DocumentDB free tier (regions, inactivity pause, no backups) and Grafana Cloud limits.
+- **Map center.** Set `King__Map__Center__Latitude` and `King__Map__Center__Longitude` as environment variables (or the host's secret store) on the server. Without them the app runs with no map.
 - **Uptime pings.** Don't add an external pinger under option A: it keeps the app awake and exhausts the free grant.

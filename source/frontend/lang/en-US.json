@@ -55,6 +55,10 @@
     "defaultMessage": "Couldn’t reach King’s tracker. Check your connection and try again.",
     "description": "Shown when the status cannot be loaded"
   },
+  "feed.atSpot": {
+    "defaultMessage": "At {spot} · <change>change</change>",
+    "description": "The feeding spot that will be logged; {spot} is its name. <change> becomes a button."
+  },
   "feed.back": {
     "defaultMessage": "Back",
     "description": "Return home without logging"
@@ -63,9 +67,17 @@
     "defaultMessage": "Tap everything he had. Not sure? Just log it.",
     "description": "Explains that several foods can be picked, or none"
   },
+  "feed.leftOut": {
+    "defaultMessage": "I left food out (didn’t see him)",
+    "description": "Checkbox: the feeder put food out but did not see King, so it does not count as a sighting"
+  },
   "feed.log": {
     "defaultMessage": "Log feeding",
     "description": "Saves the feeding with the picked foods"
+  },
+  "feed.noSpot": {
+    "defaultMessage": "Where? <change>Pick a spot</change>",
+    "description": "No feeding spot picked yet. <change> becomes a button."
   },
   "feed.title": {
     "defaultMessage": "What did King eat?",
@@ -107,9 +119,17 @@
     "defaultMessage": "a neighbor",
     "description": "Used as {name} when the reporter gave no name"
   },
+  "home.atSpot": {
+    "defaultMessage": "at {spot}",
+    "description": "Activity detail; {spot} is the feeding spot’s name"
+  },
   "home.fedAgo": {
     "defaultMessage": "Fed {when}",
     "description": "Chip; {when} is e.g. “2 hours ago” or “just now”"
+  },
+  "home.fedAndSeenAgo": {
+    "defaultMessage": "Fed & seen {when}",
+    "description": "Single chip when the last feeding is also the last time King was seen; {when} is e.g. “2 hours ago”"
   },
   "home.fedBy": {
     "defaultMessage": "Fed by {name}",
@@ -127,6 +147,14 @@
     "defaultMessage": "Lately",
     "description": "Heading over the recent activity list"
   },
+  "home.mapKey": {
+    "defaultMessage": "Map key",
+    "description": "Accessible name of the list explaining the map’s markers"
+  },
+  "home.mapTitle": {
+    "defaultMessage": "Last fed & seen",
+    "description": "Heading over the small home map, which shows only the latest feeding and sighting"
+  },
   "home.mood.content": {
     "defaultMessage": "King is content",
     "description": "Heading when King was fed recently"
@@ -142,6 +170,10 @@
   "home.mood.hungryDetail": {
     "defaultMessage": "His Majesty awaits a feast.",
     "description": "Playful royal line under the hungry heading"
+  },
+  "home.nearSpot": {
+    "defaultMessage": "near {spot}",
+    "description": "Activity detail for a sighting within about a block of a saved feeding spot; {spot} is its name"
   },
   "home.notFed": {
     "defaultMessage": "Not fed yet",
@@ -167,8 +199,12 @@
     "defaultMessage": "Seen by {name}",
     "description": "Activity item; {name} is who saw King"
   },
+  "home.statusChips": {
+    "defaultMessage": "King’s status",
+    "description": "Accessible name for the fed/seen chips"
+  },
   "home.tagline": {
-    "defaultMessage": "A whimsical, neighborly way to keep track of King, the 11-year-old long-hair our street co-parents. Who saw him, where, and when he last ate.",
+    "defaultMessage": "A whimsical, neighborly way to keep track of King, the 11-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.",
     "description": "One-line explanation of the site under the header on the home page"
   },
   "logged.done": {
@@ -182,6 +218,10 @@
   "logged.fed.title": {
     "defaultMessage": "Feast logged!",
     "description": "Heading after logging a feeding"
+  },
+  "logged.loggingAs": {
+    "defaultMessage": "Logging as {name} · <change>change</change>",
+    "description": "The name shown with this device’s entries; {name} is a nickname or “a neighbor”. <change> becomes a button."
   },
   "logged.seen.detail": {
     "defaultMessage": "Everyone can see he was spotted just now.",
@@ -199,9 +239,61 @@
     "defaultMessage": "It’s too late to undo — entries can only be undone for 10 minutes.",
     "description": "Shown when the server refuses an undo because the entry is older than 10 minutes"
   },
+  "map.attribution": {
+    "defaultMessage": "© {osm} contributors",
+    "description": "Required map data credit; {osm} is the “OpenStreetMap” link"
+  },
+  "map.useCenter": {
+    "defaultMessage": "Use map center",
+    "description": "Picks the point under the cross in the middle of the map; the keyboard alternative to tapping it"
+  },
+  "map.zoomIn": {
+    "defaultMessage": "Zoom in",
+    "description": "Map button"
+  },
+  "map.zoomOut": {
+    "defaultMessage": "Zoom out",
+    "description": "Map button"
+  },
+  "nickname.hint": {
+    "defaultMessage": "A first name or nickname. Everyone can see it next to your entries.",
+    "description": "Explains what kind of name to give and that it is public"
+  },
+  "nickname.label": {
+    "defaultMessage": "Your first name or nickname",
+    "description": "Label of the name field"
+  },
+  "nickname.save": {
+    "defaultMessage": "Save",
+    "description": "Keeps the typed name and carries on logging"
+  },
+  "nickname.skip": {
+    "defaultMessage": "Skip",
+    "description": "Carries on logging without a name"
+  },
+  "nickname.title": {
+    "defaultMessage": "What should neighbors call you?",
+    "description": "Heading of the one-time name question"
+  },
   "page.backToKing": {
     "defaultMessage": "Back to King",
     "description": "Link from About/Privacy back to the home page"
+  },
+  "place.back": {
+    "defaultMessage": "Back",
+    "description": "Leave the place screen without choosing"
+  },
+  "place.locationFailed": {
+    "defaultMessage": "Couldn’t get your location.",
+    "description": "The browser refused or could not find the device’s location"
+  },
+  "place.nearNow": {
+    "defaultMessage": "I’m near him now",
+    "description": "Uses the device’s location for a sighting"
+  },
+  "place.useMyLocation": {
+    "defaultMessage": "Use where I am",
+    "description": "Uses the device’s location for a new spot"
   },
   "privacy.intro": {
     "defaultMessage": "We keep as little as possible.",
@@ -215,16 +307,20 @@
     "defaultMessage": "Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and isn’t stored. We remove it from our technical logs.",
     "description": "IP addresses: used briefly for rate limiting, stripped from telemetry"
   },
+  "privacy.not.maps": {
+    "defaultMessage": "Maps are the exception: the map pictures load from OpenStreetMap, which sees your internet address and which part of the map you’re looking at. See <policy>OpenStreetMap’s privacy policy</policy>.",
+    "description": "Third party: OpenStreetMap tile servers; keep the <policy></policy> tags around the link text"
+  },
   "privacy.not.title": {
     "defaultMessage": "What we don’t do",
     "description": "Heading over the list of things not collected"
   },
   "privacy.not.tracking": {
-    "defaultMessage": "No accounts, ads, trackers or cookies. We don’t ask for your name.",
-    "description": "Not collected: accounts, ads, trackers, cookies, names"
+    "defaultMessage": "No accounts, ads, trackers or cookies.",
+    "description": "Not collected: accounts, ads, trackers, cookies"
   },
   "privacy.parents": {
-    "defaultMessage": "For parents: kids can help without sharing anything about themselves.",
+    "defaultMessage": "For parents: kids can help without sharing anything about themselves. If they’d like a name on their entries, help them pick a nickname instead of their real name.",
     "description": "Note for parents about children using the site"
   },
   "privacy.retention": {
@@ -236,8 +332,20 @@
     "description": "Stored data: the per-device undo key"
   },
   "privacy.stored.events": {
-    "defaultMessage": "When King was fed or seen, and what he ate.",
+    "defaultMessage": "When King was fed or seen, what he ate, and the name you gave, if any.",
     "description": "Stored data: the entries themselves"
+  },
+  "privacy.stored.location": {
+    "defaultMessage": "Where King was, if you choose to say. It’s rounded to about a block before it leaves your browser, so we never get your exact spot. Your phone’s location is used only when you tap “I’m near him now” or “Use where I am”.",
+    "description": "Stored data: optional sighting places, rounded in the browser; when geolocation is used"
+  },
+  "privacy.stored.name": {
+    "defaultMessage": "Your name is optional, and everyone can see it next to your entries, so use a first name or nickname. Your browser remembers it, so you’re only asked once.",
+    "description": "Stored data: the optional public nickname, also kept in the browser"
+  },
+  "privacy.stored.spots": {
+    "defaultMessage": "Feeding spots neighbors add: a name and a place (also rounded), which everyone can see.",
+    "description": "Stored data: shared feeding spots are public"
   },
   "privacy.stored.title": {
     "defaultMessage": "What we keep",
@@ -246,6 +354,66 @@
   "privacy.title": {
     "defaultMessage": "Privacy",
     "description": "Privacy page heading"
+  },
+  "seen.hint": {
+    "defaultMessage": "Helps neighbors know where he hangs out. We only keep it to about a block.",
+    "description": "Why a place is asked for, and that it is rounded"
+  },
+  "seen.logHere": {
+    "defaultMessage": "Log sighting here",
+    "description": "Logs the sighting at the place picked on the map"
+  },
+  "seen.mapLabel": {
+    "defaultMessage": "Map: tap where you saw King",
+    "description": "Accessible name of the map"
+  },
+  "seen.skip": {
+    "defaultMessage": "Skip",
+    "description": "Logs the sighting without a place"
+  },
+  "seen.title": {
+    "defaultMessage": "Where is King?",
+    "description": "Heading of the sighting place screen"
+  },
+  "spot.list": {
+    "defaultMessage": "Spots",
+    "description": "Accessible name of the list of saved feeding spots"
+  },
+  "spot.mapLabel": {
+    "defaultMessage": "Map: tap where you fed King",
+    "description": "Accessible name of the map"
+  },
+  "spot.nameHint": {
+    "defaultMessage": "Like “Blue house steps”. Everyone can see it, so leave out house numbers and family names.",
+    "description": "Guidance for naming a spot without giving away who lives there"
+  },
+  "spot.nameLabel": {
+    "defaultMessage": "Name this spot",
+    "description": "Label of the new spot’s name field"
+  },
+  "spot.needNameAndPlace": {
+    "defaultMessage": "Give the spot a name and pick its place.",
+    "description": "Shown when saving a new spot without a name or place"
+  },
+  "spot.new": {
+    "defaultMessage": "Somewhere new",
+    "description": "Opens the form to add a new feeding spot"
+  },
+  "spot.none": {
+    "defaultMessage": "No spot",
+    "description": "Logs the feeding without a spot"
+  },
+  "spot.placeSet": {
+    "defaultMessage": "Place picked.",
+    "description": "Confirms a place was chosen for the new spot"
+  },
+  "spot.save": {
+    "defaultMessage": "Save spot",
+    "description": "Adds the new spot and uses it for this feeding"
+  },
+  "spot.title": {
+    "defaultMessage": "Where did you feed him?",
+    "description": "Heading of the feeding spot screen"
   },
   "time.justNow": {
     "defaultMessage": "just now",

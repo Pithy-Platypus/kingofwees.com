@@ -1,18 +1,8 @@
 import type { ReactElement } from 'react';
 import { render } from '@testing-library/react';
-import { IntlProvider } from 'react-intl';
+import { English } from './English';
 
-// Renders with the source (en-US) messages; missing ids fail loudly instead of falling back silently.
+// A wrapper, not a parent element, so rerender() keeps the messages.
 export function renderInEnglish(ui: ReactElement) {
-  return render(
-    <IntlProvider
-      locale="en-US"
-      defaultLocale="en-US"
-      onError={(error) => {
-        throw error;
-      }}
-    >
-      {ui}
-    </IntlProvider>,
-  );
+  return render(ui, { wrapper: English });
 }

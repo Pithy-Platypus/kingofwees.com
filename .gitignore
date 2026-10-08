@@ -128,6 +128,8 @@ ipch/
 
 # Visual Studio Trace Files
 *.e2e
+# ...which, case-insensitively (macOS), also matched the Playwright test project.
+!source/tests/KingOfWees.E2E/
 
 # TFS 2012 Local Workspace
 $tf/

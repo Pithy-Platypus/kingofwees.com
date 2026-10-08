@@ -1,17 +1,37 @@
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { ApiError, type KingEventView, type KingStatus } from './king/api';
-import { emptyStatus, event, fakeApi, NOW } from './test/fakeApi';
+import { loadNickname, saveNickname } from './king/reporter';
+import { CENTER, emptyStatus, event, fakeApi, NOW, spot } from './test/fakeApi';
+import { fakeGeolocation } from './test/fakeGeolocation';
+import { memoryStorage } from './test/memoryStorage';
 import { renderInEnglish } from './test/render';
 
 const KEY = 'device-key';
-const renderApp = (api = fakeApi()) => {
-  renderInEnglish(<App api={api} reporterKey={KEY} now={() => NOW} />);
+
+// A device that has already answered (skipped) the name question, so flows go straight to logging.
+const deviceNamed = (name: string) => {
+  const storage = memoryStorage();
+  saveNickname(storage, name);
+  return storage;
+};
+
+const renderApp = (api = fakeApi(), storage = deviceNamed('')) => {
+  renderInEnglish(<App api={api} reporterKey={KEY} storage={storage} now={() => NOW} />);
   return api;
 };
+
+const nameQuestion = () => screen.queryByRole('heading', { name: 'What should neighbors call you?' });
+
+// After "I saw King" comes "Where is King?"; Skip logs the sighting with no place.
+const skipWhere = async () => {
+  await screen.findByRole('heading', { name: 'Where is King?' });
+  await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+};
+const nameBox = () => screen.getByRole('textbox', { name: 'Your first name or nickname' });
 
 describe('App', () => {
   it('shows a loading message, not an error, while the first status loads', () => {
@@ -26,7 +46,12 @@ describe('App', () => {
     try {
       let clock = NOW;
       renderInEnglish(
-        <App api={fakeApi({ ...emptyStatus, lastFed: event({ kind: 'fed' }) })} reporterKey={KEY} now={() => clock} />,
+        <App
+          api={fakeApi({ ...emptyStatus, lastFed: event({ kind: 'fed' }) })}
+          reporterKey={KEY}
+          storage={deviceNamed('')}
+          now={() => clock}
+        />,
       );
       expect(await screen.findByText('Fed just now')).toBeInTheDocument();
 
@@ -66,7 +91,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Wet food' })).toHaveAttribute('aria-pressed', 'false');
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
 
-    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: ['dry', 'treats'] });
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: ['dry', 'treats'], sawKing: true });
     expect(await screen.findByRole('heading', { name: 'Feast logged!' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
@@ -98,7 +123,7 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Wet food' }));
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
 
-    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [] });
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true });
   });
 
   it('can go back home from the food choice without logging', async () => {
@@ -111,10 +136,11 @@ describe('App', () => {
     expect(api.logFeeding).not.toHaveBeenCalled();
   });
 
-  it('logs a sighting in one tap and thanks the spotter', async () => {
+  it('logs a sighting and thanks the spotter', async () => {
     const api = renderApp();
 
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
 
     expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY });
     expect(await screen.findByRole('heading', { name: 'Thanks for spotting King!' })).toBeInTheDocument();
@@ -123,6 +149,7 @@ describe('App', () => {
   it('undoes the entry just logged with this device key and returns home', async () => {
     const api = renderApp();
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Undo' }));
 
@@ -136,6 +163,7 @@ describe('App', () => {
     api.undo.mockRejectedValue(new ApiError(409));
     renderApp(api);
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Undo' }));
 
@@ -144,6 +172,7 @@ describe('App', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
 
     expect(await screen.findByRole('heading', { name: 'Thanks for spotting King!' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -162,7 +191,7 @@ describe('App', () => {
     expect(dry.querySelector('svg')).not.toBeNull();
     expect(wet.querySelector('svg')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
-    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: ['dry'] });
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: ['dry'], sawKing: true });
   });
 
   it('keeps the footer off the feeding and confirmation screens so the flow stays focused', async () => {
@@ -177,6 +206,37 @@ describe('App', () => {
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
   });
 
+  it('keeps the footer off the name, spot and “Where is King?” screens too', async () => {
+    renderApp(fakeApi(), memoryStorage());
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+    expect(nameQuestion()).toBeInTheDocument();
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await screen.findByRole('heading', { name: 'Where is King?' });
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+  });
+
+  it('still logs a feeding, with no spot, when the spots can’t be loaded', async () => {
+    const api = fakeApi();
+    api.listSpots.mockRejectedValue(new ApiError(503));
+    renderApp(api);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    expect(screen.queryByRole('list', { name: 'Spots' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true });
+  });
+
   it('logs one feeding even when Log feeding is double-tapped', async () => {
     const api = fakeApi();
     api.logFeeding.mockReturnValue(new Promise<KingEventView>(() => {}));
@@ -188,12 +248,13 @@ describe('App', () => {
     expect(api.logFeeding).toHaveBeenCalledOnce();
   });
 
-  it('logs one sighting even when I saw King is double-tapped', async () => {
+  it('logs one sighting even when Skip is double-tapped', async () => {
     const api = fakeApi();
     api.logSighting.mockReturnValue(new Promise<KingEventView>(() => {}));
     renderApp(api);
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
 
-    await userEvent.dblClick(await screen.findByRole('button', { name: 'I saw King' }));
+    await userEvent.dblClick(await screen.findByRole('button', { name: 'Skip' }));
 
     expect(api.logSighting).toHaveBeenCalledOnce();
   });
@@ -208,5 +269,303 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(api.getStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('counts a feeding as seeing him unless “I left food out” is ticked, which starts unticked', async () => {
+    const api = renderApp();
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+    const leftOut = screen.getByRole('checkbox', { name: 'I left food out (didn’t see him)' });
+    expect(leftOut).not.toBeChecked();
+
+    await userEvent.click(leftOut);
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: false });
+  });
+});
+
+describe('App — who fed', () => {
+  it('asks a new device what neighbors should call it before the first feeding, then logs with that name', async () => {
+    const storage = memoryStorage();
+    const api = renderApp(fakeApi(), storage);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+    expect(nameQuestion()).toHaveFocus();
+    await userEvent.type(nameBox(), 'Sunny');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('heading', { name: 'What did King eat?' })).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, reporterName: 'Sunny', foods: [], sawKing: true });
+    expect(await screen.findByText(/Logging as Sunny/)).toBeInTheDocument();
+    expect(loadNickname(storage)).toBe('Sunny');
+  });
+
+  it('Skip logs the sighting without a name, says so, and never asks this device again', async () => {
+    const storage = memoryStorage();
+    const api = renderApp(fakeApi(), storage);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    expect(api.logSighting).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await skipWhere();
+
+    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY });
+    expect(await screen.findByText(/Logging as a neighbor/)).toBeInTheDocument();
+    expect(loadNickname(storage)).toBe('');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    expect(nameQuestion()).not.toBeInTheDocument();
+    await skipWhere();
+    expect(api.logSighting).toHaveBeenCalledTimes(2);
+  });
+
+  it('saving an empty name is the same as skipping', async () => {
+    const api = renderApp(fakeApi(), memoryStorage());
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await userEvent.type(nameBox(), '   ');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await skipWhere();
+
+    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY });
+  });
+
+  it('uses the name remembered from an earlier visit without asking', async () => {
+    const api = renderApp(fakeApi(), deviceNamed('Sunny'));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+
+    expect(nameQuestion()).not.toBeInTheDocument();
+    await skipWhere();
+    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, reporterName: 'Sunny' });
+  });
+
+  it('“change” on the confirmation renames later entries and comes back to the confirmation', async () => {
+    const storage = deviceNamed('Sunny');
+    const api = renderApp(fakeApi(), storage);
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'change' }));
+    expect(nameBox()).toHaveValue('Sunny');
+    await userEvent.clear(nameBox());
+    await userEvent.type(nameBox(), 'Captain Whiskers');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByRole('heading', { name: 'Thanks for spotting King!' })).toHaveFocus();
+    expect(screen.getByText(/Logging as Captain Whiskers/)).toBeInTheDocument();
+    expect(loadNickname(storage)).toBe('Captain Whiskers');
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
+    expect(api.logSighting).toHaveBeenLastCalledWith({ reporterKey: KEY, reporterName: 'Captain Whiskers' });
+  });
+
+  it('keeps names within the 40 characters the server accepts', async () => {
+    renderApp(fakeApi(), memoryStorage());
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+
+    expect(nameBox()).toHaveAttribute('maxLength', '40');
+  });
+});
+
+describe('App — where he was seen', () => {
+  const near = { latitude: 45.523456, longitude: -122.676543 };
+
+  const renderSeen = (world: Parameters<typeof fakeApi>[1], geolocation = fakeGeolocation(near)) => {
+    const api = fakeApi(emptyStatus, world);
+    renderInEnglish(
+      <App api={api} reporterKey={KEY} storage={deviceNamed('')} geolocation={geolocation} now={() => NOW} />,
+    );
+    return api;
+  };
+
+  const startSighting = async () => {
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    expect(screen.getByRole('heading', { name: 'Where is King?' })).toHaveFocus();
+  };
+
+  it('Skip logs the sighting with no place', async () => {
+    const api = renderSeen({ map: CENTER });
+    await startSighting();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+
+    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY });
+    expect(await screen.findByRole('heading', { name: 'Thanks for spotting King!' })).toBeInTheDocument();
+  });
+
+  it('“I’m near him now” logs where this device is', async () => {
+    const api = renderSeen({ map: CENTER });
+    await startSighting();
+
+    await userEvent.click(screen.getByRole('button', { name: 'I’m near him now' }));
+
+    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, location: near });
+  });
+
+  it('says so when the location is refused, and still offers the map and Skip', async () => {
+    const api = renderSeen({ map: CENTER }, fakeGeolocation('denied'));
+    await startSighting();
+
+    await userEvent.click(screen.getByRole('button', { name: 'I’m near him now' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t get your location');
+    expect(api.logSighting).not.toHaveBeenCalled();
+    expect(screen.getByRole('region', { name: 'Map: tap where you saw King' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
+  });
+
+  it('logs a place picked on the map only once “Log sighting here” is pressed', async () => {
+    const api = renderSeen({ map: CENTER });
+    await startSighting();
+    expect(screen.queryByRole('button', { name: 'Log sighting here' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use map center' }));
+    expect(api.logSighting).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Log sighting here' }));
+
+    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, location: CENTER });
+  });
+
+  it('offers only “I’m near him now” and Skip when the site has no map', async () => {
+    renderSeen({ map: null });
+    await startSighting();
+
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'I’m near him now' })).toBeInTheDocument();
+  });
+
+  it('can go back home without logging', async () => {
+    const api = renderSeen({ map: CENTER });
+    await startSighting();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(await screen.findByRole('button', { name: 'I saw King' })).toBeInTheDocument();
+    expect(api.logSighting).not.toHaveBeenCalled();
+  });
+});
+
+describe('App — feeding spots', () => {
+  const spots = [spot('corner', 'Corner'), spot('steps', 'Blue house steps')];
+
+  const renderFeed = async (storage = deviceNamed(''), geolocation = fakeGeolocation({ latitude: 45.52, longitude: -122.68 })) => {
+    const api = fakeApi(emptyStatus, { map: CENTER, spots });
+    renderInEnglish(<App api={api} reporterKey={KEY} storage={storage} geolocation={geolocation} now={() => NOW} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+    return api;
+  };
+
+  it('logs with no spot until one is picked', async () => {
+    const api = await renderFeed();
+
+    expect(screen.getByText(/Where\?/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true });
+  });
+
+  it('lists the spots by name, and picking one returns to the feeding with it', async () => {
+    const api = await renderFeed();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    expect(screen.getByRole('heading', { name: 'Where did you feed him?' })).toHaveFocus();
+    const names = within(screen.getByRole('list', { name: 'Spots' })).getAllByRole('button').map((b) => b.textContent);
+    expect(names).toEqual(['Blue house steps', 'Corner']);
+    await userEvent.click(screen.getByRole('button', { name: 'Corner' }));
+
+    expect(screen.getByRole('heading', { name: 'What did King eat?' })).toHaveFocus();
+    expect(screen.getByText(/At Corner/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true, spotId: 'corner' });
+  });
+
+  it('picks the last spot used on this device next time', async () => {
+    const storage = deviceNamed('');
+    const first = await renderFeed(storage);
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Corner' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+    expect(first.logFeeding).toHaveBeenCalled();
+    cleanup();
+
+    const second = await renderFeed(storage);
+
+    expect(screen.getByText(/At Corner/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+    expect(second.logFeeding).toHaveBeenCalledWith(expect.objectContaining({ spotId: 'corner' }));
+  });
+
+  it('“No spot” clears the picked spot', async () => {
+    const api = await renderFeed();
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Corner' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'change' }));
+    await userEvent.click(screen.getByRole('button', { name: 'No spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true });
+  });
+
+  it('adds somewhere new with a name and a place on the map, then feeds there', async () => {
+    const api = await renderFeed();
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Garden gate');
+    await userEvent.click(screen.getByRole('button', { name: 'Use map center' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
+
+    expect(api.addSpot).toHaveBeenCalledWith({ reporterKey: KEY, name: 'Garden gate', location: CENTER });
+    expect(await screen.findByText(/At Garden gate/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+    expect(api.logFeeding).toHaveBeenCalledWith(expect.objectContaining({ spotId: 'new-spot' }));
+  });
+
+  it('can place somewhere new where the device is', async () => {
+    const api = await renderFeed(deviceNamed(''), fakeGeolocation({ latitude: 45.52, longitude: -122.68 }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Porch');
+    await userEvent.click(screen.getByRole('button', { name: 'Use where I am' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
+
+    expect(api.addSpot).toHaveBeenCalledWith({ reporterKey: KEY, name: 'Porch', location: { latitude: 45.52, longitude: -122.68 } });
+  });
+
+  it('asks for both a name and a place before saving somewhere new', async () => {
+    const api = await renderFeed();
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Porch');
+    await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Give the spot a name and pick its place.');
+    expect(api.addSpot).not.toHaveBeenCalled();
+  });
+
+  it('keeps spot names within the 40 characters the server accepts', async () => {
+    await renderFeed();
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+
+    expect(screen.getByRole('textbox', { name: 'Name this spot' })).toHaveAttribute('maxLength', '40');
+  });
+
+  it('Back returns to the feeding without changing the spot', async () => {
+    await renderFeed();
+    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(screen.getByRole('heading', { name: 'What did King eat?' })).toHaveFocus();
+    expect(screen.getByText(/Where\?/)).toBeInTheDocument();
   });
 });

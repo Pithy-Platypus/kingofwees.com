@@ -2,7 +2,7 @@
 
 **Status key:** ✅ done · 🔄 in progress · ⏳ pending · ⏸️ waiting on a decision
 
-**Now:** Phase 2a done and committed (`d3b29cb`). Next: Phase 2b step 1 (optional nickname + "fed means seen"). Last updated 2026-10-08.
+**Now:** Phase 2b done and committed on branch `phase-2b` (reviewed in Wallie's manual test; fixes folded in). Next: Slice 3 (heat map + history page). Last updated 2026-10-08. Last updated 2026-10-08.
 
 ---
 
@@ -38,20 +38,22 @@
 
 **Stop for review** after 2a.
 
-### Phase 2b — who fed, location, feeding spots, map ⏳
+### Phase 2b — who fed, location, feeding spots, map ✅
 
 | # | Step | Status |
 |---|---|---|
-| 1 | **Optional nickname ("who fed / who saw")**: asked once per device on the first log ("What should neighbors call you? A first name or nickname" + big Skip), remembered in the browser, sent as `reporterName` (server already validates ≤ 40); "Logging as Sarah · change" on the confirmation screen; Lately shows "Fed by Sarah". **Privacy page must change** ("We don't ask for your name" → names are optional, shown publicly, use a first name or nickname; parents: suggest a nickname for kids). Tests incl. Skip path, change path, privacy promise, axe. **Fed means seen (option C):** a feeding counts as a sighting unless the feeder ticks "I left food out (didn't see him)" (off by default) — new `sawKing` flag on feedings (missing → true for old data). Status `lastSeen` = newest sighting **or** seen-feeding. Home chips: if the latest sighting *is* the feeding → one chip "Fed & seen {when}"; if a sighting is newer → "Fed {when}" · "Seen {when}"; left-food-out feedings never move "Seen". Tests: store contract, API status rules, chip rules, toggle default, perturbation. | ⏳ |
-| 2 | Location privacy rule: round to 3 decimals (~a block) on client **and** server before storing; rule in `CLAUDE.md` files, why in `docs/patterns/location-privacy.md` | ⏳ |
-| 3 | Feeding spots: `spots` collection, `GET/POST /api/king/spots`, anyone can add while logging; feeding `spotId` validated with `MustAsync` | ⏳ |
-| 4 | Sightings: optional rounded `location`; status returns it and the feeding's spot name | ⏳ |
-| 5 | Map config `GET /api/king/map` from `King:Map:Center` (user-secrets/env, **not** in the public repo) | ⏳ |
-| 6 | UI: Fed → foods → spot (last used preselected) or "Somewhere new"; Seen → "I'm near him now" / tap map / Skip; home mini-map; keyboard "Use map center" | ⏳ |
-| 7 | Privacy page: map tiles load from OpenStreetMap (they see your IP) | ⏳ |
-| 8 | Tests: rounding, validators, spot store contract, API, Vitest with fake geolocation, Playwright geolocation + axe | ⏳ |
+| 1 | **Optional nickname ("who fed / who saw")**: asked once per device on the first log ("What should neighbors call you? A first name or nickname" + big Skip), remembered in the browser, sent as `reporterName` (server already validates ≤ 40); "Logging as Sarah · change" on the confirmation screen; Lately shows "Fed by Sarah". **Privacy page must change** ("We don't ask for your name" → names are optional, shown publicly, use a first name or nickname; parents: suggest a nickname for kids). Tests incl. Skip path, change path, privacy promise, axe. **Fed means seen (option C):** a feeding counts as a sighting unless the feeder ticks "I left food out (didn't see him)" (off by default) — new `sawKing` flag on feedings (missing → true for old data). Status `lastSeen` = newest sighting **or** seen-feeding. Home chips: if the latest sighting *is* the feeding → one chip "Fed & seen {when}"; if a sighting is newer → "Fed {when}" · "Seen {when}"; left-food-out feedings never move "Seen". Tests: store contract, API status rules, chip rules, toggle default, perturbation. Also: the E2E project was never committed (`.gitignore` `*.e2e` matched it case-insensitively) — now un-ignored; axe scans wait for transitions to settle (a mid-fade button failed contrast); stale tagline test/catalog fixed to the source's "neighborhood". | ✅ |
+| 2 | Location privacy rule: round to 3 decimals (~a block) on client **and** server before storing; rule in `CLAUDE.md` files, why in `docs/patterns/location-privacy.md`. Server: `GeoPoint` rounds in its constructor (so binding, reads and config all round); client: `roundToBlock`; both half away from zero | ✅ |
+| 3 | Feeding spots: `spots` collection, `GET/POST /api/king/spots`, anyone can add while logging; feeding `spotId` validated with `MustAsync`. `GeoPoint` coordinates are `[JsonRequired]` (a missing one would read as 0,0) | ✅ |
+| 4 | Sightings: optional rounded `location`; status returns it and the feeding's spot name (a feeding's `location` is its spot's) | ✅ |
+| 5 | Map config `GET /api/king/map` from `King:Map:Center` (user-secrets/env, **not** in the public repo). Server user-secrets (verified the Aspire-run server reads them); 404 when unset | ✅ |
+| 6 | UI: Fed → foods → spot (last used preselected) or "Somewhere new"; Seen → "I'm near him now" / tap map / Skip; home mini-map; keyboard "Use map center". Spot shown on the feed screen as "At {spot} · change" (last used preselected per device); Leaflet controls translated. Fixed from Wallie's manual test: the home map now fits all its markers (a sighting a few hundred meters from the feeding spot was drawn off-screen); API tests ignore the developer's user-secrets. Added at Wallie's request: Lately says "near {spot}" for a sighting within 150 m (about a block) of a saved spot; home order is status → buttons → map → Lately; the map has a "Last fed & seen" heading and a worded key ("● Fed 1 hour ago · at Porch"), so markers never rely on color alone (WCAG 1.4.1) | ✅ |
+| 7 | Privacy page: map tiles load from OpenStreetMap (they see your IP), linked policy; also: places rounded in the browser and asked for only on a tap; feeding spots are public | ✅ |
+| 8 | Tests: rounding, validators, spot store contract, API, Vitest with fake geolocation, Playwright geolocation + axe — written test-first inside steps 1–7 (e2e stubs OSM tiles, injects a made-up map center, proves the browser sends only rounded coordinates) | ✅ |
 
 New dependency: **Leaflet** (+ `@types/leaflet`), used directly — no `react-leaflet`.
+
+StrykerJS (phase end): scope narrowed to logic files (588 → 201 mutants, ~37 → ~10 min). 84% detected across those files, 0 timeouts outside `App.tsx`; 4 real gaps closed (footer on new screens, map URL, geolocation timeout, spots-load failure), the other survivors equivalent (translator descriptions, dependency arrays, the single-locale browser match, optional chaining inside `try`).
 
 **Stop for review** after 2b.
 
@@ -85,10 +87,15 @@ New dependency: **Leaflet** (+ `@types/leaflet`), used directly — no `react-le
 | 2026-10-08 | "Who fed": optional nickname asked once per device, shown publicly; first step of Phase 2b. |
 | 2026-10-08 | Contact email: Wallie supplies it later; the site keeps the placeholder until then. |
 | 2026-10-08 | Fed means seen unless "I left food out" is ticked (option C); one "Fed & seen" chip when they're the same entry. Part of Phase 2b step 1. |
+| 2026-10-08 | Location: rounded in `kingApi` (every coordinate leaves the browser there) and by `GeoPoint` on the server. Spot on the feed screen as "At {spot} · change", last used preselected per device. "I saw King" → "Where is King?" (GPS / map tap + "Log sighting here" / "Use map center" / Skip). Map center from the server's user-secrets; no map when unset. Leaflet 1.9.4 direct, circle markers, OSM tiles. |
+| 2026-10-08 | StrykerJS mutates logic files only (`stryker.config.json` → `mutate`): screens and pages produced mostly equivalent mutants at ~3× the run time. Tried `@stryker-mutator/vitest-runner` 10.0.0 and reverted: it ran in 3m42s but never activated mutants under Vitest 5 (`time.ts` 9% vs 100%, same with coverage analysis off) — it was built against Vitest 4.1.10, before Vitest 5 shipped, despite its "vitest ≥ 2" peer range. Retry when a runner release lists Vitest 5 support; check that `time.ts` still scores 100% before trusting it. |
+| 2026-10-08 | Name question appears when a never-asked device first taps "I fed" / "I saw", before logging. Skip (or an empty Save) is remembered as "no name" and shows "Logging as a neighbor · change". "change" renames *later* entries only — the entry just logged keeps its name (Undo and re-log to fix it). |
 
 ## Open items for Wallie
 
 - **Contact email address** — Wallie will supply it later; until then the site shows `replace-me@example.invalid` (one constant in `source/frontend/src/site.ts`). Swap it in when provided — the page tests read the constant, so no test changes.
+- **Map center** — set it once per machine (`source/README.md` → "Map center"); until then the app runs without maps. Hosting needs `King__Map__Center__Latitude/Longitude` (`infra/README.md`).
+- **Known gaps, not fixed in 2b** — (1) the catalog test checks message *ids*, not text, so an edited `defaultMessage` without `bun run i18n` still passes (that's how the stale tagline slipped through 2a); (2) a failed log, sighting or "Save spot" request isn't shown to the person (pre-existing for logs; spots inherit it).
 - **Commit author email** — commits use `jamie@pithyplatypus.com`; switch to a GitHub noreply address before the first push if it shouldn't be public.
 
 ---
@@ -98,13 +105,11 @@ New dependency: **Leaflet** (+ `@types/leaflet`), used directly — no `react-le
 Paste this to start the next session:
 
 ```text
-Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md and source/README.md. Slice 1 and Phase 2a are done and committed.
+Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md, source/frontend/CLAUDE.md and source/README.md. Slice 1, Phase 2a and Phase 2b are done; 2b is committed on branch `phase-2b` (check whether Wallie has merged it into main).
 
-Next: Slice 2, Phase 2b, starting with step 1 — the optional nickname ("who fed / who saw"). Ask once per device on the first log ("What should neighbors call you? A first name or nickname" with a big Skip), remember it in the browser, send it as reporterName (the server already validates ≤ 40 chars), show "Logging as {name} · change" on the confirmation screen, and update the Privacy page: it currently promises "We don't ask for your name" — replace that with: names are optional and shown publicly, use a first name or nickname, and a parents' note suggesting nicknames for kids. Cover the Skip path, the change path, the privacy promise and axe. Also in step 1, "fed means seen" (option C): a feeding counts as a sighting unless the feeder ticks "I left food out (didn't see him)" (off by default) — add a sawKing flag to feedings (missing → true for old documents); status lastSeen = newest sighting or seen-feeding; home shows one "Fed & seen {when}" chip when the latest sighting is that feeding, otherwise "Fed {when}" · "Seen {when}"; left-food-out feedings never move "Seen". See PLAN.md step 1 for the test list.
+Next: Slice 3 — heat map + history page from the 2b data (feeding spots, sighting locations). Plan it in PLAN.md with Wallie before building. Contrast with the home map, which shows only "Last fed & seen". Remember the "Seen means SawKing" rule (server CLAUDE.md) when querying sightings, and that every coordinate is already rounded.
 
-Then steps 2–8 in order: the location privacy rule (round coordinates to 3 decimals on the client before sending AND on the server before storing; rule in source/KingOfWees.Server/CLAUDE.md and a new source/frontend/CLAUDE.md, the why in docs/patterns/location-privacy.md), feeding spots (anyone adds while logging; spotId validated with MustAsync), sighting location, map config from King:Map:Center via user-secrets — never in the public repo, Leaflet UI flows, the Privacy page OpenStreetMap tile disclosure, and tests. Leaflet (+ @types/leaflet) is the one approved new dependency; use it directly, no react-leaflet. Stop for review after 2b.
+Open items: the contact email is still a placeholder (replace-me@example.invalid in source/frontend/src/site.ts) — swap it in when Wallie gives it. The map center needs setting in the server's user-secrets (source/README.md). Known gaps are listed under "Open items for Wallie" in PLAN.md.
 
-The contact email is still a placeholder (replace-me@example.invalid in source/frontend/src/site.ts); Wallie will supply it later — swap it in when given.
-
-Working method: test-first (red on an assertion → green → perturb the code to prove the test can fail → refactor); FluentValidation for every request type; minimal APIs only; semantic CSS classes, no inline styles; all text via react-intl, then `bun run i18n`. Each step lands warning-free: `(cd source && dotnet clean && dotnet build)`, `dotnet test`, `cd source/frontend && bun run lint && bun run test && bun run build`. Run StrykerJS alone at phase end (`bun run mutate`, incremental; the last full run took ~20 min). Update PLAN.md status as each step starts and finishes, and refresh this handoff prompt at every stop. Wallie drives commits.
+Working method: test-first (red on an assertion → green → perturb the code to prove the test can fail → refactor); FluentValidation for every request type; minimal APIs only; semantic CSS classes, no inline styles; all text via react-intl, then `bun run i18n`. Each step lands warning-free: `(cd source && dotnet clean && dotnet build)`, `dotnet test`, `cd source/frontend && bun run lint && bun run test && bun run build`. Run StrykerJS alone at phase end (`bun run mutate`, incremental). Update PLAN.md status as each step starts and finishes, and refresh this handoff prompt at every stop. Wallie drives commits.
 ```

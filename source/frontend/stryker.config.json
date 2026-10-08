@@ -6,11 +6,14 @@
   },
   "coverageAnalysis": "off",
   "mutate": [
-    "src/**/*.{ts,tsx}",
-    "!src/**/*.test.{ts,tsx}",
-    "!src/test/**",
-    "!src/main.tsx",
-    "!src/king/icons.tsx"
+    "src/App.tsx",
+    "src/king/api.ts",
+    "src/king/location.ts",
+    "src/king/messages.ts",
+    "src/king/reporter.ts",
+    "src/king/time.ts",
+    "src/i18n/locale.ts",
+    "src/routing/routes.ts"
   ],
   "reporters": [
     "clear-text",

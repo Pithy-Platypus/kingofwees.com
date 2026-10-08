@@ -1,6 +1,9 @@
+import { useMemo } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
-import type { KingEventView, KingStatus } from './api';
+import type { KingEventView, KingStatus, SpotView } from './api';
 import { BowlIcon, CrownIcon, EyeIcon } from './icons';
+import { nearestSpot, type GeoPoint } from './location';
+import { MapView, type MapMarker } from './MapView';
 import { common, foodMessage, formatWhen } from './messages';
 import { kingMood } from './time';
 
@@ -12,7 +15,9 @@ type Values = {
   contentDetail: NoMessageValues;
   hungry: NoMessageValues;
   hungryDetail: NoMessageValues;
+  statusChips: NoMessageValues;
   fedAgo: { when: string };
+  fedAndSeenAgo: { when: string };
   notFed: NoMessageValues;
   seenAgo: { when: string };
   notSeen: NoMessageValues;
@@ -22,7 +27,10 @@ type Values = {
   nothingYet: NoMessageValues;
   fedBy: { name: string };
   seenBy: { name: string };
-  aNeighbor: NoMessageValues;
+  atSpot: { spot: string };
+  nearSpot: { spot: string };
+  mapTitle: NoMessageValues;
+  mapKey: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -37,7 +45,13 @@ const m = defineMessages<Values>({
   contentDetail: { id: 'home.mood.contentDetail', defaultMessage: 'His Majesty is satisfied.', description: 'Playful royal line under the content heading' },
   hungry: { id: 'home.mood.hungry', defaultMessage: 'King is hungry', description: 'Heading when King has not been fed for over 12 hours' },
   hungryDetail: { id: 'home.mood.hungryDetail', defaultMessage: 'His Majesty awaits a feast.', description: 'Playful royal line under the hungry heading' },
+  statusChips: { id: 'home.statusChips', defaultMessage: 'King’s status', description: 'Accessible name for the fed/seen chips' },
   fedAgo: { id: 'home.fedAgo', defaultMessage: 'Fed {when}', description: 'Chip; {when} is e.g. “2 hours ago” or “just now”' },
+  fedAndSeenAgo: {
+    id: 'home.fedAndSeenAgo',
+    defaultMessage: 'Fed & seen {when}',
+    description: 'Single chip when the last feeding is also the last time King was seen; {when} is e.g. “2 hours ago”',
+  },
   notFed: { id: 'home.notFed', defaultMessage: 'Not fed yet', description: 'Chip when no feeding has been logged' },
   seenAgo: { id: 'home.seenAgo', defaultMessage: 'Seen {when}', description: 'Chip; {when} is e.g. “25 minutes ago”' },
   notSeen: { id: 'home.notSeen', defaultMessage: 'Not seen yet', description: 'Chip when no sighting has been logged' },
@@ -47,15 +61,66 @@ const m = defineMessages<Values>({
   nothingYet: { id: 'home.nothingYet', defaultMessage: 'Nothing logged yet. Be the first!', description: 'Shown when the activity list is empty' },
   fedBy: { id: 'home.fedBy', defaultMessage: 'Fed by {name}', description: 'Activity item; {name} is who fed King' },
   seenBy: { id: 'home.seenBy', defaultMessage: 'Seen by {name}', description: 'Activity item; {name} is who saw King' },
-  aNeighbor: { id: 'home.aNeighbor', defaultMessage: 'a neighbor', description: 'Used as {name} when the reporter gave no name' },
+  atSpot: { id: 'home.atSpot', defaultMessage: 'at {spot}', description: 'Activity detail; {spot} is the feeding spot’s name' },
+  nearSpot: {
+    id: 'home.nearSpot',
+    defaultMessage: 'near {spot}',
+    description: 'Activity detail for a sighting within about a block of a saved feeding spot; {spot} is its name',
+  },
+  mapTitle: {
+    id: 'home.mapTitle',
+    defaultMessage: 'Last fed & seen',
+    description: 'Heading over the small home map, which shows only the latest feeding and sighting',
+  },
+  mapKey: { id: 'home.mapKey', defaultMessage: 'Map key', description: 'Accessible name of the list explaining the map’s markers' },
 });
 
-type Props = { status: KingStatus; now: Date; busy?: boolean; onFed: () => void; onSeen: () => void };
+type Props = {
+  status: KingStatus;
+  spots?: SpotView[];
+  mapCenter?: GeoPoint | null;
+  now: Date;
+  busy?: boolean;
+  onFed: () => void;
+  onSeen: () => void;
+};
 
-export function HomeScreen({ status, now, busy = false, onFed, onSeen }: Props) {
+type Placed = { marker: MapMarker; event: KingEventView; fedAndSeen: boolean };
+
+// The last feeding's spot, and the last sighting when it is a different entry. Feeds both the markers and their key.
+function placedFor({ lastFed, lastSeen }: KingStatus): Placed[] {
+  const placed: Placed[] = [];
+  const same = lastFed !== null && lastSeen?.id === lastFed.id;
+  if (lastFed?.location) placed.push({ marker: { point: lastFed.location, kind: 'fed' }, event: lastFed, fedAndSeen: same });
+  if (lastSeen?.location && !same) placed.push({ marker: { point: lastSeen.location, kind: 'seen' }, event: lastSeen, fedAndSeen: false });
+  return placed;
+}
+
+export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = false, onFed, onSeen }: Props) {
   const intl = useIntl();
   const hungry = kingMood(status.lastFed && new Date(status.lastFed.occurredAt), now) === 'hungry';
   const when = (e: KingEventView) => formatWhen(intl, new Date(e.occurredAt), now);
+  // The server's lastSeen can be the feeding itself (a feeder sees him); then one chip says both.
+  const fedAndSeen = status.lastFed !== null && status.lastSeen?.id === status.lastFed.id;
+  const fedChipClass = `status-chip ${hungry ? 'badge-error' : 'badge-success'}`;
+  const placed = useMemo(() => placedFor(status), [status]);
+  const markers = useMemo(() => placed.map((p) => p.marker), [placed]);
+  // A feeding names its own spot; a sighting borrows the name of a spot within about a block, if any.
+  const placeOf = (e: KingEventView) => {
+    if (e.spotName) return intl.formatMessage(m.atSpot, { spot: e.spotName });
+    const near = e.kind === 'seen' && e.location ? nearestSpot(e.location, spots) : null;
+    return near ? intl.formatMessage(m.nearSpot, { spot: near.name }) : null;
+  };
+  // "Wet food and Treats · at Corner": whichever parts the entry has.
+  const detailOf = (e: KingEventView) =>
+    [e.foods.length > 0 && intl.formatList(e.foods.map((f) => intl.formatMessage(foodMessage(f)))), placeOf(e)]
+      .filter(Boolean)
+      .join(' · ');
+  // Words for each marker, so the map never relies on color alone (WCAG 1.4.1).
+  const keyOf = ({ event, marker, fedAndSeen }: Placed) => {
+    const message = fedAndSeen ? m.fedAndSeenAgo : marker.kind === 'fed' ? m.fedAgo : m.seenAgo;
+    return [intl.formatMessage(message, { when: when(event) }), placeOf(event)].filter(Boolean).join(' · ');
+  };
 
   return (
     <main className="app-screen">
@@ -81,21 +146,29 @@ export function HomeScreen({ status, now, busy = false, onFed, onSeen }: Props) 
           <p className="mood-subtitle">
             <FormattedMessage {...(hungry ? m.hungryDetail : m.contentDetail)} />
           </p>
-          <ul className="status-chips">
-            <li className={`status-chip ${hungry ? 'badge-error' : 'badge-success'}`}>
-              {status.lastFed ? (
-                <FormattedMessage {...m.fedAgo} values={{ when: when(status.lastFed) }} />
-              ) : (
-                <FormattedMessage {...m.notFed} />
-              )}
-            </li>
-            <li className="status-chip badge-neutral">
-              {status.lastSeen ? (
-                <FormattedMessage {...m.seenAgo} values={{ when: when(status.lastSeen) }} />
-              ) : (
-                <FormattedMessage {...m.notSeen} />
-              )}
-            </li>
+          <ul className="status-chips" aria-label={intl.formatMessage(m.statusChips)}>
+            {fedAndSeen ? (
+              <li className={fedChipClass}>
+                <FormattedMessage {...m.fedAndSeenAgo} values={{ when: when(status.lastFed!) }} />
+              </li>
+            ) : (
+              <>
+                <li className={fedChipClass}>
+                  {status.lastFed ? (
+                    <FormattedMessage {...m.fedAgo} values={{ when: when(status.lastFed) }} />
+                  ) : (
+                    <FormattedMessage {...m.notFed} />
+                  )}
+                </li>
+                <li className="status-chip badge-neutral">
+                  {status.lastSeen ? (
+                    <FormattedMessage {...m.seenAgo} values={{ when: when(status.lastSeen) }} />
+                  ) : (
+                    <FormattedMessage {...m.notSeen} />
+                  )}
+                </li>
+              </>
+            )}
           </ul>
         </div>
       </section>
@@ -111,6 +184,23 @@ export function HomeScreen({ status, now, busy = false, onFed, onSeen }: Props) 
         </button>
       </div>
 
+      {mapCenter && markers.length > 0 && (
+        <div className="home-map-section">
+          <h2 className="section-title">
+            <FormattedMessage {...m.mapTitle} />
+          </h2>
+          <MapView center={markers[0].point} label={intl.formatMessage(m.mapTitle)} markers={markers} fit className="home-map" />
+          <ul className="map-key" aria-label={intl.formatMessage(m.mapKey)}>
+            {placed.map((p) => (
+              <li key={p.marker.kind} className="map-key-item">
+                <span aria-hidden className={`legend-dot legend-dot-${p.marker.kind}`} />
+                {keyOf(p)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <section aria-labelledby="lately-heading">
         <h2 id="lately-heading" className="section-title">
           <FormattedMessage {...m.lately} />
@@ -122,7 +212,7 @@ export function HomeScreen({ status, now, busy = false, onFed, onSeen }: Props) 
         ) : (
           <ul className="activity-list" aria-labelledby="lately-heading">
             {status.recent.map((e) => {
-              const name = e.reporterName ?? intl.formatMessage(m.aNeighbor);
+              const name = e.reporterName ?? intl.formatMessage(common.aNeighbor);
               return (
                 <li key={e.id} className="activity-item">
                   <span className={`activity-icon ${e.kind === 'fed' ? 'bg-secondary text-secondary-content' : 'bg-primary text-primary-content'}`}>
@@ -136,11 +226,7 @@ export function HomeScreen({ status, now, busy = false, onFed, onSeen }: Props) 
                         <FormattedMessage {...m.seenBy} values={{ name }} />
                       )}
                     </strong>
-                    {e.foods.length > 0 && (
-                      <span className="activity-detail">
-                        {intl.formatList(e.foods.map((f) => intl.formatMessage(foodMessage(f))))}
-                      </span>
-                    )}
+                    {detailOf(e) && <span className="activity-detail">{detailOf(e)}</span>}
                   </span>
                   <span className="activity-time">{when(e)}</span>
                 </li>

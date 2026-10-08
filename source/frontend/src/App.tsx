@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { Footer } from './Footer';
-import { kingApi, type Food, type KingEventView, type KingStatus } from './king/api';
+import { kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
 import { FeedScreen } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
 import { LoggedScreen } from './king/LoggedScreen';
+import { NicknameScreen } from './king/NicknameScreen';
+import type { GeoPoint, Geolocator } from './king/location';
+import { loadLastSpotId, loadNickname, saveLastSpotId, saveNickname, type KeyValueStorage } from './king/reporter';
+import { SeenScreen } from './king/SeenScreen';
+import { SpotScreen } from './king/SpotScreen';
 import { AboutPage } from './pages/AboutPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { useRoute, type Route } from './routing/routes';
@@ -30,15 +35,33 @@ const titleOf = (route: Route) => titles[route];
 
 const REFRESH_TIMES_EVERY_MS = 30_000;
 
-type Screen = { name: 'home' } | { name: 'feed' } | { name: 'logged'; event: KingEventView };
-type Props = { api?: typeof kingApi; reporterKey: string; now?: () => Date };
+type Logged = { name: 'logged'; event: KingEventView };
+// The name question comes first on a device that was never asked, or from "change"; `then` is where it leads.
+type Screen =
+  | { name: 'home' }
+  | { name: 'feed' }
+  | { name: 'spots' }
+  | { name: 'seen' }
+  | Logged
+  | { name: 'nickname'; then: 'feed' | 'seen' | Logged };
+type Props = {
+  api?: typeof kingApi;
+  reporterKey: string;
+  storage?: KeyValueStorage;
+  geolocation?: Geolocator;
+  now?: () => Date;
+};
 
-function App({ api = kingApi, reporterKey, now = () => new Date() }: Props) {
+function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new Date() }: Props) {
   const [status, setStatus] = useState<KingStatus | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [undoFailed, setUndoFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [nickname, setNickname] = useState(() => loadNickname(storage));
+  const [mapCenter, setMapCenter] = useState<GeoPoint | null>(null);
+  const [spots, setSpots] = useState<SpotView[]>([]);
+  const [spotId, setSpotId] = useState(() => loadLastSpotId(storage));
   const [, setTick] = useState(0);
   const route = useRoute();
   const intl = useIntl();
@@ -59,6 +82,12 @@ function App({ api = kingApi, reporterKey, now = () => new Date() }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Maps and spots are extras: if they fail to load, logging still works without them.
+  useEffect(() => {
+    api.getMap().then(setMapCenter, () => setMapCenter(null));
+    api.listSpots().then(setSpots, () => setSpots([]));
+  }, [api]);
 
   // Re-render so "5 minutes ago" keeps moving while the page is open.
   useEffect(() => {
@@ -84,11 +113,47 @@ function App({ api = kingApi, reporterKey, now = () => new Date() }: Props) {
 
   const goHome = () => run(showFreshHome);
 
-  const logFeeding = (foods: Food[]) =>
-    run(async () => setScreen({ name: 'logged', event: await api.logFeeding({ reporterKey, foods }) }));
+  // Skipped (or never given) names are left out, so the entry reads "a neighbor".
+  const reporter = (name: string | null) => ({ reporterKey, ...(name ? { reporterName: name } : {}) });
 
-  const logSighting = () =>
-    run(async () => setScreen({ name: 'logged', event: await api.logSighting({ reporterKey }) }));
+  // A remembered spot that no longer exists (or hasn't loaded) is simply not offered.
+  const spot = spots.find((s) => s.id === spotId) ?? null;
+
+  const logFeeding = (foods: Food[], sawKing: boolean) =>
+    run(async () => {
+      const event = await api.logFeeding({ ...reporter(nickname), foods, sawKing, ...(spot ? { spotId: spot.id } : {}) });
+      saveLastSpotId(storage, spot?.id ?? null);
+      setScreen({ name: 'logged', event });
+    });
+
+  const logSighting = (location?: GeoPoint) =>
+    run(async () =>
+      setScreen({ name: 'logged', event: await api.logSighting({ ...reporter(nickname), ...(location ? { location } : {}) }) }),
+    );
+
+  const chooseSpot = (id: string | null) => {
+    setSpotId(id);
+    setScreen({ name: 'feed' });
+  };
+
+  const addSpot = (name: string, location: GeoPoint) =>
+    run(async () => {
+      const added = await api.addSpot({ reporterKey, name, location });
+      setSpots((current) => [...current, added]);
+      chooseSpot(added.id);
+    });
+
+  const startFeeding = () => setScreen(nickname === null ? { name: 'nickname', then: 'feed' } : { name: 'feed' });
+
+  const startSighting = () => setScreen(nickname === null ? { name: 'nickname', then: 'seen' } : { name: 'seen' });
+
+  const nameChosen = (name: string, then: 'feed' | 'seen' | Logged) => {
+    saveNickname(storage, name);
+    setNickname(name);
+    if (then === 'feed') setScreen({ name: 'feed' });
+    else if (then === 'seen') setScreen({ name: 'seen' });
+    else setScreen(then);
+  };
 
   const undo = (event: KingEventView) =>
     run(async () => {
@@ -107,13 +172,51 @@ function App({ api = kingApi, reporterKey, now = () => new Date() }: Props) {
     content = <AboutPage />;
   } else if (route === 'privacy') {
     content = <PrivacyPage />;
+  } else if (screen.name === 'nickname') {
+    const then = screen.then;
+    content = <NicknameScreen initialName={nickname ?? ''} onDone={(name) => nameChosen(name, then)} />;
+    withFooter = false;
   } else if (screen.name === 'feed') {
-    content = <FeedScreen busy={busy} onLog={logFeeding} onBack={goHome} />;
+    content = (
+      <FeedScreen
+        busy={busy}
+        spotName={spot?.name ?? null}
+        onLog={logFeeding}
+        onChangeSpot={() => setScreen({ name: 'spots' })}
+        onBack={goHome}
+      />
+    );
+    withFooter = false;
+  } else if (screen.name === 'spots') {
+    content = (
+      <SpotScreen
+        spots={spots}
+        mapCenter={mapCenter}
+        geolocation={geolocation}
+        busy={busy}
+        onChoose={chooseSpot}
+        onAdd={addSpot}
+        onBack={() => setScreen({ name: 'feed' })}
+      />
+    );
+    withFooter = false;
+  } else if (screen.name === 'seen') {
+    content = (
+      <SeenScreen mapCenter={mapCenter} geolocation={geolocation} busy={busy} onLog={logSighting} onBack={goHome} />
+    );
     withFooter = false;
   } else if (screen.name === 'logged') {
     const event = screen.event;
     content = (
-      <LoggedScreen event={event} undoFailed={undoFailed} busy={busy} onUndo={() => undo(event)} onDone={goHome} />
+      <LoggedScreen
+        event={event}
+        nickname={nickname ?? ''}
+        undoFailed={undoFailed}
+        busy={busy}
+        onUndo={() => undo(event)}
+        onDone={goHome}
+        onChangeName={() => setScreen({ name: 'nickname', then: screen })}
+      />
     );
     withFooter = false;
   } else if (loadFailed) {
@@ -137,7 +240,15 @@ function App({ api = kingApi, reporterKey, now = () => new Date() }: Props) {
     );
   } else {
     content = (
-      <HomeScreen status={status} now={now()} busy={busy} onFed={() => setScreen({ name: 'feed' })} onSeen={logSighting} />
+      <HomeScreen
+        status={status}
+        spots={spots}
+        mapCenter={mapCenter}
+        now={now()}
+        busy={busy}
+        onFed={startFeeding}
+        onSeen={startSighting}
+      />
     );
   }
 

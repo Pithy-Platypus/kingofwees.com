@@ -17,7 +17,7 @@ function browserStorage(): Storage | undefined {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LocaleProvider locale={resolveLocale(window.location.search, navigator.languages)}>
-      <App reporterKey={getReporterKey(browserStorage())} />
+      <App reporterKey={getReporterKey(browserStorage())} storage={browserStorage()} geolocation={navigator.geolocation} />
     </LocaleProvider>
   </StrictMode>,
 );

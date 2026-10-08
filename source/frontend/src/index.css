@@ -217,6 +217,15 @@
     @apply btn-secondary text-secondary-content;
   }
 
+  /* A big, comfortable tap target: the whole line toggles the box. */
+  .left-out {
+    @apply flex min-h-12 cursor-pointer items-center gap-3 text-base;
+  }
+
+  .left-out-box {
+    @apply checkbox checkbox-secondary;
+  }
+
   .log-button {
     @apply btn btn-primary mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
   }
@@ -239,6 +248,120 @@
 
   .done-button {
     @apply btn btn-secondary min-h-14 rounded-field text-lg;
+  }
+
+  .logging-as {
+    @apply text-base text-muted;
+  }
+
+  .text-button {
+    @apply inline-flex min-h-12 items-center font-bold text-base-content underline underline-offset-4;
+  }
+
+  .field-form {
+    @apply flex flex-col gap-3;
+  }
+
+  .field-label {
+    @apply font-bold;
+  }
+
+  .field-input {
+    @apply input input-lg w-full;
+  }
+
+  .skip-button {
+    @apply btn btn-outline mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
+  }
+
+  .place-button {
+    @apply btn btn-outline min-h-14 rounded-field border-secondary text-lg text-base-content;
+  }
+
+  .place-status {
+    @apply flex min-h-6 items-center gap-2 font-bold;
+  }
+
+  .spot-list {
+    @apply flex flex-col gap-2;
+  }
+
+  .spot-choice {
+    @apply btn btn-outline min-h-14 w-full justify-start rounded-field border-secondary text-lg text-base-content;
+  }
+
+  .map-block {
+    @apply flex flex-col gap-2;
+  }
+
+  /* The cross marks the map center, which "Use map center" picks (the keyboard way to choose a place). */
+  .map-frame {
+    @apply relative overflow-hidden rounded-box border-2 border-base-300;
+  }
+
+  .map-frame-picking::after {
+    @apply pointer-events-none absolute top-1/2 left-1/2 z-[1000] size-6 -translate-x-1/2 -translate-y-1/2 text-center text-2xl leading-6 font-bold text-base-content;
+    content: '+';
+  }
+
+  .map-canvas {
+    @apply h-56 w-full;
+  }
+
+  .home-map .map-canvas {
+    @apply h-40;
+  }
+
+  .home-map-section {
+    @apply flex flex-col gap-2;
+  }
+
+  .map-key {
+    @apply flex flex-col gap-1 text-base;
+  }
+
+  .map-key-item {
+    @apply flex items-center gap-2;
+  }
+
+  /* Same colors as the map markers; the words beside them carry the meaning. */
+  .legend-dot {
+    @apply size-4 shrink-0 rounded-full border-2 border-base-content;
+  }
+
+  .legend-dot-fed {
+    @apply bg-secondary;
+  }
+
+  .legend-dot-seen {
+    @apply bg-primary;
+  }
+
+  .log-here-button {
+    @apply btn btn-primary min-h-16 rounded-field font-display text-xl font-semibold;
+  }
+
+  .map-center-button {
+    @apply btn btn-ghost min-h-12 self-start text-base underline underline-offset-4;
+  }
+
+  /* Leaflet draws markers as SVG paths; these classes color them from the theme. */
+  .map-marker {
+    stroke: var(--color-base-content);
+    stroke-width: 2;
+    fill-opacity: 1;
+  }
+
+  .map-marker-fed {
+    fill: var(--color-secondary);
+  }
+
+  .map-marker-seen {
+    fill: var(--color-primary);
+  }
+
+  .map-marker-picked {
+    fill: var(--color-accent);
   }
 
   .button-icon {

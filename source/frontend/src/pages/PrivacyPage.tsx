@@ -9,10 +9,14 @@ type Values = {
   intro: NoMessageValues;
   storedTitle: NoMessageValues;
   storedEvents: NoMessageValues;
+  storedName: NoMessageValues;
+  storedLocation: NoMessageValues;
+  storedSpots: NoMessageValues;
   storedCode: NoMessageValues;
   notTitle: NoMessageValues;
   notTracking: NoMessageValues;
   notFonts: NoMessageValues;
+  notMaps: { policy: MessageTag };
   notIp: NoMessageValues;
   parents: NoMessageValues;
   retention: { email: string; mail: MessageTag };
@@ -24,8 +28,25 @@ const m = defineMessages<Values>({
   storedTitle: { id: 'privacy.stored.title', defaultMessage: 'What we keep', description: 'Heading over the list of stored data' },
   storedEvents: {
     id: 'privacy.stored.events',
-    defaultMessage: 'When King was fed or seen, and what he ate.',
+    defaultMessage: 'When King was fed or seen, what he ate, and the name you gave, if any.',
     description: 'Stored data: the entries themselves',
+  },
+  storedName: {
+    id: 'privacy.stored.name',
+    defaultMessage:
+      'Your name is optional, and everyone can see it next to your entries, so use a first name or nickname. Your browser remembers it, so you’re only asked once.',
+    description: 'Stored data: the optional public nickname, also kept in the browser',
+  },
+  storedLocation: {
+    id: 'privacy.stored.location',
+    defaultMessage:
+      'Where King was, if you choose to say. It’s rounded to about a block before it leaves your browser, so we never get your exact spot. Your phone’s location is used only when you tap “I’m near him now” or “Use where I am”.',
+    description: 'Stored data: optional sighting places, rounded in the browser; when geolocation is used',
+  },
+  storedSpots: {
+    id: 'privacy.stored.spots',
+    defaultMessage: 'Feeding spots neighbors add: a name and a place (also rounded), which everyone can see.',
+    description: 'Stored data: shared feeding spots are public',
   },
   storedCode: {
     id: 'privacy.stored.code',
@@ -36,13 +57,19 @@ const m = defineMessages<Values>({
   notTitle: { id: 'privacy.not.title', defaultMessage: 'What we don’t do', description: 'Heading over the list of things not collected' },
   notTracking: {
     id: 'privacy.not.tracking',
-    defaultMessage: 'No accounts, ads, trackers or cookies. We don’t ask for your name.',
-    description: 'Not collected: accounts, ads, trackers, cookies, names',
+    defaultMessage: 'No accounts, ads, trackers or cookies.',
+    description: 'Not collected: accounts, ads, trackers, cookies',
   },
   notFonts: {
     id: 'privacy.not.fonts',
     defaultMessage: 'Our fonts are hosted here, so visiting doesn’t contact Google.',
     description: 'Fonts are self-hosted',
+  },
+  notMaps: {
+    id: 'privacy.not.maps',
+    defaultMessage:
+      'Maps are the exception: the map pictures load from OpenStreetMap, which sees your internet address and which part of the map you’re looking at. See <policy>OpenStreetMap’s privacy policy</policy>.',
+    description: 'Third party: OpenStreetMap tile servers; keep the <policy></policy> tags around the link text',
   },
   notIp: {
     id: 'privacy.not.ip',
@@ -52,16 +79,16 @@ const m = defineMessages<Values>({
   },
   parents: {
     id: 'privacy.parents',
-    defaultMessage: 'For parents: kids can help without sharing anything about themselves.',
+    defaultMessage:
+      'For parents: kids can help without sharing anything about themselves. If they’d like a name on their entries, help them pick a nickname instead of their real name.',
     description: 'Note for parents about children using the site',
   },
   retention: {
-  id: 'privacy.retention',
-  defaultMessage: 'Entries are kept as King’s history. Want one removed? Email <mail>{email}</mail>.',
-  description: 'Retention and removal requests; keep the <mail></mail> tags around {email}',
+    id: 'privacy.retention',
+    defaultMessage: 'Entries are kept as King’s history. Want one removed? Email <mail>{email}</mail>.',
+    description: 'Retention and removal requests; keep the <mail></mail> tags around {email}',
   },
 });
-
 
 export function PrivacyPage() {
   return (
@@ -77,6 +104,15 @@ export function PrivacyPage() {
           <FormattedMessage {...m.storedEvents} />
         </li>
         <li>
+          <FormattedMessage {...m.storedName} />
+        </li>
+        <li>
+          <FormattedMessage {...m.storedLocation} />
+        </li>
+        <li>
+          <FormattedMessage {...m.storedSpots} />
+        </li>
+        <li>
           <FormattedMessage {...m.storedCode} />
         </li>
       </ul>
@@ -89,6 +125,18 @@ export function PrivacyPage() {
         </li>
         <li>
           <FormattedMessage {...m.notFonts} />
+        </li>
+        <li>
+          <FormattedMessage
+            {...m.notMaps}
+            values={{
+              policy: (chunks) => (
+                <a href="https://osmfoundation.org/wiki/Privacy_Policy" className="text-link">
+                  {chunks}
+                </a>
+              ),
+            }}
+          />
         </li>
         <li>
           <FormattedMessage {...m.notIp} />

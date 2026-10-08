@@ -22,15 +22,17 @@ describe('kingApi', () => {
   });
 
   it('posts a feeding as JSON and returns the created event', async () => {
-    const created = { id: 'e1', kind: 'fed', occurredAt: '2026-10-08T12:00:00Z', reporterName: null, foods: ['dry', 'treats'] };
+    const created = { id: 'e1', kind: 'fed', occurredAt: '2026-10-08T12:00:00Z', reporterName: 'Sunny', foods: ['dry', 'treats'], sawKing: false };
     respond(201, created);
 
-    await expect(kingApi.logFeeding({ reporterKey: 'k', foods: ['dry', 'treats'] })).resolves.toEqual(created);
+    await expect(
+      kingApi.logFeeding({ reporterKey: 'k', reporterName: 'Sunny', foods: ['dry', 'treats'], sawKing: false }),
+    ).resolves.toEqual(created);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/king/feedings');
     expect(init.method).toBe('POST');
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
-    expect(JSON.parse(init.body)).toEqual({ reporterKey: 'k', foods: ['dry', 'treats'] });
+    expect(JSON.parse(init.body)).toEqual({ reporterKey: 'k', reporterName: 'Sunny', foods: ['dry', 'treats'], sawKing: false });
   });
 
   it('posts a sighting', async () => {
@@ -40,6 +42,45 @@ describe('kingApi', () => {
 
     expect(fetchMock.mock.calls[0][0]).toBe('/api/king/sightings');
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ reporterKey: 'k' });
+  });
+
+  it('posts a sighting with its location rounded to about a block, whatever precision it was given', async () => {
+    respond(201, { id: 'e3', kind: 'seen' });
+
+    await kingApi.logSighting({ reporterKey: 'k', location: { latitude: 45.523456, longitude: -122.676543 } });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      reporterKey: 'k',
+      location: { latitude: 45.523, longitude: -122.677 },
+    });
+  });
+
+  it('adds a spot with its location rounded', async () => {
+    const created = { id: 's1', name: 'Corner', location: { latitude: 45.523, longitude: -122.677 } };
+    respond(201, created);
+
+    await expect(
+      kingApi.addSpot({ reporterKey: 'k', name: 'Corner', location: { latitude: 45.523456, longitude: -122.676543 } }),
+    ).resolves.toEqual(created);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/king/spots');
+    expect(JSON.parse(init.body)).toEqual({ reporterKey: 'k', name: 'Corner', location: { latitude: 45.523, longitude: -122.677 } });
+  });
+
+  it('lists the spots', async () => {
+    respond(200, []);
+
+    await expect(kingApi.listSpots()).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledWith('/api/king/spots', undefined);
+  });
+
+  it('gets the map center, or null when the site has no map', async () => {
+    respond(200, { center: { latitude: 45.523, longitude: -122.677 } });
+    respond(404);
+
+    await expect(kingApi.getMap()).resolves.toEqual({ latitude: 45.523, longitude: -122.677 });
+    await expect(kingApi.getMap()).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith('/api/king/map', undefined);
   });
 
   it('undoes with the reporter key header and an encoded id', async () => {
@@ -55,8 +96,9 @@ describe('kingApi', () => {
 
   it.each([
     ['getStatus', () => kingApi.getStatus()],
-    ['logFeeding', () => kingApi.logFeeding({ reporterKey: 'k', foods: [] })],
+    ['logFeeding', () => kingApi.logFeeding({ reporterKey: 'k', foods: [], sawKing: true })],
     ['undo', () => kingApi.undo('e1', 'k')],
+    ['getMap', () => kingApi.getMap()],
   ])('%s throws ApiError carrying the status on failure', async (_name, call) => {
     respond(409, { type: 'undo.expired' });
 

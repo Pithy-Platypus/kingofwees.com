@@ -1,9 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { defineMessages, FormattedMessage } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl, type MessageTag, type NoMessageValues } from 'react-intl';
 import type { KingEventView } from './api';
 import { CheckIcon, UndoIcon } from './icons';
+import { common } from './messages';
 
-const m = defineMessages({
+type Values = {
+  fedTitle: NoMessageValues;
+  fedDetail: NoMessageValues;
+  seenTitle: NoMessageValues;
+  seenDetail: NoMessageValues;
+  undo: NoMessageValues;
+  done: NoMessageValues;
+  undoExpired: NoMessageValues;
+  loggingAs: { name: string; change: MessageTag };
+};
+
+const m = defineMessages<Values>({
   fedTitle: { id: 'logged.fed.title', defaultMessage: 'Feast logged!', description: 'Heading after logging a feeding' },
   fedDetail: { id: 'logged.fed.detail', defaultMessage: 'King was fed just now. Thank you!', description: 'Confirmation after logging a feeding' },
   seenTitle: { id: 'logged.seen.title', defaultMessage: 'Thanks for spotting King!', description: 'Heading after logging a sighting' },
@@ -15,11 +27,25 @@ const m = defineMessages({
     defaultMessage: 'It’s too late to undo — entries can only be undone for 10 minutes.',
     description: 'Shown when the server refuses an undo because the entry is older than 10 minutes',
   },
+  loggingAs: {
+    id: 'logged.loggingAs',
+    defaultMessage: 'Logging as {name} · <change>change</change>',
+    description: 'The name shown with this device’s entries; {name} is a nickname or “a neighbor”. <change> becomes a button.',
+  },
 });
 
-type Props = { event: KingEventView; undoFailed: boolean; busy: boolean; onUndo: () => void; onDone: () => void };
+type Props = {
+  event: KingEventView;
+  nickname: string;
+  undoFailed: boolean;
+  busy: boolean;
+  onUndo: () => void;
+  onDone: () => void;
+  onChangeName: () => void;
+};
 
-export function LoggedScreen({ event, undoFailed, busy, onUndo, onDone }: Props) {
+export function LoggedScreen({ event, nickname, undoFailed, busy, onUndo, onDone, onChangeName }: Props) {
+  const intl = useIntl();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
   const fed = event.kind === 'fed';
@@ -32,6 +58,19 @@ export function LoggedScreen({ event, undoFailed, busy, onUndo, onDone }: Props)
       </h1>
       <p>
         <FormattedMessage {...(fed ? m.fedDetail : m.seenDetail)} />
+      </p>
+      <p className="logging-as">
+        <FormattedMessage
+          {...m.loggingAs}
+          values={{
+            name: nickname || intl.formatMessage(common.aNeighbor),
+            change: (chunks) => (
+              <button type="button" className="text-button" onClick={onChangeName}>
+                {chunks}
+              </button>
+            ),
+          }}
+        />
       </p>
       {undoFailed && (
         <div role="alert" className="alert alert-error">

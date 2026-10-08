@@ -4,3 +4,13 @@ GET {{Server_HostAddress}}/api/king/status
 Accept: application/json
 
 ###
+
+GET {{Server_HostAddress}}/api/king/spots
+Accept: application/json
+
+###
+
+GET {{Server_HostAddress}}/api/king/map
+Accept: application/json
+
+###

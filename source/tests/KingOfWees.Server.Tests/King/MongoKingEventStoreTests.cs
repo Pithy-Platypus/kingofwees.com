@@ -28,5 +28,27 @@ public sealed class MongoKingEventStoreTests(MongoAppFixture mongo)
 
         Assert.NotNull(found);
         Assert.Empty(found.Foods);
+        Assert.Null(found.Location);
+        Assert.Null(found.SpotId);
+    }
+
+    [Fact]
+    public async Task A_feeding_stored_before_sawKing_existed_counts_as_seen()
+    {
+        var database = mongo.NewDatabase();
+        var ct = TestContext.Current.CancellationToken;
+        await database.GetCollection<BsonDocument>("events").InsertOneAsync(new BsonDocument
+        {
+            ["_id"] = "old-2",
+            ["Kind"] = "Fed",
+            ["OccurredAtUtc"] = new DateTime(2026, 10, 8, 12, 0, 0, DateTimeKind.Utc),
+            ["ReporterKey"] = "k",
+            ["ReporterName"] = BsonNull.Value,
+            ["Foods"] = new BsonArray { "Wet" },
+        }, cancellationToken: ct);
+        var store = new MongoKingEventStore(database);
+
+        Assert.True((await store.FindAsync("old-2", ct))?.SawKing);
+        Assert.Equal("old-2", (await store.GetLatestSightingAsync(ct))?.Id);
     }
 }

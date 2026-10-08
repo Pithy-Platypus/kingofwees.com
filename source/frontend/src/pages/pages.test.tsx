@@ -36,10 +36,53 @@ describe('PrivacyPage', () => {
     expect(screen.getByText(/No accounts, ads, trackers or cookies/)).toBeInTheDocument();
   });
 
+  it('no longer promises not to ask for a name, now that names are optional', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.queryByText(/don’t ask for your name/)).not.toBeInTheDocument();
+  });
+
+  it('says a name is optional, shown to everyone, and best as a first name or nickname', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.getByText(/name is optional/)).toHaveTextContent(/everyone can see it/);
+    expect(screen.getByText(/name is optional/)).toHaveTextContent(/first name or nickname/);
+  });
+
+  it('suggests parents help kids pick a nickname', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.getByText(/For parents/)).toHaveTextContent(/nickname instead of their real name/);
+  });
+
+  it('says a place is rounded to about a block in the browser, and only asked for on a tap', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    const location = screen.getByText(/rounded to about a block/);
+    expect(location).toHaveTextContent(/before it leaves your browser/);
+    expect(location).toHaveTextContent(/only when you tap/);
+  });
+
+  it('says feeding spots and their names are public', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.getByText(/Feeding spots/)).toHaveTextContent(/everyone can see/);
+  });
+
+  it('says map pictures come from OpenStreetMap, which sees your internet address, and links their policy', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.getByText(/OpenStreetMap/, { selector: 'li' })).toHaveTextContent(/internet address/);
+    expect(screen.getByRole('link', { name: 'OpenStreetMap’s privacy policy' })).toHaveAttribute(
+      'href',
+      'https://osmfoundation.org/wiki/Privacy_Policy',
+    );
+  });
+
   it('says internet addresses are used briefly against spam and not stored', () => {
     renderInEnglish(<PrivacyPage />);
 
-    expect(screen.getByText(/internet address/)).toHaveTextContent(/isn’t stored/);
+    expect(screen.getByText(/to stop spam/)).toHaveTextContent(/isn’t stored/);
   });
 
   it('explains the random undo code kept in the browser', () => {

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentValidation;
+using KingOfWees.Server.King;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
@@ -32,6 +33,11 @@ public sealed class KingApiTests : IAsyncLifetime
     private Task<HttpResponseMessage> LogFeeding(object body) => _client.PostAsJsonAsync("/api/king/feedings", body, Ct);
 
     private Task<HttpResponseMessage> LogSighting(object body) => _client.PostAsJsonAsync("/api/king/sightings", body, Ct);
+
+    private Task<HttpResponseMessage> AddSpot(object body) => _client.PostAsJsonAsync("/api/king/spots", body, Ct);
+
+    private static IEnumerable<string?> ErrorCodes(JsonElement problem) =>
+        problem.GetProperty("errors").EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString());
 
     private static async Task<JsonElement> Json(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct));
@@ -97,7 +103,7 @@ public sealed class KingApiTests : IAsyncLifetime
         _factory.Clock.Advance(TimeSpan.FromMinutes(5));
         await LogSighting(new { reporterKey = DeviceKey, reporterName = "Second" });
         _factory.Clock.Advance(TimeSpan.FromMinutes(5));
-        await LogFeeding(new { reporterKey = DeviceKey, reporterName = "Third" });
+        await LogFeeding(new { reporterKey = DeviceKey, reporterName = "Third", sawKing = false });
 
         var status = await Status();
 
@@ -106,6 +112,161 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.Equal(
             ["Third", "Second", "First"],
             status.GetProperty("recent").EnumerateArray().Select(e => e.GetProperty("reporterName").GetString()));
+    }
+
+    [Fact]
+    public async Task A_feeding_counts_as_seeing_him_unless_the_feeder_says_otherwise()
+    {
+        var created = await Json(await LogFeeding(new { reporterKey = DeviceKey }));
+
+        Assert.True(created.GetProperty("sawKing").GetBoolean());
+        var status = await Status();
+        Assert.Equal(created.GetProperty("id").GetString(), status.GetProperty("lastSeen").GetProperty("id").GetString());
+        Assert.Equal(created.GetProperty("id").GetString(), status.GetProperty("lastFed").GetProperty("id").GetString());
+    }
+
+    [Fact]
+    public async Task Food_left_out_never_moves_last_seen()
+    {
+        var sighting = await Json(await LogSighting(new { reporterKey = DeviceKey }));
+        _factory.Clock.Advance(TimeSpan.FromMinutes(5));
+
+        var leftOut = await Json(await LogFeeding(new { reporterKey = DeviceKey, sawKing = false }));
+
+        Assert.False(leftOut.GetProperty("sawKing").GetBoolean());
+        var status = await Status();
+        Assert.Equal(sighting.GetProperty("id").GetString(), status.GetProperty("lastSeen").GetProperty("id").GetString());
+        Assert.Equal(leftOut.GetProperty("id").GetString(), status.GetProperty("lastFed").GetProperty("id").GetString());
+    }
+
+    [Fact]
+    public async Task A_sighting_after_a_feeding_becomes_last_seen()
+    {
+        await LogFeeding(new { reporterKey = DeviceKey });
+        _factory.Clock.Advance(TimeSpan.FromMinutes(5));
+
+        var sighting = await Json(await LogSighting(new { reporterKey = DeviceKey }));
+
+        Assert.True(sighting.GetProperty("sawKing").GetBoolean());
+        Assert.Equal(sighting.GetProperty("id").GetString(), (await Status()).GetProperty("lastSeen").GetProperty("id").GetString());
+    }
+
+    [Fact]
+    public async Task Anyone_can_add_a_spot_and_it_is_stored_rounded_with_a_tidy_name()
+    {
+        var response = await AddSpot(new
+        {
+            reporterKey = DeviceKey, name = "  Blue house steps ", location = new { latitude = 45.523456, longitude = -122.676543 },
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await Json(response);
+        Assert.Equal("Blue house steps", body.GetProperty("name").GetString());
+        Assert.Equal(45.523, body.GetProperty("location").GetProperty("latitude").GetDouble());
+        Assert.Equal(-122.677, body.GetProperty("location").GetProperty("longitude").GetDouble());
+        var stored = await _factory.Spots.FindAsync(body.GetProperty("id").GetString()!, Ct);
+        Assert.Equal(new GeoPoint(45.523, -122.677), stored?.Location);
+        Assert.Equal("Blue house steps", stored?.Name);
+    }
+
+    [Fact]
+    public async Task Spots_are_listed_oldest_first_without_reporter_keys()
+    {
+        await AddSpot(new { reporterKey = DeviceKey, name = "First", location = new { latitude = 45.5, longitude = -122.6 } });
+        _factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        await AddSpot(new { reporterKey = DeviceKey, name = "Second", location = new { latitude = 45.5, longitude = -122.6 } });
+
+        var list = await _client.GetStringAsync("/api/king/spots", Ct);
+
+        var names = JsonDocument.Parse(list).RootElement.EnumerateArray().Select(s => s.GetProperty("name").GetString());
+        Assert.Equal(["First", "Second"], names);
+        Assert.DoesNotContain(DeviceKey, list);
+    }
+
+    [Fact]
+    public async Task A_spot_without_a_name_is_rejected_with_an_error_code()
+    {
+        var response = await AddSpot(new { reporterKey = DeviceKey, name = " ", location = new { latitude = 45.5, longitude = -122.6 } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("name.required", ErrorCodes(await Json(response)));
+        Assert.Empty(await _factory.Spots.ListAsync(Ct));
+    }
+
+    [Fact]
+    public async Task A_feeding_at_a_known_spot_is_stored_with_it()
+    {
+        var spotId = (await Json(await AddSpot(new
+        {
+            reporterKey = DeviceKey, name = "Corner", location = new { latitude = 45.5, longitude = -122.6 },
+        }))).GetProperty("id").GetString();
+
+        var response = await LogFeeding(new { reporterKey = DeviceKey, spotId });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var stored = await _factory.Store.FindAsync((await Json(response)).GetProperty("id").GetString()!, Ct);
+        Assert.Equal(spotId, stored?.SpotId);
+    }
+
+    [Fact]
+    public async Task A_feeding_at_an_unknown_spot_is_rejected_with_an_error_code()
+    {
+        var response = await LogFeeding(new { reporterKey = DeviceKey, spotId = "no-such-spot" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("spotId.unknown", ErrorCodes(await Json(response)));
+        Assert.Empty(await _factory.Store.GetRecentAsync(10, Ct));
+    }
+
+    [Fact]
+    public async Task A_sighting_can_say_where_he_was_and_is_stored_rounded()
+    {
+        var response = await LogSighting(new { reporterKey = DeviceKey, location = new { latitude = 45.523456, longitude = -122.676543 } });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await Json(response);
+        Assert.Equal(45.523, created.GetProperty("location").GetProperty("latitude").GetDouble());
+        var stored = await _factory.Store.FindAsync(created.GetProperty("id").GetString()!, Ct);
+        Assert.Equal(new GeoPoint(45.523, -122.677), stored?.Location);
+        var lastSeen = (await Status()).GetProperty("lastSeen");
+        Assert.Equal(-122.677, lastSeen.GetProperty("location").GetProperty("longitude").GetDouble());
+    }
+
+    [Fact]
+    public async Task A_sighting_without_a_location_says_so()
+    {
+        await LogSighting(new { reporterKey = DeviceKey });
+
+        var lastSeen = (await Status()).GetProperty("lastSeen");
+        Assert.Equal(JsonValueKind.Null, lastSeen.GetProperty("location").ValueKind);
+        Assert.Equal(JsonValueKind.Null, lastSeen.GetProperty("spotName").ValueKind);
+    }
+
+    [Fact]
+    public async Task A_half_given_location_is_refused_rather_than_stored_at_zero()
+    {
+        var response = await LogSighting(new { reporterKey = DeviceKey, location = new { latitude = 45.5 } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(await _factory.Store.GetRecentAsync(10, Ct));
+    }
+
+    [Fact]
+    public async Task A_feeding_at_a_spot_shows_the_spot_name_and_place_everywhere_it_appears()
+    {
+        var spotId = (await Json(await AddSpot(new
+        {
+            reporterKey = DeviceKey, name = "Blue house steps", location = new { latitude = 45.5231, longitude = -122.6771 },
+        }))).GetProperty("id").GetString();
+
+        var created = await Json(await LogFeeding(new { reporterKey = DeviceKey, spotId }));
+
+        var status = await Status();
+        foreach (var view in new[] { created, status.GetProperty("lastFed"), status.GetProperty("lastSeen"), status.GetProperty("recent")[0] })
+        {
+            Assert.Equal("Blue house steps", view.GetProperty("spotName").GetString());
+            Assert.Equal(45.523, view.GetProperty("location").GetProperty("latitude").GetDouble());
+        }
     }
 
     [Fact]

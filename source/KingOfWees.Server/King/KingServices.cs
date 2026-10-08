@@ -21,7 +21,9 @@ public static class KingServices
     {
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IKingEventStore, MongoKingEventStore>();
+        services.AddSingleton<ISpotStore, MongoSpotStore>();
         services.AddSingleton<KingMetrics>();
+        services.AddOptions<MapOptions>().BindConfiguration(MapOptions.Section);
         services.ConfigureOpenTelemetryMeterProvider(metrics => metrics.AddMeter(KingMetrics.MeterName));
 
         services.ConfigureHttpJsonOptions(options =>

@@ -25,6 +25,15 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
         return document?.ToEvent();
     }
 
+    // Sightings are always stored as seen, so one flag covers both kinds; Ne also matches documents written before the flag.
+    public async Task<KingEvent?> GetLatestSightingAsync(CancellationToken cancellationToken)
+    {
+        var document = await _events.Find(Builders<KingEventDocument>.Filter.Ne(e => e.SawKing, false))
+            .SortByDescending(e => e.OccurredAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        return document?.ToEvent();
+    }
+
     public async Task<IReadOnlyList<KingEvent>> GetRecentAsync(int count, CancellationToken cancellationToken)
     {
         var documents = await _events.Find(FilterDefinition<KingEventDocument>.Empty)
@@ -41,7 +50,8 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
     }
 
     // Storage shape, kept separate from the domain record: enums as strings, time as a BSON UTC date.
-    // Extra elements are ignored so slice-1 documents (single "Food" field) still read, with no foods.
+    // Extra elements are ignored so slice-1 documents (single "Food" field) still read, with no foods;
+    // documents from before SawKing read as seen. Coordinates are copied from a GeoPoint and rebuilt into one on read.
     [BsonIgnoreExtraElements]
     private sealed class KingEventDocument
     {
@@ -52,6 +62,10 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
         public required string ReporterKey { get; init; }
         public string? ReporterName { get; init; }
         public string[] Foods { get; init; } = [];
+        public bool SawKing { get; init; } = true;
+        public string? SpotId { get; init; }
+        public double? Latitude { get; init; }
+        public double? Longitude { get; init; }
 
         public static KingEventDocument From(KingEvent e) => new()
         {
@@ -61,6 +75,10 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
             ReporterKey = e.ReporterKey,
             ReporterName = e.ReporterName,
             Foods = [.. e.Foods.Select(f => f.ToString())],
+            SawKing = e.SawKing,
+            SpotId = e.SpotId,
+            Latitude = e.Location?.Latitude,
+            Longitude = e.Location?.Longitude,
         };
 
         public KingEvent ToEvent() => new(
@@ -69,6 +87,9 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
             new DateTimeOffset(DateTime.SpecifyKind(OccurredAtUtc, DateTimeKind.Utc)),
             ReporterKey,
             ReporterName,
-            [.. Foods.Select(Enum.Parse<Food>)]);
+            [.. Foods.Select(Enum.Parse<Food>)],
+            SawKing,
+            SpotId,
+            Latitude is { } latitude && Longitude is { } longitude ? new GeoPoint(latitude, longitude) : null);
     }
 }

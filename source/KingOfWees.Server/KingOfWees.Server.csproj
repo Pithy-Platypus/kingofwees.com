@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <PropertyGroup>
+    <!-- Holds King:Map:Center in development; see source/README.md. -->
+    <UserSecretsId>36988aa0-ee8c-43eb-a734-7acedc835366</UserSecretsId>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Aspire.MongoDB.Driver" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
