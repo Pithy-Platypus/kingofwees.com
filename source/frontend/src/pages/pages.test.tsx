@@ -97,4 +97,13 @@ describe('PrivacyPage', () => {
     expect(screen.getByText(/kept as King’s history/)).toBeInTheDocument();
     expect(contactLink()).toHaveAttribute('href', `mailto:${contactEmail}`);
   });
+
+  it('says the history and its map are public, and links to them', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    const retention = screen.getByText(/kept as King’s history/);
+    expect(retention).toHaveTextContent(/everyone can see/);
+    expect(retention).toHaveTextContent(/map of the places/);
+    expect(screen.getByRole('link', { name: 'history page' })).toHaveAttribute('href', '/history');
+  });
 });

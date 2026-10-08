@@ -23,6 +23,7 @@ describe('routing', () => {
   it.each([
     ['/about', 'About King', 'About · King of Wees'],
     ['/privacy', 'Privacy', 'Privacy · King of Wees'],
+    ['/history', 'King’s history', 'History · King of Wees'],
   ])('opens %s directly with its heading focused and its own title', async (path, heading, title) => {
     renderAt(path);
 
@@ -47,6 +48,19 @@ describe('routing', () => {
       await new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'About King' })).toBeInTheDocument();
+  });
+
+  it('reaches the history from the footer and from under Lately on Home', async () => {
+    renderAt('/');
+    await screen.findByRole('button', { name: 'I fed King' });
+
+    await userEvent.click(footer().getByRole('link', { name: 'History' }));
+    expect(window.location.pathname).toBe('/history');
+    expect(await screen.findByRole('heading', { level: 1, name: 'King’s history' })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
+    await userEvent.click(await screen.findByRole('link', { name: 'See King’s history' }));
+    expect(window.location.pathname).toBe('/history');
   });
 
   it('leaves Ctrl/Cmd-clicks to the browser so links can open in a new tab', async () => {

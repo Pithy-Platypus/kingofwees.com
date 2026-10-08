@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { KingEventView, KingStatus, kingApi, SpotView } from '../king/api';
+import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, SpotView } from '../king/api';
 import type { GeoPoint } from '../king/location';
 
 export const at = (iso: string) => new Date(iso);
@@ -23,10 +23,10 @@ export const CENTER: GeoPoint = { latitude: 45.523, longitude: -122.677 };
 
 export const spot = (id: string, name: string): SpotView => ({ id, name, location: CENTER });
 
-type World = { map?: GeoPoint | null; spots?: SpotView[] };
+type World = { map?: GeoPoint | null; spots?: SpotView[]; heat?: HeatCell[]; history?: HistoryPage };
 
 // By default the site has no map and no spots, as on a fresh install.
-export function fakeApi(status: KingStatus = emptyStatus, { map = null, spots = [] }: World = {}) {
+export function fakeApi(status: KingStatus = emptyStatus, { map = null, spots = [], heat = [], history = { events: [], next: null } }: World = {}) {
   return {
     getMap: vi.fn<typeof kingApi.getMap>().mockResolvedValue(map),
     listSpots: vi.fn<typeof kingApi.listSpots>().mockResolvedValue(spots),
@@ -37,5 +37,8 @@ export function fakeApi(status: KingStatus = emptyStatus, { map = null, spots = 
     ),
     logSighting: vi.fn<typeof kingApi.logSighting>().mockResolvedValue(event({ id: 'new-seen', kind: 'seen' })),
     undo: vi.fn<typeof kingApi.undo>().mockResolvedValue(undefined),
+    renameEvent: vi.fn<typeof kingApi.renameEvent>().mockResolvedValue(undefined),
+    getHeat: vi.fn<typeof kingApi.getHeat>().mockResolvedValue(heat),
+    getHistory: vi.fn<typeof kingApi.getHistory>().mockResolvedValue(history),
   };
 }

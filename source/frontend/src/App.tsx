@@ -11,6 +11,7 @@ import { loadLastSpotId, loadNickname, saveLastSpotId, saveNickname, type KeyVal
 import { SeenScreen } from './king/SeenScreen';
 import { SpotScreen } from './king/SpotScreen';
 import { AboutPage } from './pages/AboutPage';
+import { HistoryPage } from './pages/HistoryPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { useRoute, type Route } from './routing/routes';
 
@@ -27,6 +28,7 @@ const m = defineMessages({
 // Browser tab titles (WCAG 2.4.2): each page says what it is.
 const titles = defineMessages({
   home: { id: 'title.home', defaultMessage: 'King of Wees', description: 'Browser tab title of the home page' },
+  history: { id: 'title.history', defaultMessage: 'History · King of Wees', description: 'Browser tab title of the history page' },
   about: { id: 'title.about', defaultMessage: 'About · King of Wees', description: 'Browser tab title of the About page' },
   privacy: { id: 'title.privacy', defaultMessage: 'Privacy · King of Wees', description: 'Browser tab title of the Privacy page' },
 });
@@ -57,6 +59,7 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
   const [loadFailed, setLoadFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [undoFailed, setUndoFailed] = useState(false);
+  const [renameFailed, setRenameFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [nickname, setNickname] = useState(() => loadNickname(storage));
   const [mapCenter, setMapCenter] = useState<GeoPoint | null>(null);
@@ -108,6 +111,7 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
   const showFreshHome = async () => {
     await load();
     setUndoFailed(false);
+    setRenameFailed(false);
     setScreen({ name: 'home' });
   };
 
@@ -147,12 +151,22 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
 
   const startSighting = () => setScreen(nickname === null ? { name: 'nickname', then: 'seen' } : { name: 'seen' });
 
+  // From the confirmation, the entry just logged takes the new name too; later entries use it either way.
   const nameChosen = (name: string, then: 'feed' | 'seen' | Logged) => {
     saveNickname(storage, name);
     setNickname(name);
     if (then === 'feed') setScreen({ name: 'feed' });
     else if (then === 'seen') setScreen({ name: 'seen' });
-    else setScreen(then);
+    else
+      void run(async () => {
+        try {
+          await api.renameEvent(then.event.id, reporterKey, name || null);
+          setRenameFailed(false);
+        } catch {
+          setRenameFailed(true);
+        }
+        setScreen(then);
+      });
   };
 
   const undo = (event: KingEventView) =>
@@ -168,7 +182,9 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
 
   let content: ReactElement;
   let withFooter = true;
-  if (route === 'about') {
+  if (route === 'history') {
+    content = <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} />;
+  } else if (route === 'about') {
     content = <AboutPage />;
   } else if (route === 'privacy') {
     content = <PrivacyPage />;
@@ -212,6 +228,7 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
         event={event}
         nickname={nickname ?? ''}
         undoFailed={undoFailed}
+        renameFailed={renameFailed}
         busy={busy}
         onUndo={() => undo(event)}
         onDone={goHome}

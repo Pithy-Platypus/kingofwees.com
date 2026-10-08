@@ -163,6 +163,54 @@
     @apply size-10;
   }
 
+  .heat-section {
+    @apply flex flex-col gap-4;
+  }
+
+  .choice-group {
+    @apply join w-full;
+  }
+
+  .choice-button {
+    @apply btn join-item btn-outline min-h-12 flex-1 border-primary text-base text-base-content;
+  }
+
+  .choice-button[aria-pressed='true'] {
+    @apply btn-primary text-primary-content;
+  }
+
+  .heat-places {
+    @apply flex flex-col divide-y divide-base-300;
+  }
+
+  .heat-place {
+    @apply flex items-baseline justify-between gap-4 py-2 text-base;
+  }
+
+  .heat-place-name {
+    @apply font-semibold;
+  }
+
+  .heat-place-count {
+    @apply shrink-0 text-base-content;
+  }
+
+  .log-section {
+    @apply flex flex-col gap-4;
+  }
+
+  .log-day {
+    @apply flex flex-col gap-2;
+  }
+
+  .log-day-title {
+    @apply font-display text-lg font-semibold;
+  }
+
+  .history-link {
+    @apply inline-flex min-h-12 items-center font-bold text-base-content underline underline-offset-4;
+  }
+
   .section-title {
     @apply font-display text-xl font-semibold;
   }
@@ -171,8 +219,9 @@
     @apply flex flex-col gap-2;
   }
 
+  /* Sets its own line height, so it looks the same on Home and inside a page's relaxed prose spacing. */
   .activity-item {
-    @apply flex items-center gap-3 rounded-box bg-white px-4 py-3;
+    @apply flex items-center gap-3 rounded-box bg-white px-4 py-3 leading-7;
   }
 
   .activity-icon {
@@ -362,6 +411,27 @@
 
   .map-marker-picked {
     fill: var(--color-accent);
+  }
+
+  /* Heat: busier blocks are bigger (radius, set in MapView) and more solid; the list under the map has the numbers. */
+  .map-marker-heat {
+    fill: var(--color-primary);
+  }
+
+  .map-heat-1 {
+    fill-opacity: 0.35;
+  }
+
+  .map-heat-2 {
+    fill-opacity: 0.55;
+  }
+
+  .map-heat-3 {
+    fill-opacity: 0.75;
+  }
+
+  .map-heat-4 {
+    fill-opacity: 0.95;
   }
 
   .button-icon {

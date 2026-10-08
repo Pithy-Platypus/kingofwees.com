@@ -1,4 +1,5 @@
 import { defineMessages, FormattedMessage, type MessageTag, type NoMessageValues } from 'react-intl';
+import { Link } from '../routing/Link';
 import { contactEmail } from '../site';
 import { MailLink } from './MailLink';
 import { PageShell } from './PageShell';
@@ -19,7 +20,7 @@ type Values = {
   notMaps: { policy: MessageTag };
   notIp: NoMessageValues;
   parents: NoMessageValues;
-  retention: { email: string; mail: MessageTag };
+  retention: { email: string; mail: MessageTag; history: MessageTag };
 };
 
 const m = defineMessages<Values>({
@@ -85,8 +86,9 @@ const m = defineMessages<Values>({
   },
   retention: {
     id: 'privacy.retention',
-    defaultMessage: 'Entries are kept as King’s history. Want one removed? Email <mail>{email}</mail>.',
-    description: 'Retention and removal requests; keep the <mail></mail> tags around {email}',
+    defaultMessage:
+      'Entries are kept as King’s history, which everyone can see on the <history>history page</history>: every entry with its name, and a map of the places (never more exact than a block). Want one removed? Email <mail>{email}</mail>.',
+    description: 'Retention, the public history page, and removal requests; keep the <history></history> tags around the link text and the <mail></mail> tags around {email}',
   },
 });
 
@@ -143,7 +145,18 @@ export function PrivacyPage() {
         </li>
       </ul>
       <p>
-        <FormattedMessage {...m.retention} values={{ email: contactEmail, mail: (chunks) => <MailLink>{chunks}</MailLink> }} />
+        <FormattedMessage
+          {...m.retention}
+          values={{
+            email: contactEmail,
+            mail: (chunks) => <MailLink>{chunks}</MailLink>,
+            history: (chunks) => (
+              <Link to="history" className="text-link">
+                {chunks}
+              </Link>
+            ),
+          }}
+        />
       </p>
       <p>
         <FormattedMessage {...m.parents} />

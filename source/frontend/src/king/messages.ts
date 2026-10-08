@@ -1,5 +1,6 @@
 import { defineMessages, type IntlShape } from 'react-intl';
-import type { Food } from './api';
+import type { Food, KingEventView, SpotView } from './api';
+import { nearestSpot } from './location';
 import { elapsedSince } from './time';
 
 // Shared phrases. Screen-specific copy lives beside each screen.
@@ -26,6 +27,22 @@ export const place = defineMessages({
   },
   back: { id: 'place.back', defaultMessage: 'Back', description: 'Leave the place screen without choosing' },
 });
+
+const where = defineMessages<{ atSpot: { spot: string }; nearSpot: { spot: string } }>({
+  atSpot: { id: 'home.atSpot', defaultMessage: 'at {spot}', description: 'Activity detail; {spot} is the feeding spot’s name' },
+  nearSpot: {
+    id: 'home.nearSpot',
+    defaultMessage: 'near {spot}',
+    description: 'Activity detail for a sighting within about a block of a saved feeding spot; {spot} is its name',
+  },
+});
+
+/** A feeding names its own spot; a sighting borrows the name of a spot within about a block, if any. */
+export function placeOf(intl: IntlShape, e: KingEventView, spots: SpotView[]): string | null {
+  if (e.spotName) return intl.formatMessage(where.atSpot, { spot: e.spotName });
+  const near = e.kind === 'seen' && e.location ? nearestSpot(e.location, spots) : null;
+  return near ? intl.formatMessage(where.nearSpot, { spot: near.name }) : null;
+}
 
 /** "just now", "25 minutes ago", "1 day ago" — localized. */
 export function formatWhen(intl: IntlShape, then: Date, now: Date): string {

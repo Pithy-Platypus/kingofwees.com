@@ -61,12 +61,15 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | Method | Route | Notes |
 |---|---|---|
 | GET | `/api/king/status` | `lastFed`, `lastSeen`, `recent` (10, newest first). `lastSeen` is the newest sighting **or** feeding with `sawKing` — it can be the same event as `lastFed`. Every event carries `spotName` and `location`: a feeding's come from its spot, a sighting's from where it was logged |
+| GET | `/api/king/history?before=&limit=` | `{ events, next }` — every event newest first (same shape as `recent`), `limit` 1–100 (default 50). `next` is the id to pass as `before` for the older page; `null` on the last page. An unknown `before` is a 400 (`before.unknown`) |
+| GET | `/api/king/heat?layer=&days=` | `{ cells: [{ location, count, spotName }] }`, most first. `layer=seen`: one cell per block — sightings with a place plus feedings where King was seen, at their spot (the page then folds blocks near a spot into one place). `layer=fed`: one cell per spot (with its name), every feeding. `days` is 7 or 30, omitted = all time. Entries without a place aren't counted. Codes `layer.invalid`, `days.invalid` |
 | POST | `/api/king/feedings` | `{ reporterKey, reporterName?, foods?: ("wet" \| "dry" \| "treats")[], sawKing?, spotId? }` — any food combination, no duplicates; `sawKing` defaults to `true` (false = "I left food out"); `spotId` must name an existing spot |
 | POST | `/api/king/sightings` | `{ reporterKey, reporterName?, location?: { latitude, longitude } }` — location rounded to 3 decimals; a half-given location is a 400 |
 | GET | `/api/king/spots` | Feeding spots `{ id, name, location }`, oldest first (the client sorts by name) |
 | GET | `/api/king/map` | `{ center: { latitude, longitude } }` from `King:Map:Center`; 404 when not configured |
 | POST | `/api/king/spots` | `{ reporterKey, name, location: { latitude, longitude } }` — anyone can add; name ≤ 40, trimmed; location rounded to 3 decimals |
 | DELETE | `/api/king/events/{id}` | `X-Reporter-Key` header; same device, within 10 minutes |
+| PATCH | `/api/king/events/{id}` | `{ reporterName }` (null = no name) — renames an entry; same device and 10-minute window as DELETE (404 / 409 `undo.expired`) |
 
 Any other path serves the SPA (`index.html`) so links like `/about` work; unknown `/api/...` routes stay 404.
 
@@ -76,11 +79,11 @@ Writes go through the `CanPost` policy (open today; the switch for invite-only p
 
 | Path | What it is |
 |---|---|
-| `src/App.tsx` | Routes (`/`, `/about`, `/privacy`), page titles, screen state (home → feed → logged), loading and error states, footer |
+| `src/App.tsx` | Routes (`/`, `/history`, `/about`, `/privacy`), page titles, screen state (home → feed → logged), loading and error states, footer |
 | `src/routing/` | History-API router (`useRoute`, `navigate`) and `Link` — no router library |
-| `src/pages/` | About and Privacy pages (`PageShell` gives the back link and focused heading) |
+| `src/pages/` | History (`HeatMapSection` + `HistoryLog`, paged by day), About and Privacy pages (`PageShell` gives the back link and focused heading) |
 | `src/site.ts` | Contact email shown on the pages |
-| `src/king/` | Screens (home, name question, feed, spot picker, "Where is King?", logged), API client (rounds every location it sends), per-device storage (`reporter.ts`: undo key, nickname, last spot), `location.ts` (rounding, geolocation, nearest spot), `MapView.tsx` (the only Leaflet code), time/mood logic, shared messages |
+| `src/king/` | Screens (home, name question, feed, spot picker, "Where is King?", logged), `ActivityItem.tsx` (one activity line, shared by Lately and the history log), API client (rounds every location it sends), per-device storage (`reporter.ts`: undo key, nickname, last spot), `location.ts` (rounding, geolocation, nearest and closest spot), `heat.ts` (heat levels, folding blocks near a spot into one place, naming places after the spots, feet/miles), `MapView.tsx` (the only Leaflet code; heat circles too), time/mood logic, shared messages |
 | `src/i18n/` | Locale resolution, `LocaleProvider` (sets `<html lang dir>`), compiled catalogs |
 | `lang/en-US.json` | Extracted source messages with translator descriptions — the file translators receive |
 

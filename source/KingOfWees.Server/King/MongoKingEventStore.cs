@@ -34,13 +34,53 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
         return document?.ToEvent();
     }
 
-    public async Task<IReadOnlyList<KingEvent>> GetRecentAsync(int count, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<KingEvent>> GetPageAsync(KingEvent? before, int count, CancellationToken cancellationToken)
     {
-        var documents = await _events.Find(FilterDefinition<KingEventDocument>.Empty)
+        var filter = Builders<KingEventDocument>.Filter;
+        var olderThanBefore = before is null
+            ? filter.Empty
+            : filter.Lt(e => e.OccurredAtUtc, before.OccurredAt.UtcDateTime)
+              | (filter.Eq(e => e.OccurredAtUtc, before.OccurredAt.UtcDateTime) & filter.Lt(e => e.Id, before.Id));
+        var documents = await _events.Find(olderThanBefore)
             .SortByDescending(e => e.OccurredAtUtc)
+            .ThenByDescending(e => e.Id)
             .Limit(count)
             .ToListAsync(cancellationToken);
         return documents.ConvertAll(d => d.ToEvent());
+    }
+
+    // Coordinates were rounded before storing, so equal blocks group on exact equality.
+    public async Task<IReadOnlyList<PlaceCount>> CountSightingsByPlaceAsync(DateTimeOffset? since, CancellationToken cancellationToken)
+    {
+        var filter = Builders<KingEventDocument>.Filter;
+        var groups = await _events.Aggregate()
+            .Match(Since(since) & filter.Ne(e => e.SawKing, false) & filter.Ne(e => e.Latitude, null))
+            .Group(e => new { e.Latitude, e.Longitude }, g => new { g.Key.Latitude, g.Key.Longitude, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        return groups.ConvertAll(g => new PlaceCount(new GeoPoint(g.Latitude!.Value, g.Longitude!.Value), g.Count));
+    }
+
+    public async Task<IReadOnlyList<SpotCount>> CountFeedingsBySpotAsync(
+        DateTimeOffset? since, bool seenOnly, CancellationToken cancellationToken)
+    {
+        var filter = Builders<KingEventDocument>.Filter;
+        var groups = await _events.Aggregate()
+            .Match(Since(since) & filter.Ne(e => e.SpotId, null) & (seenOnly ? filter.Ne(e => e.SawKing, false) : filter.Empty))
+            .Group(e => e.SpotId, g => new { SpotId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        return groups.ConvertAll(g => new SpotCount(g.SpotId!, g.Count));
+    }
+
+    private static FilterDefinition<KingEventDocument> Since(DateTimeOffset? since) =>
+        since is { } start
+            ? Builders<KingEventDocument>.Filter.Gte(e => e.OccurredAtUtc, start.UtcDateTime)
+            : FilterDefinition<KingEventDocument>.Empty;
+
+    public async Task<bool> RenameAsync(string id, string? reporterName, CancellationToken cancellationToken)
+    {
+        var result = await _events.UpdateOneAsync(
+            e => e.Id == id, Builders<KingEventDocument>.Update.Set(e => e.ReporterName, reporterName), cancellationToken: cancellationToken);
+        return result.MatchedCount == 1;
     }
 
     public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken)

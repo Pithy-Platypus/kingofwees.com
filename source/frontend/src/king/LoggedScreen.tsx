@@ -13,6 +13,7 @@ type Values = {
   done: NoMessageValues;
   undoExpired: NoMessageValues;
   loggingAs: { name: string; change: MessageTag };
+  renameFailed: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -27,6 +28,11 @@ const m = defineMessages<Values>({
     defaultMessage: 'It’s too late to undo — entries can only be undone for 10 minutes.',
     description: 'Shown when the server refuses an undo because the entry is older than 10 minutes',
   },
+  renameFailed: {
+    id: 'logged.renameFailed',
+    defaultMessage: 'Couldn’t change the name on this entry. Your next entries will use the new name.',
+    description: 'Shown when the entry just logged could not take the new name (too late, or offline)',
+  },
   loggingAs: {
     id: 'logged.loggingAs',
     defaultMessage: 'Logging as {name} · <change>change</change>',
@@ -38,13 +44,14 @@ type Props = {
   event: KingEventView;
   nickname: string;
   undoFailed: boolean;
+  renameFailed?: boolean;
   busy: boolean;
   onUndo: () => void;
   onDone: () => void;
   onChangeName: () => void;
 };
 
-export function LoggedScreen({ event, nickname, undoFailed, busy, onUndo, onDone, onChangeName }: Props) {
+export function LoggedScreen({ event, nickname, undoFailed, renameFailed = false, busy, onUndo, onDone, onChangeName }: Props) {
   const intl = useIntl();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
@@ -72,6 +79,11 @@ export function LoggedScreen({ event, nickname, undoFailed, busy, onUndo, onDone
           }}
         />
       </p>
+      {renameFailed && (
+        <div role="alert" className="alert alert-error">
+          <FormattedMessage {...m.renameFailed} />
+        </div>
+      )}
       {undoFailed && (
         <div role="alert" className="alert alert-error">
           <FormattedMessage {...m.undoExpired} />

@@ -8,6 +8,7 @@
   "mutate": [
     "src/App.tsx",
     "src/king/api.ts",
+    "src/king/heat.ts",
     "src/king/location.ts",
     "src/king/messages.ts",
     "src/king/reporter.ts",

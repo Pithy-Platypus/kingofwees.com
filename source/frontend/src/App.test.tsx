@@ -342,7 +342,7 @@ describe('App — who fed', () => {
     expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, reporterName: 'Sunny' });
   });
 
-  it('“change” on the confirmation renames later entries and comes back to the confirmation', async () => {
+  it('“change” on the confirmation renames the entry just logged and later ones, then comes back to the confirmation', async () => {
     const storage = deviceNamed('Sunny');
     const api = renderApp(fakeApi(), storage);
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
@@ -354,13 +354,50 @@ describe('App — who fed', () => {
     await userEvent.type(nameBox(), 'Captain Whiskers');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(screen.getByRole('heading', { name: 'Thanks for spotting King!' })).toHaveFocus();
+    expect(await screen.findByRole('heading', { name: 'Thanks for spotting King!' })).toHaveFocus();
+    expect(api.renameEvent).toHaveBeenCalledWith('new-seen', KEY, 'Captain Whiskers');
     expect(screen.getByText(/Logging as Captain Whiskers/)).toBeInTheDocument();
     expect(loadNickname(storage)).toBe('Captain Whiskers');
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
     await skipWhere();
     expect(api.logSighting).toHaveBeenLastCalledWith({ reporterKey: KEY, reporterName: 'Captain Whiskers' });
+  });
+
+  it('“change” to no name makes the entry just logged a neighbor’s', async () => {
+    const api = renderApp(fakeApi(), deviceNamed('Sunny'));
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'change' }));
+    await userEvent.clear(nameBox());
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText(/Logging as a neighbor/)).toBeInTheDocument();
+    expect(api.renameEvent).toHaveBeenCalledWith('new-seen', KEY, null);
+  });
+
+  it('says so when the entry just logged can’t be renamed, and still uses the name from now on', async () => {
+    const storage = deviceNamed('Sunny');
+    const api = fakeApi();
+    api.renameEvent.mockRejectedValueOnce(new Error('too late'));
+    renderApp(api, storage);
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'change' }));
+    await userEvent.clear(nameBox());
+    await userEvent.type(nameBox(), 'Kael');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Couldn’t change the name on this entry. Your next entries will use the new name.',
+    );
+    expect(loadNickname(storage)).toBe('Kael');
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('keeps names within the 40 characters the server accepts', async () => {

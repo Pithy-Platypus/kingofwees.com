@@ -40,6 +40,27 @@ describe('MapView', () => {
     expect(fitBounds).not.toHaveBeenCalled();
   });
 
+  it('draws heat cells bigger the busier their level, each tagged with its level', () => {
+    const circleMarker = vi.spyOn(L, 'circleMarker');
+    const next = { latitude: 45.524, longitude: -122.677 };
+
+    renderInEnglish(
+      <MapView
+        center={center}
+        label="Map of King’s street"
+        markers={[
+          { point: center, kind: 'heat', level: 4 },
+          { point: next, kind: 'heat', level: 1 },
+        ]}
+      />,
+    );
+
+    expect(region().querySelectorAll('.map-marker-heat.map-heat-4')).toHaveLength(1);
+    expect(region().querySelectorAll('.map-marker-heat.map-heat-1')).toHaveLength(1);
+    const [busiest, quietest] = circleMarker.mock.calls.map(([, options]) => options!.radius!);
+    expect(busiest).toBeGreaterThan(quietest);
+  });
+
   it('is a labelled region that credits OpenStreetMap', () => {
     renderInEnglish(<MapView center={center} label="Map of King’s street" />);
 

@@ -16,6 +16,11 @@ export type KingEventView = {
   location: GeoPoint | null;
 };
 export type KingStatus = { lastFed: KingEventView | null; lastSeen: KingEventView | null; recent: KingEventView[] };
+export type HeatLayer = 'seen' | 'fed';
+export type HeatRange = 7 | 30 | 'all';
+export type HeatCell = { location: GeoPoint; count: number; spotName: string | null };
+/** `next` is the id to pass as `before` for the older page; null on the last page. */
+export type HistoryPage = { events: KingEventView[]; next: string | null };
 export type Reporter = { reporterKey: string; reporterName?: string | null };
 
 export class ApiError extends Error {
@@ -54,6 +59,17 @@ export const kingApi = {
       throw error;
     }
   },
+  getHeat: async (layer: HeatLayer, range: HeatRange): Promise<HeatCell[]> =>
+    (await request<{ cells: HeatCell[] }>(`/api/king/heat?layer=${layer}${range === 'all' ? '' : `&days=${range}`}`, undefined)).cells,
+  getHistory: (before?: string) =>
+    request<HistoryPage>(`/api/king/history${before === undefined ? '' : `?before=${encodeURIComponent(before)}`}`, undefined),
+  // Same device and time window as undo; null clears the name.
+  renameEvent: (id: string, reporterKey: string, reporterName: string | null) =>
+    request<void>(`/api/king/events/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'X-Reporter-Key': reporterKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reporterName }),
+    }),
   undo: (id: string, reporterKey: string) =>
     request<void>(`/api/king/events/${encodeURIComponent(id)}`, {
       method: 'DELETE',

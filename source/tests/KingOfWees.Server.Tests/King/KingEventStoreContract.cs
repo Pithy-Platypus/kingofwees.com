@@ -144,7 +144,7 @@ public abstract class KingEventStoreContract
     }
 
     [Fact]
-    public async Task Recent_is_newest_first_and_limited_to_count()
+    public async Task First_page_is_newest_first_and_limited_to_count()
     {
         var store = CreateStore();
         var first = Event(KingEventKind.Fed, 1);
@@ -154,10 +154,165 @@ public abstract class KingEventStoreContract
         await store.AddAsync(third, Ct);
         await store.AddAsync(first, Ct);
 
-        var recent = await store.GetRecentAsync(2, Ct);
+        var page = await store.GetPageAsync(before: null, 2, Ct);
 
-        Assert.Equal([third.Id, second.Id], recent.Select(e => e.Id));
-        AssertSameEvent(third, recent[0]);
+        Assert.Equal([third.Id, second.Id], page.Select(e => e.Id));
+        AssertSameEvent(third, page[0]);
+    }
+
+    [Fact]
+    public async Task Next_page_continues_after_the_last_event_of_the_previous_one()
+    {
+        var store = CreateStore();
+        var events = Enumerable.Range(1, 5).Select(minute => Event(KingEventKind.Fed, minute)).ToArray();
+        foreach (var e in events.Reverse()) await store.AddAsync(e, Ct);
+
+        var page = await store.GetPageAsync(before: events[3], 2, Ct);
+
+        Assert.Equal([events[2].Id, events[1].Id], page.Select(e => e.Id));
+    }
+
+    [Fact]
+    public async Task Events_logged_in_the_same_instant_are_paged_by_id_without_skips_or_repeats()
+    {
+        var store = CreateStore();
+        // Ids chosen so id order differs from insertion order.
+        var sameTime = new[] { "b", "d", "a", "c" }
+            .Select(id => Event(KingEventKind.Seen, 0) with { Id = id }).ToArray();
+        foreach (var e in sameTime) await store.AddAsync(e, Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, -1) with { Id = "z-older" }, Ct);
+
+        var firstPage = await store.GetPageAsync(before: null, 2, Ct);
+        var secondPage = await store.GetPageAsync(before: firstPage[^1], 2, Ct);
+        var thirdPage = await store.GetPageAsync(before: secondPage[^1], 2, Ct);
+
+        Assert.Equal(["d", "c"], firstPage.Select(e => e.Id));
+        Assert.Equal(["b", "a"], secondPage.Select(e => e.Id));
+        Assert.Equal(["z-older"], thirdPage.Select(e => e.Id));
+    }
+
+    [Fact]
+    public async Task Page_after_the_oldest_event_is_empty()
+    {
+        var store = CreateStore();
+        var only = Event(KingEventKind.Fed, 0);
+        await store.AddAsync(only, Ct);
+
+        Assert.Empty(await store.GetPageAsync(before: only, 10, Ct));
+    }
+
+    private static readonly GeoPoint PlaceA = new(45.523, -122.677);
+    private static readonly GeoPoint PlaceB = new(45.524, -122.677);
+
+    // Stores may return counts in any order.
+    private static void AssertCounts<T>(IEnumerable<T> expected, IEnumerable<T> actual) =>
+        Assert.Equal(expected.Select(c => c!.ToString()).Order(), actual.Select(c => c!.ToString()).Order());
+
+    [Fact]
+    public async Task Sightings_are_counted_per_place_and_those_without_one_are_left_out()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Seen, 1, location: PlaceA), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 2, location: PlaceA), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 3, location: PlaceB), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 4), Ct);
+
+        AssertCounts([new PlaceCount(PlaceA, 2), new PlaceCount(PlaceB, 1)], await store.CountSightingsByPlaceAsync(since: null, Ct));
+    }
+
+    [Fact]
+    public async Task Sighting_counts_skip_events_where_king_was_not_seen()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Seen, 1, location: PlaceA), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 2, sawKing: false, location: PlaceA), Ct);
+
+        AssertCounts([new PlaceCount(PlaceA, 1)], await store.CountSightingsByPlaceAsync(since: null, Ct));
+    }
+
+    [Fact]
+    public async Task Sighting_counts_start_at_since_inclusive()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Seen, 1, location: PlaceA), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 2, location: PlaceA), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 3, location: PlaceB), Ct);
+
+        AssertCounts(
+            [new PlaceCount(PlaceA, 1), new PlaceCount(PlaceB, 1)],
+            await store.CountSightingsByPlaceAsync(since: T0.AddMinutes(2), Ct));
+    }
+
+    [Fact]
+    public async Task Feedings_are_counted_per_spot_including_food_left_out()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Fed, 1, spotId: "porch"), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 2, spotId: "porch", sawKing: false), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 3, spotId: "steps"), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 4), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 5, location: PlaceA), Ct);
+
+        AssertCounts(
+            [new SpotCount("porch", 2), new SpotCount("steps", 1)],
+            await store.CountFeedingsBySpotAsync(since: null, seenOnly: false, Ct));
+    }
+
+    [Fact]
+    public async Task Seen_only_feeding_counts_skip_food_left_out()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Fed, 1, spotId: "porch"), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 2, spotId: "porch", sawKing: false), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 3, spotId: "steps", sawKing: false), Ct);
+
+        AssertCounts([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: null, seenOnly: true, Ct));
+    }
+
+    [Fact]
+    public async Task Feeding_counts_start_at_since_inclusive()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Fed, 1, spotId: "porch"), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 2, spotId: "porch"), Ct);
+
+        AssertCounts([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: T0.AddMinutes(2), seenOnly: false, Ct));
+    }
+
+    [Fact]
+    public async Task Rename_changes_only_that_event_s_name()
+    {
+        var store = CreateStore();
+        var renamed = Event(KingEventKind.Fed, 0, name: "Guy", foods: [Food.Dry], spotId: "spot-1");
+        var other = Event(KingEventKind.Seen, 1, name: "Guy");
+        await store.AddAsync(renamed, Ct);
+        await store.AddAsync(other, Ct);
+
+        Assert.True(await store.RenameAsync(renamed.Id, "Kael", Ct));
+
+        AssertSameEvent(renamed with { ReporterName = "Kael" }, await store.FindAsync(renamed.Id, Ct));
+        AssertSameEvent(other, await store.FindAsync(other.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Rename_to_no_name_clears_it()
+    {
+        var store = CreateStore();
+        var seen = Event(KingEventKind.Seen, 0, name: "Guy");
+        await store.AddAsync(seen, Ct);
+
+        Assert.True(await store.RenameAsync(seen.Id, null, Ct));
+
+        Assert.Null((await store.FindAsync(seen.Id, Ct))?.ReporterName);
+    }
+
+    [Fact]
+    public async Task Rename_of_an_unknown_event_reports_false()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Fed, 0), Ct);
+
+        Assert.False(await store.RenameAsync(Guid.CreateVersion7().ToString(), "Kael", Ct));
     }
 
     [Fact]

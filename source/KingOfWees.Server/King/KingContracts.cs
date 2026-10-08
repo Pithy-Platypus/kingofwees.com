@@ -8,6 +8,9 @@ public sealed record LogFeedingRequest(
 
 public sealed record LogSightingRequest(string ReporterKey, string? ReporterName, GeoPoint? Location = null);
 
+// Null (or omitted) clears the name, so the entry reads "a neighbor"; the device key travels in X-Reporter-Key, as for undo.
+public sealed record RenameEventRequest(string? ReporterName);
+
 public sealed record AddSpotRequest(string ReporterKey, string Name, GeoPoint? Location);
 
 public sealed record SpotView(string Id, string Name, GeoPoint Location)
@@ -23,6 +26,27 @@ public sealed record EventView(
     public static EventView From(KingEvent e, Spot? spot) =>
         new(e.Id, e.Kind, e.OccurredAt, e.ReporterName, e.Foods, e.SawKing, spot?.Name, spot?.Location ?? e.Location);
 }
+
+// Bound from the query string with [AsParameters]; Before is the id of the last event already shown.
+public sealed record HistoryQuery(string? Before, int? Limit)
+{
+    public const int DefaultLimit = 50;
+    public const int MaxLimit = 100;
+}
+
+public sealed record HistoryPage(IReadOnlyList<EventView> Events, string? Next);
+
+// Layer is "seen" or "fed"; Days is 7 or 30, or omitted for all time.
+public sealed record HeatQuery(string? Layer, int? Days)
+{
+    public const string Seen = "seen";
+    public const string Fed = "fed";
+}
+
+// SpotName is set on the fed layer, where each cell is one spot; seen cells are blocks.
+public sealed record HeatCell(GeoPoint Location, int Count, string? SpotName);
+
+public sealed record HeatMap(IReadOnlyList<HeatCell> Cells);
 
 public sealed record KingStatus(EventView? LastFed, EventView? LastSeen, IReadOnlyList<EventView> Recent);
 
@@ -54,6 +78,11 @@ public sealed class LogSightingRequestValidator : AbstractValidator<LogSightingR
     }
 }
 
+public sealed class RenameEventRequestValidator : AbstractValidator<RenameEventRequest>
+{
+    public RenameEventRequestValidator() => RuleFor(r => r.ReporterName).ValidReporterName();
+}
+
 public sealed class AddSpotRequestValidator : AbstractValidator<AddSpotRequest>
 {
     public const int MaxNameLength = 40;
@@ -65,6 +94,27 @@ public sealed class AddSpotRequestValidator : AbstractValidator<AddSpotRequest>
             .NotEmpty().WithErrorCode("name.required")
             .MaximumLength(MaxNameLength).WithErrorCode("name.tooLong");
         RuleFor(r => r.Location).NotNull().WithErrorCode("location.required").ValidLocation();
+    }
+}
+
+public sealed class HistoryQueryValidator : AbstractValidator<HistoryQuery>
+{
+    public HistoryQueryValidator(IKingEventStore store)
+    {
+        RuleFor(q => q.Limit).InclusiveBetween(1, HistoryQuery.MaxLimit).WithErrorCode("limit.outOfRange");
+        RuleFor(q => q.Before)
+            .MustAsync(async (id, ct) => await store.FindAsync(id!, ct) is not null)
+            .When(q => q.Before is not null)
+            .WithErrorCode("before.unknown");
+    }
+}
+
+public sealed class HeatQueryValidator : AbstractValidator<HeatQuery>
+{
+    public HeatQueryValidator()
+    {
+        RuleFor(q => q.Layer).Must(l => l is HeatQuery.Seen or HeatQuery.Fed).WithErrorCode("layer.invalid");
+        RuleFor(q => q.Days).Must(d => d is null or 7 or 30).WithErrorCode("days.invalid");
     }
 }
 

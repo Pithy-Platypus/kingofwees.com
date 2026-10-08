@@ -153,6 +153,20 @@
       "value": "]"
     }
   ],
+  "activity.leftOut": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "ŀḗḗƒŧ ƒǿǿǿǿḓ ǿǿŭŭŧ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "app.loading": [
     {
       "type": 0,
@@ -419,6 +433,20 @@
       "value": "]"
     }
   ],
+  "footer.history": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīşŧǿǿřẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "footer.privacy": [
     {
       "type": 0,
@@ -441,6 +469,368 @@
     {
       "type": 0,
       "value": "Şīŧḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.all": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧŀŀ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.days30": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "30 ḓȧȧẏş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.days7": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "7 ḓȧȧẏş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.empty": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿŧħīƞɠ ẇīŧħ ȧȧ ƥŀȧȧƈḗḗ ŀǿǿɠɠḗḗḓ īƞ ŧħīş ŧīḿḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.failed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŀǿǿȧȧḓ ŧħḗḗ ħḗḗȧȧŧ ḿȧȧƥ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.fed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẇħḗḗřḗḗ ħḗḗ’ş ƒḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.feedings": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.from": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧƀǿǿŭŭŧ "
+    },
+    {
+      "type": 1,
+      "value": "distance"
+    },
+    {
+      "type": 0,
+      "value": " ƒřǿǿḿ "
+    },
+    {
+      "type": 1,
+      "value": "spot"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.heading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẇħḗḗřḗḗ Ķīƞɠ ɠǿǿḗḗş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.loading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŀǿǿȧȧḓīƞɠ ŧħḗḗ ħḗḗȧȧŧ ḿȧȧƥ…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.mapFed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḿȧȧƥ ǿǿƒ ẇħḗḗřḗḗ Ķīƞɠ īş ƒḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.mapSeen": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḿȧȧƥ ǿǿƒ ẇħḗḗřḗḗ Ķīƞɠ īş şḗḗḗḗƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.near": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞḗḗȧȧř "
+    },
+    {
+      "type": 1,
+      "value": "spot"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.nowhere": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şǿǿḿḗḗẇħḗḗřḗḗ ẇīŧħǿǿŭŭŧ ȧȧ şƥǿǿŧ ƞḗḗȧȧřƀẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.places": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥŀȧȧƈḗḗş, ƀŭŭşīḗḗşŧ ƒīřşŧ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.range": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧīḿḗḗ řȧȧƞɠḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.seen": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẇħḗḗřḗḗ ħḗḗ’ş şḗḗḗḗƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.show": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.sightings": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " şīɠħŧīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " şīɠħŧīƞɠş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "heat.tryAgain": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "history.title": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ķīƞɠ’ş ħīşŧǿǿřẏ"
     },
     {
       "type": 0,
@@ -733,6 +1123,20 @@
       "value": "]"
     }
   ],
+  "home.seeHistory": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şḗḗḗḗ Ķīƞɠ’ş ħīşŧǿǿřẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "home.seenAgo": [
     {
       "type": 0,
@@ -791,6 +1195,132 @@
     {
       "type": 0,
       "value": "Ȧ ẇħīḿşīƈȧȧŀ, ƞḗḗīɠħƀǿǿřŀẏ ẇȧȧẏ ŧǿǿ ķḗḗḗḗƥ ŧřȧȧƈķ ǿǿƒ Ķīƞɠ, ŧħḗḗ 11-ẏḗḗȧȧř-ǿǿŀḓ ŀǿǿƞɠ-ħȧȧīř ǿǿŭŭř ƞḗḗīɠħƀǿǿřħǿǿǿǿḓ ƈǿǿ-ƥȧȧřḗḗƞŧş. Ẇħǿǿ şȧȧẇ ħīḿ, ẇħḗḗřḗḗ, ȧȧƞḓ ẇħḗḗƞ ħḗḗ ŀȧȧşŧ ȧȧŧḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.empty": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿŧħīƞɠ ŀǿǿɠɠḗḗḓ ẏḗḗŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.failed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŀǿǿȧȧḓ Ķīƞɠ’ş ħīşŧǿǿřẏ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.heading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḗṽḗḗřẏ ḗḗƞŧřẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.loading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŀǿǿȧȧḓīƞɠ Ķīƞɠ’ş ħīşŧǿǿřẏ…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.olderFailed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŀǿǿȧȧḓ ǿǿŀḓḗḗř ḗḗƞŧřīḗḗş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.showOlder": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇ ǿǿŀḓḗḗř"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.today": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧǿǿḓȧȧẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.tryAgain": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "log.yesterday": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẏḗḗşŧḗḗřḓȧȧẏ"
     },
     {
       "type": 0,
@@ -865,6 +1395,20 @@
           "value": "ƈħȧȧƞɠḗḗ"
         }
       ]
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "logged.renameFailed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ƈħȧȧƞɠḗḗ ŧħḗḗ ƞȧȧḿḗḗ ǿǿƞ ŧħīş ḗḗƞŧřẏ. Ẏǿǿŭŭř ƞḗḗẋŧ ḗḗƞŧřīḗḗş ẇīŀŀ ŭŭşḗḗ ŧħḗḗ ƞḗḗẇ ƞȧȧḿḗḗ."
     },
     {
       "type": 0,
@@ -1250,7 +1794,21 @@
     },
     {
       "type": 0,
-      "value": "Ḗƞŧřīḗḗş ȧȧřḗḗ ķḗḗƥŧ ȧȧş Ķīƞɠ’ş ħīşŧǿǿřẏ. Ẇȧȧƞŧ ǿǿƞḗḗ řḗḗḿǿǿṽḗḗḓ? Ḗḿȧȧīŀ "
+      "value": "Ḗƞŧřīḗḗş ȧȧřḗḗ ķḗḗƥŧ ȧȧş Ķīƞɠ’ş ħīşŧǿǿřẏ, ẇħīƈħ ḗḗṽḗḗřẏǿǿƞḗḗ ƈȧȧƞ şḗḗḗḗ ǿǿƞ ŧħḗḗ "
+    },
+    {
+      "type": 8,
+      "value": "history",
+      "children": [
+        {
+          "type": 0,
+          "value": "ħīşŧǿǿřẏ ƥȧȧɠḗḗ"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": ": ḗḗṽḗḗřẏ ḗḗƞŧřẏ ẇīŧħ īŧş ƞȧȧḿḗḗ, ȧȧƞḓ ȧȧ ḿȧȧƥ ǿǿƒ ŧħḗḗ ƥŀȧȧƈḗḗş (ƞḗḗṽḗḗř ḿǿǿřḗḗ ḗḗẋȧȧƈŧ ŧħȧȧƞ ȧȧ ƀŀǿǿƈķ). Ẇȧȧƞŧ ǿǿƞḗḗ řḗḗḿǿǿṽḗḗḓ? Ḗḿȧȧīŀ "
     },
     {
       "type": 8,
@@ -1601,6 +2159,20 @@
     {
       "type": 0,
       "value": "Ȧƀǿǿŭŭŧ · Ķīƞɠ ǿǿƒ Ẇḗḗḗḗş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "title.history": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīşŧǿǿřẏ · Ķīƞɠ ǿǿƒ Ẇḗḗḗḗş"
     },
     {
       "type": 0,

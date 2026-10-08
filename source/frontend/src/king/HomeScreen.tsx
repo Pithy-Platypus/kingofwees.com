@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import type { KingEventView, KingStatus, SpotView } from './api';
 import { BowlIcon, CrownIcon, EyeIcon } from './icons';
-import { nearestSpot, type GeoPoint } from './location';
+import { ActivityItem } from './ActivityItem';
+import type { GeoPoint } from './location';
+import { Link } from '../routing/Link';
 import { MapView, type MapMarker } from './MapView';
-import { common, foodMessage, formatWhen } from './messages';
+import { common, formatWhen, placeOf } from './messages';
 import { kingMood } from './time';
 
 // Placeholder types are declared so a missing or misspelled {value} fails the type-check.
@@ -24,11 +26,8 @@ type Values = {
   iSaw: NoMessageValues;
   iFed: NoMessageValues;
   lately: NoMessageValues;
+  seeHistory: NoMessageValues;
   nothingYet: NoMessageValues;
-  fedBy: { name: string };
-  seenBy: { name: string };
-  atSpot: { spot: string };
-  nearSpot: { spot: string };
   mapTitle: NoMessageValues;
   mapKey: NoMessageValues;
 };
@@ -58,15 +57,12 @@ const m = defineMessages<Values>({
   iSaw: { id: 'home.iSawKing', defaultMessage: 'I saw King', description: 'Big button to log a sighting' },
   iFed: { id: 'home.iFedKing', defaultMessage: 'I fed King', description: 'Big button to log a feeding' },
   lately: { id: 'home.lately', defaultMessage: 'Lately', description: 'Heading over the recent activity list' },
-  nothingYet: { id: 'home.nothingYet', defaultMessage: 'Nothing logged yet. Be the first!', description: 'Shown when the activity list is empty' },
-  fedBy: { id: 'home.fedBy', defaultMessage: 'Fed by {name}', description: 'Activity item; {name} is who fed King' },
-  seenBy: { id: 'home.seenBy', defaultMessage: 'Seen by {name}', description: 'Activity item; {name} is who saw King' },
-  atSpot: { id: 'home.atSpot', defaultMessage: 'at {spot}', description: 'Activity detail; {spot} is the feeding spot’s name' },
-  nearSpot: {
-    id: 'home.nearSpot',
-    defaultMessage: 'near {spot}',
-    description: 'Activity detail for a sighting within about a block of a saved feeding spot; {spot} is its name',
+  seeHistory: {
+    id: 'home.seeHistory',
+    defaultMessage: 'See King’s history',
+    description: 'Link under the recent activity list to the history page (heat map and every entry)',
   },
+  nothingYet: { id: 'home.nothingYet', defaultMessage: 'Nothing logged yet. Be the first!', description: 'Shown when the activity list is empty' },
   mapTitle: {
     id: 'home.mapTitle',
     defaultMessage: 'Last fed & seen',
@@ -105,21 +101,10 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
   const fedChipClass = `status-chip ${hungry ? 'badge-error' : 'badge-success'}`;
   const placed = useMemo(() => placedFor(status), [status]);
   const markers = useMemo(() => placed.map((p) => p.marker), [placed]);
-  // A feeding names its own spot; a sighting borrows the name of a spot within about a block, if any.
-  const placeOf = (e: KingEventView) => {
-    if (e.spotName) return intl.formatMessage(m.atSpot, { spot: e.spotName });
-    const near = e.kind === 'seen' && e.location ? nearestSpot(e.location, spots) : null;
-    return near ? intl.formatMessage(m.nearSpot, { spot: near.name }) : null;
-  };
-  // "Wet food and Treats · at Corner": whichever parts the entry has.
-  const detailOf = (e: KingEventView) =>
-    [e.foods.length > 0 && intl.formatList(e.foods.map((f) => intl.formatMessage(foodMessage(f)))), placeOf(e)]
-      .filter(Boolean)
-      .join(' · ');
   // Words for each marker, so the map never relies on color alone (WCAG 1.4.1).
   const keyOf = ({ event, marker, fedAndSeen }: Placed) => {
     const message = fedAndSeen ? m.fedAndSeenAgo : marker.kind === 'fed' ? m.fedAgo : m.seenAgo;
-    return [intl.formatMessage(message, { when: when(event) }), placeOf(event)].filter(Boolean).join(' · ');
+    return [intl.formatMessage(message, { when: when(event) }), placeOf(intl, event, spots)].filter(Boolean).join(' · ');
   };
 
   return (
@@ -211,29 +196,14 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
           </p>
         ) : (
           <ul className="activity-list" aria-labelledby="lately-heading">
-            {status.recent.map((e) => {
-              const name = e.reporterName ?? intl.formatMessage(common.aNeighbor);
-              return (
-                <li key={e.id} className="activity-item">
-                  <span className={`activity-icon ${e.kind === 'fed' ? 'bg-secondary text-secondary-content' : 'bg-primary text-primary-content'}`}>
-                    {e.kind === 'fed' ? <BowlIcon /> : <EyeIcon />}
-                  </span>
-                  <span className="activity-text">
-                    <strong>
-                      {e.kind === 'fed' ? (
-                        <FormattedMessage {...m.fedBy} values={{ name }} />
-                      ) : (
-                        <FormattedMessage {...m.seenBy} values={{ name }} />
-                      )}
-                    </strong>
-                    {detailOf(e) && <span className="activity-detail">{detailOf(e)}</span>}
-                  </span>
-                  <span className="activity-time">{when(e)}</span>
-                </li>
-              );
-            })}
+            {status.recent.map((e) => (
+              <ActivityItem key={e.id} event={e} spots={spots} time={when(e)} />
+            ))}
           </ul>
         )}
+        <Link to="history" className="history-link">
+          <FormattedMessage {...m.seeHistory} />
+        </Link>
       </section>
     </main>
   );

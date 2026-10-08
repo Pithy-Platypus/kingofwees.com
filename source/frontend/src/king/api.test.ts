@@ -21,6 +21,29 @@ describe('kingApi', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/king/status', undefined);
   });
 
+  it.each([
+    ['seen', 30, '/api/king/heat?layer=seen&days=30'],
+    ['fed', 7, '/api/king/heat?layer=fed&days=7'],
+    ['seen', 'all', '/api/king/heat?layer=seen'],
+  ] as const)('gets the %s heat cells for %s days', async (layer, range, url) => {
+    const cells = [{ location: { latitude: 45.523, longitude: -122.677 }, count: 2, spotName: null }];
+    respond(200, { cells });
+
+    await expect(kingApi.getHeat(layer, range)).resolves.toEqual(cells);
+    expect(fetchMock).toHaveBeenCalledWith(url, undefined);
+  });
+
+  it.each([
+    [undefined, '/api/king/history'],
+    ['id/with?odd&chars', '/api/king/history?before=id%2Fwith%3Fodd%26chars'],
+  ])('gets a page of history before %s', async (before, url) => {
+    const page = { events: [], next: 'e9' };
+    respond(200, page);
+
+    await expect(kingApi.getHistory(before)).resolves.toEqual(page);
+    expect(fetchMock).toHaveBeenCalledWith(url, undefined);
+  });
+
   it('posts a feeding as JSON and returns the created event', async () => {
     const created = { id: 'e1', kind: 'fed', occurredAt: '2026-10-08T12:00:00Z', reporterName: 'Sunny', foods: ['dry', 'treats'], sawKing: false };
     respond(201, created);
@@ -91,6 +114,26 @@ describe('kingApi', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/king/events/a%2Fb', {
       method: 'DELETE',
       headers: { 'X-Reporter-Key': 'k' },
+    });
+  });
+
+  it('renames an entry with the reporter key header and an encoded id; no name is sent as null', async () => {
+    respond(204);
+    respond(204);
+
+    await kingApi.renameEvent('a/b', 'k', 'Kael');
+    await kingApi.renameEvent('a/b', 'k', null);
+
+    const headers = { 'X-Reporter-Key': 'k', 'Content-Type': 'application/json' };
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/king/events/a%2Fb', {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ reporterName: 'Kael' }),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/king/events/a%2Fb', {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ reporterName: null }),
     });
   });
 

@@ -39,6 +39,10 @@
     "defaultMessage": "About King",
     "description": "About page heading"
   },
+  "activity.leftOut": {
+    "defaultMessage": "left food out",
+    "description": "Activity detail for a feeding where the feeder only left food out and didn’t see King"
+  },
   "app.loading": {
     "defaultMessage": "Finding King…",
     "description": "Shown while the status loads"
@@ -107,6 +111,10 @@
     "defaultMessage": "Brought to you by King’s neighbors on Guy St.",
     "description": "Footer credit; Guy St. is the street name and stays as is"
   },
+  "footer.history": {
+    "defaultMessage": "History",
+    "description": "Footer link to King’s history page (heat map and every entry)"
+  },
   "footer.privacy": {
     "defaultMessage": "Privacy",
     "description": "Footer link to the Privacy page"
@@ -114,6 +122,90 @@
   "footer.siteLinks": {
     "defaultMessage": "Site",
     "description": "Accessible name for the footer link list"
+  },
+  "heat.all": {
+    "defaultMessage": "All",
+    "description": "Switch: every entry ever logged"
+  },
+  "heat.days30": {
+    "defaultMessage": "30 days",
+    "description": "Switch: only the last 30 days"
+  },
+  "heat.days7": {
+    "defaultMessage": "7 days",
+    "description": "Switch: only the last 7 days"
+  },
+  "heat.empty": {
+    "defaultMessage": "Nothing with a place logged in this time.",
+    "description": "Heat map has no places for the chosen layer and range"
+  },
+  "heat.failed": {
+    "defaultMessage": "Couldn’t load the heat map.",
+    "description": "Shown when the heat map cannot be loaded"
+  },
+  "heat.fed": {
+    "defaultMessage": "Where he’s fed",
+    "description": "Switch: heat map of feedings, per feeding spot"
+  },
+  "heat.feedings": {
+    "defaultMessage": "{count, plural, one {# feeding} other {# feedings}}",
+    "description": "How many times King was fed at one spot"
+  },
+  "heat.from": {
+    "defaultMessage": "About {distance} from {spot}",
+    "description": "Place farther from any feeding spot; {distance} is e.g. “1,100 ft” or “0.3 mi”, {spot} the closest spot’s name"
+  },
+  "heat.heading": {
+    "defaultMessage": "Where King goes",
+    "description": "Heading over the heat map on the history page"
+  },
+  "heat.loading": {
+    "defaultMessage": "Loading the heat map…",
+    "description": "Shown while the heat map loads"
+  },
+  "heat.mapFed": {
+    "defaultMessage": "Map of where King is fed",
+    "description": "Accessible name of the heat map, fed layer"
+  },
+  "heat.mapSeen": {
+    "defaultMessage": "Map of where King is seen",
+    "description": "Accessible name of the heat map, seen layer"
+  },
+  "heat.near": {
+    "defaultMessage": "Near {spot}",
+    "description": "Place within about a block of a feeding spot; {spot} is its name"
+  },
+  "heat.nowhere": {
+    "defaultMessage": "Somewhere without a spot nearby",
+    "description": "Place name when no feeding spots have been saved yet"
+  },
+  "heat.places": {
+    "defaultMessage": "Places, busiest first",
+    "description": "Accessible name of the list of places under the heat map"
+  },
+  "heat.range": {
+    "defaultMessage": "Time range",
+    "description": "Accessible name of the 7 days / 30 days / All switch"
+  },
+  "heat.seen": {
+    "defaultMessage": "Where he’s seen",
+    "description": "Switch: heat map of sightings (including feedings where King was seen)"
+  },
+  "heat.show": {
+    "defaultMessage": "Show",
+    "description": "Accessible name of the seen/fed switch"
+  },
+  "heat.sightings": {
+    "defaultMessage": "{count, plural, one {# sighting} other {# sightings}}",
+    "description": "How many times King was seen at one place"
+  },
+  "heat.tryAgain": {
+    "defaultMessage": "Try again",
+    "description": "Retry loading the heat map"
+  },
+  "history.title": {
+    "defaultMessage": "King’s history",
+    "description": "Heading of the history page (heat map and every entry)"
   },
   "home.aNeighbor": {
     "defaultMessage": "a neighbor",
@@ -191,6 +283,10 @@
     "defaultMessage": "King, a fluffy grey long-haired cat",
     "description": "Alt text for King’s photo"
   },
+  "home.seeHistory": {
+    "defaultMessage": "See King’s history",
+    "description": "Link under the recent activity list to the history page (heat map and every entry)"
+  },
   "home.seenAgo": {
     "defaultMessage": "Seen {when}",
     "description": "Chip; {when} is e.g. “25 minutes ago”"
@@ -207,6 +303,42 @@
     "defaultMessage": "A whimsical, neighborly way to keep track of King, the 11-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.",
     "description": "One-line explanation of the site under the header on the home page"
   },
+  "log.empty": {
+    "defaultMessage": "Nothing logged yet.",
+    "description": "The log has no entries at all"
+  },
+  "log.failed": {
+    "defaultMessage": "Couldn’t load King’s history.",
+    "description": "Shown when the log cannot be loaded"
+  },
+  "log.heading": {
+    "defaultMessage": "Every entry",
+    "description": "Heading over the full log on the history page"
+  },
+  "log.loading": {
+    "defaultMessage": "Loading King’s history…",
+    "description": "Shown while the log loads"
+  },
+  "log.olderFailed": {
+    "defaultMessage": "Couldn’t load older entries.",
+    "description": "Shown when Show older fails"
+  },
+  "log.showOlder": {
+    "defaultMessage": "Show older",
+    "description": "Loads the next, older page of entries"
+  },
+  "log.today": {
+    "defaultMessage": "Today",
+    "description": "Day heading in the log"
+  },
+  "log.tryAgain": {
+    "defaultMessage": "Try again",
+    "description": "Retry loading the log"
+  },
+  "log.yesterday": {
+    "defaultMessage": "Yesterday",
+    "description": "Day heading in the log"
+  },
   "logged.done": {
     "defaultMessage": "Done",
     "description": "Return home"
@@ -222,6 +354,10 @@
   "logged.loggingAs": {
     "defaultMessage": "Logging as {name} · <change>change</change>",
     "description": "The name shown with this device’s entries; {name} is a nickname or “a neighbor”. <change> becomes a button."
+  },
+  "logged.renameFailed": {
+    "defaultMessage": "Couldn’t change the name on this entry. Your next entries will use the new name.",
+    "description": "Shown when the entry just logged could not take the new name (too late, or offline)"
   },
   "logged.seen.detail": {
     "defaultMessage": "Everyone can see he was spotted just now.",
@@ -324,8 +460,8 @@
     "description": "Note for parents about children using the site"
   },
   "privacy.retention": {
-    "defaultMessage": "Entries are kept as King’s history. Want one removed? Email <mail>{email}</mail>.",
-    "description": "Retention and removal requests; keep the <mail></mail> tags around {email}"
+    "defaultMessage": "Entries are kept as King’s history, which everyone can see on the <history>history page</history>: every entry with its name, and a map of the places (never more exact than a block). Want one removed? Email <mail>{email}</mail>.",
+    "description": "Retention, the public history page, and removal requests; keep the <history></history> tags around the link text and the <mail></mail> tags around {email}"
   },
   "privacy.stored.code": {
     "defaultMessage": "A random code saved in your browser, so you can undo your own entries. It isn’t linked to who you are.",
@@ -422,6 +558,10 @@
   "title.about": {
     "defaultMessage": "About · King of Wees",
     "description": "Browser tab title of the About page"
+  },
+  "title.history": {
+    "defaultMessage": "History · King of Wees",
+    "description": "Browser tab title of the history page"
   },
   "title.home": {
     "defaultMessage": "King of Wees",

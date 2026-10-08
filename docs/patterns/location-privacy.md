@@ -33,5 +33,6 @@ Both round half away from zero, so they agree exactly. Rounding an already-round
 ## Related
 
 - Coordinates travel in request **bodies**, never URLs: query strings appear in logs and browser history (the server also strips `url.query` from telemetry — see `PersonalDataScrubber`).
+- The heat map (`/api/king/heat`) groups on the stored, already-rounded values by exact equality: a block is the finest thing it can draw, and there is no precision left to recover. The page then folds blocks near a feeding spot into that spot — coarser still.
 - The map center (`King:Map:Center`) is kept out of the public repo (user-secrets / environment). It is still sent to every visitor so the map can open there — keeping it out of git avoids it being searchable in the repo history forever, not hiding it from visitors.
 - Map tiles load from OpenStreetMap, which sees the visitor's IP address and roughly what area they're viewing; the Privacy page says so.

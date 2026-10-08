@@ -43,16 +43,18 @@ function metersBetween(a: GeoPoint, b: GeoPoint): number {
   return Math.hypot(x, y) * EARTH_RADIUS_METERS;
 }
 
-/** The closest saved spot within about a block of a point, or null. */
-export function nearestSpot<S extends { location: GeoPoint }>(point: GeoPoint, spots: S[]): S | null {
-  let nearest: S | null = null;
-  let nearestMeters = NEAR_METERS;
+/** The closest saved spot, however far, and how far it is; null when there are none. */
+export function closestSpot<S extends { location: GeoPoint }>(point: GeoPoint, spots: S[]): { spot: S; meters: number } | null {
+  let closest: { spot: S; meters: number } | null = null;
   for (const spot of spots) {
     const meters = metersBetween(point, spot.location);
-    if (meters <= nearestMeters) {
-      nearest = spot;
-      nearestMeters = meters;
-    }
+    if (!closest || meters < closest.meters) closest = { spot, meters };
   }
-  return nearest;
+  return closest;
+}
+
+/** The closest saved spot within about a block of a point, or null. */
+export function nearestSpot<S extends { location: GeoPoint }>(point: GeoPoint, spots: S[]): S | null {
+  const closest = closestSpot(point, spots);
+  return closest && closest.meters <= NEAR_METERS ? closest.spot : null;
 }

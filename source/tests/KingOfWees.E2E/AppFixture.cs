@@ -45,7 +45,9 @@ public sealed class AppFixture : IAsyncLifetime
             ["PersistData=false"], cts.Token);
         builder.CreateResourceBuilder<ProjectResource>("server")
             .WithEnvironment("King__Map__Center__Latitude", MapLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
-            .WithEnvironment("King__Map__Center__Longitude", MapLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            .WithEnvironment("King__Map__Center__Longitude", MapLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            // Every flow posts from one address, faster than any neighbor would; the limit itself is covered by RateLimitTests.
+            .WithEnvironment("RateLimiting__WritesPerMinute", "1000");
         _app = await builder.BuildAsync(cts.Token);
         await _app.StartAsync(cts.Token);
         await _app.ResourceNotifications.WaitForResourceHealthyAsync("server", cts.Token);

@@ -2,6 +2,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
+import type { HeatLevel } from './heat';
 import type { GeoPoint } from './location';
 
 type Values = { useCenter: NoMessageValues; attribution: { osm: string }; zoomIn: NoMessageValues; zoomOut: NoMessageValues };
@@ -26,7 +27,7 @@ const ZOOM = 17;
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_LINK = '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-export type MapMarker = { point: GeoPoint; kind: 'fed' | 'seen' | 'picked' };
+export type MapMarker = { point: GeoPoint; kind: 'fed' | 'seen' | 'picked' } | { point: GeoPoint; kind: 'heat'; level: HeatLevel };
 
 type Props = {
   center: GeoPoint;
@@ -37,6 +38,15 @@ type Props = {
   fit?: boolean;
   className?: string;
 };
+
+// Heat cells grow with their level; every other marker is one size.
+const MARKER_RADIUS = 10;
+const HEAT_RADIUS: Record<HeatLevel, number> = { 1: 8, 2: 12, 3: 16, 4: 20 };
+
+const markerStyle = (marker: MapMarker): L.CircleMarkerOptions =>
+  marker.kind === 'heat'
+    ? { radius: HEAT_RADIUS[marker.level], className: `map-marker map-marker-heat map-heat-${marker.level}` }
+    : { radius: MARKER_RADIUS, className: `map-marker map-marker-${marker.kind}` };
 
 const toPoint = ({ lat, lng }: L.LatLng): GeoPoint => ({ latitude: lat, longitude: lng });
 
@@ -73,8 +83,8 @@ export function MapView({ center, label, markers = [], onPick, fit = false, clas
   useEffect(() => {
     const layer = markerLayer.current!;
     layer.clearLayers();
-    for (const { point, kind } of markers) {
-      L.circleMarker([point.latitude, point.longitude], { radius: 10, className: `map-marker map-marker-${kind}` }).addTo(layer);
+    for (const marker of markers) {
+      L.circleMarker([marker.point.latitude, marker.point.longitude], markerStyle(marker)).addTo(layer);
     }
     if (fit && markers.length > 0) {
       const bounds = L.latLngBounds(markers.map(({ point }) => [point.latitude, point.longitude]));

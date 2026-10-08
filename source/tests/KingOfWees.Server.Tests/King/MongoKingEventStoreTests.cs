@@ -51,4 +51,44 @@ public sealed class MongoKingEventStoreTests(MongoAppFixture mongo)
         Assert.True((await store.FindAsync("old-2", ct))?.SawKing);
         Assert.Equal("old-2", (await store.GetLatestSightingAsync(ct))?.Id);
     }
+
+    [Fact]
+    public async Task A_feeding_stored_before_sawKing_existed_is_counted_as_seen_at_its_spot()
+    {
+        var database = mongo.NewDatabase();
+        var ct = TestContext.Current.CancellationToken;
+        await database.GetCollection<BsonDocument>("events").InsertOneAsync(new BsonDocument
+        {
+            ["_id"] = "old-3",
+            ["Kind"] = "Fed",
+            ["OccurredAtUtc"] = new DateTime(2026, 10, 8, 12, 0, 0, DateTimeKind.Utc),
+            ["ReporterKey"] = "k",
+            ["Foods"] = new BsonArray { "Wet" },
+            ["SpotId"] = "porch",
+        }, cancellationToken: ct);
+
+        var counts = await new MongoKingEventStore(database).CountFeedingsBySpotAsync(since: null, seenOnly: true, ct);
+
+        Assert.Equal([new SpotCount("porch", 1)], counts);
+    }
+
+    [Fact]
+    public async Task A_sighting_stored_without_the_sawKing_field_is_counted_at_its_place()
+    {
+        var database = mongo.NewDatabase();
+        var ct = TestContext.Current.CancellationToken;
+        await database.GetCollection<BsonDocument>("events").InsertOneAsync(new BsonDocument
+        {
+            ["_id"] = "old-4",
+            ["Kind"] = "Seen",
+            ["OccurredAtUtc"] = new DateTime(2026, 10, 8, 12, 0, 0, DateTimeKind.Utc),
+            ["ReporterKey"] = "k",
+            ["Latitude"] = 45.523,
+            ["Longitude"] = -122.677,
+        }, cancellationToken: ct);
+
+        var counts = await new MongoKingEventStore(database).CountSightingsByPlaceAsync(since: null, ct);
+
+        Assert.Equal([new PlaceCount(new GeoPoint(45.523, -122.677), 1)], counts);
+    }
 }

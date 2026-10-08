@@ -143,7 +143,7 @@ public sealed class KingFlowTests(AppFixture app)
     }
 
     [Fact]
-    public async Task A_skipped_name_can_be_added_later_with_change_and_is_then_remembered()
+    public async Task A_skipped_name_can_be_added_with_change_to_this_entry_and_is_then_remembered()
     {
         var page = await app.NewPageAsync();
         await page.GotoAsync("/");
@@ -157,6 +157,8 @@ public sealed class KingFlowTests(AppFixture app)
         await Button(page, "Save").ClickAsync();
         await Assertions.Expect(page.GetByText("Logging as Moonbeam")).ToBeVisibleAsync();
         await Button(page, "Done").ClickAsync();
+        // The entry just logged took the new name too.
+        await Assertions.Expect(page.GetByText("Seen by Moonbeam").First).ToBeVisibleAsync();
 
         // A reload proves the name lives in the browser, not just in the page.
         await page.ReloadAsync();
@@ -376,6 +378,90 @@ public sealed class KingFlowTests(AppFixture app)
         await page.GotoAsync("/privacy");
 
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "Privacy" })).ToBeVisibleAsync();
+    }
+
+    [Fact]
+    public async Task The_history_maps_a_spot_on_the_right_layer_and_lists_every_entry()
+    {
+        var page = await app.NewPageAsync();
+        var spotName = UniqueSpotName("History");
+        var nickname = $"H{Guid.NewGuid().ToString()[..6]}";
+        // A block of its own, well away from the other tests' places.
+        var place = new { latitude = 45.541, longitude = -122.701 };
+        var spot = await PostJson(page, "/api/king/spots", new { reporterKey = "e2e-history", name = spotName, location = place });
+        await PostJson(page, "/api/king/feedings", new
+        {
+            reporterKey = "e2e-history", reporterName = nickname, foods = new[] { "wet" }, sawKing = false,
+            spotId = spot.GetProperty("id").GetString(),
+        });
+        var places = page.GetByRole(AriaRole.List, new() { Name = "Places, busiest first" }).GetByRole(AriaRole.Listitem);
+
+        await page.GotoAsync("/history");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "King’s history" })).ToBeFocusedAsync();
+        await Assertions.Expect(page.GetByText("Loading the heat map…")).ToBeHiddenAsync();
+        // Food only left out: not where he's seen… (other blocks may still be named "About … m from" this spot.)
+        await Assertions.Expect(places.Filter(new() { HasText = $"Near {spotName}" })).ToHaveCountAsync(0);
+        await AssertNoAxeViolations(page);
+
+        // …but where he's fed, drawn on the map and named in the list.
+        await Button(page, "Where he’s fed").ClickAsync();
+        await Assertions.Expect(places.Filter(new() { HasText = spotName })).ToHaveTextAsync($"{spotName}1 feeding");
+        var fedMap = page.GetByRole(AriaRole.Region, new() { Name = "Map of where King is fed" });
+        await Assertions.Expect(fedMap.Locator(".map-marker-heat")).Not.ToHaveCountAsync(0);
+        await Assertions.Expect(page.GetByRole(AriaRole.Listitem).Filter(new() { HasText = $"Fed by {nickname}" }))
+            .ToContainTextAsync($"Wet food · at {spotName} · left food out");
+        await AssertNoAxeViolations(page);
+
+        // A sighting there puts the block on the seen layer, named after the spot.
+        await PostJson(page, "/api/king/sightings", new { reporterKey = "e2e-history", reporterName = nickname, location = place });
+        await page.ReloadAsync();
+        await Button(page, "7 days").ClickAsync();
+        await Assertions.Expect(places.Filter(new() { HasText = $"Near {spotName}" })).ToHaveTextAsync($"Near {spotName}1 sighting");
+        await AssertNoAxeViolations(page);
+    }
+
+    [Fact]
+    public async Task History_opens_in_place_from_Home_and_the_footer_and_works_with_only_a_keyboard()
+    {
+        var page = await app.NewPageAsync();
+        await page.GotoAsync("/");
+        await Assertions.Expect(Button(page, "I fed King")).ToBeVisibleAsync();
+        await page.EvaluateAsync("() => { window.__stillSamePage = true; }");
+        var heading = page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "King’s history" });
+
+        await page.GetByRole(AriaRole.Link, new() { Name = "See King’s history" }).ClickAsync();
+        await Assertions.Expect(heading).ToBeFocusedAsync();
+        await Assertions.Expect(page).ToHaveTitleAsync("History · King of Wees");
+        await page.GetByRole(AriaRole.Link, new() { Name = "Back to King" }).ClickAsync();
+        await page.GetByRole(AriaRole.Contentinfo).GetByRole(AriaRole.Link, new() { Name = "History", Exact = true }).ClickAsync();
+        await Assertions.Expect(heading).ToBeFocusedAsync();
+        Assert.True(await page.EvaluateAsync<bool>("() => window.__stillSamePage === true"), "A history link reloaded the page.");
+
+        await TabUntilFocused(page, "Where he’s fed");
+        await page.Keyboard.PressAsync("Enter");
+        await Assertions.Expect(Button(page, "Where he’s fed")).ToHaveAttributeAsync("aria-pressed", "true");
+        await TabUntilFocused(page, "All");
+        await page.Keyboard.PressAsync("Enter");
+        await Assertions.Expect(Button(page, "All")).ToHaveAttributeAsync("aria-pressed", "true");
+    }
+
+    [Fact]
+    public async Task The_history_page_is_translated_in_the_pseudo_locale()
+    {
+        var page = await app.NewPageAsync();
+        await page.GotoAsync("/history?locale=en-XA");
+        var heading = page.GetByRole(AriaRole.Heading, new() { Level = 1 });
+        await Assertions.Expect(heading).ToBeVisibleAsync();
+
+        Assert.DoesNotContain("history", await heading.TextContentAsync());
+        Assert.DoesNotContain("Where he’s seen", await page.Locator("body").InnerTextAsync());
+    }
+
+    private static async Task<JsonElement> PostJson(IPage page, string url, object body)
+    {
+        var response = await page.APIRequest.PostAsync(url, new() { DataObject = body });
+        Assert.True(response.Ok, $"{url} answered {response.Status}");
+        return JsonDocument.Parse(await response.TextAsync()).RootElement;
     }
 
     private static async Task<int> CountSightingsAfterFreshLoad(IPage page)

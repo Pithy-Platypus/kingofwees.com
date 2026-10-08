@@ -18,7 +18,7 @@
 
 - `ValidationFilter` (endpoint filter) on the `/api/king` route group validates any argument with a registered `IValidator<T>` and returns `400` `ValidationProblem` with codes keyed by camelCase field.
 - Validators are registered by assembly scan (`AddValidatorsFromAssemblyContaining`).
-- Guard test: `Every_request_body_type_has_a_FluentValidation_validator`.
+- Guard test: `Every_request_body_and_query_type_has_a_FluentValidation_validator` — body types from `IAcceptsMetadata`, query types from the handler's `[AsParameters]` parameters (minimal APIs put the handler `MethodInfo` in endpoint metadata). Loose query parameters (`int? limit`) are invisible to both the guard and `ValidationFilter`, which validates whole arguments; that is why queries bind through a record.
 
 ## Incident found while switching
 

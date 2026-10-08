@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fakeGeolocation } from '../test/fakeGeolocation';
-import { currentPosition, nearestSpot, roundToBlock } from './location';
+import { closestSpot, currentPosition, nearestSpot, roundToBlock } from './location';
 
 describe('roundToBlock', () => {
   it.each([
@@ -76,5 +76,21 @@ describe('nearestSpot', () => {
 
   it('is nothing when there are no spots', () => {
     expect(nearestSpot({ latitude: 45.523, longitude: -122.677 }, [])).toBeNull();
+  });
+});
+
+describe('closestSpot', () => {
+  const steps = { id: 'steps', name: 'Blue house steps', location: { latitude: 45.523, longitude: -122.677 } };
+  const corner = { id: 'corner', name: 'Corner', location: { latitude: 45.523, longitude: -122.667 } };
+
+  it('is the closest spot however far, with its distance', () => {
+    const closest = closestSpot({ latitude: 45.523, longitude: -122.673 }, [corner, steps]);
+
+    expect(closest?.spot).toBe(steps);
+    expect(closest?.meters).toBeCloseTo(312, 0);
+  });
+
+  it('is nothing when there are no spots', () => {
+    expect(closestSpot({ latitude: 45.523, longitude: -122.677 }, [])).toBeNull();
   });
 });

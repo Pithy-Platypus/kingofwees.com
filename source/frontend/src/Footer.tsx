@@ -9,6 +9,7 @@ const m = defineMessages({
   },
   copyright: { id: 'footer.copyright', defaultMessage: '© 2026', description: 'Copyright year for the site content' },
   site: { id: 'footer.siteLinks', defaultMessage: 'Site', description: 'Accessible name for the footer link list' },
+  history: { id: 'footer.history', defaultMessage: 'History', description: 'Footer link to King’s history page (heat map and every entry)' },
   about: { id: 'footer.about', defaultMessage: 'About', description: 'Footer link to the About page' },
   privacy: { id: 'footer.privacy', defaultMessage: 'Privacy', description: 'Footer link to the Privacy page' },
 });
@@ -24,6 +25,11 @@ export function Footer() {
           <FormattedMessage {...m.site} />
         </span>
         <ul className="footer-links">
+          <li>
+            <Link to="history" className="footer-link">
+              <FormattedMessage {...m.history} />
+            </Link>
+          </li>
           <li>
             <Link to="about" className="footer-link">
               <FormattedMessage {...m.about} />

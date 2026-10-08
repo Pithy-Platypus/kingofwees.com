@@ -15,6 +15,8 @@ public static class KingEndpoints
     {
         var king = routes.MapGroup("/api/king").AddEndpointFilter<ValidationFilter>();
         king.MapGet("/status", GetStatus);
+        king.MapGet("/history", GetHistory);
+        king.MapGet("/heat", GetHeat);
         king.MapGet("/spots", ListSpots);
         king.MapGet("/map", GetMap);
 
@@ -25,6 +27,7 @@ public static class KingEndpoints
         writes.MapPost("/sightings", LogSighting);
         writes.MapPost("/spots", AddSpot);
         writes.MapDelete("/events/{id}", Undo);
+        writes.MapPatch("/events/{id}", Rename);
 
         return routes;
     }
@@ -34,15 +37,58 @@ public static class KingEndpoints
     {
         var lastFed = await store.GetLatestAsync(KingEventKind.Fed, cancellationToken);
         var lastSeen = await store.GetLatestSightingAsync(cancellationToken);
-        var recent = await store.GetRecentAsync(RecentCount, cancellationToken);
-        // A street has a handful of spots; one read beats a lookup per event.
-        var spotsById = (await spots.ListAsync(cancellationToken)).ToDictionary(s => s.Id);
-        EventView View(KingEvent e) => EventView.From(e, e.SpotId is null ? null : spotsById.GetValueOrDefault(e.SpotId));
+        var recent = await store.GetPageAsync(before: null, RecentCount, cancellationToken);
+        var view = await EventViews(spots, cancellationToken);
 
         return TypedResults.Ok(new KingStatus(
-            lastFed is null ? null : View(lastFed),
-            lastSeen is null ? null : View(lastSeen),
-            [.. recent.Select(View)]));
+            lastFed is null ? null : view(lastFed),
+            lastSeen is null ? null : view(lastSeen),
+            [.. recent.Select(view)]));
+    }
+
+    // A street has a handful of spots; one read beats a lookup per event.
+    private static async Task<Func<KingEvent, EventView>> EventViews(ISpotStore spots, CancellationToken cancellationToken)
+    {
+        var spotsById = (await spots.ListAsync(cancellationToken)).ToDictionary(s => s.Id);
+        return e => EventView.From(e, e.SpotId is null ? null : spotsById.GetValueOrDefault(e.SpotId));
+    }
+
+    private static async Task<Ok<HistoryPage>> GetHistory(
+        [AsParameters] HistoryQuery query, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)
+    {
+        var limit = query.Limit ?? HistoryQuery.DefaultLimit;
+        // The validator has already checked that the cursor names an event.
+        var before = query.Before is null ? null : await store.FindAsync(query.Before, cancellationToken);
+        // One extra tells whether an older page exists without a second query.
+        var events = await store.GetPageAsync(before, limit + 1, cancellationToken);
+        var page = events.Take(limit).ToList();
+        var view = await EventViews(spots, cancellationToken);
+
+        return TypedResults.Ok(new HistoryPage(
+            [.. page.Select(view)], events.Count > limit ? page[^1].Id : null));
+    }
+
+    private static async Task<Ok<HeatMap>> GetHeat(
+        [AsParameters] HeatQuery query, IKingEventStore store, ISpotStore spots, TimeProvider clock,
+        CancellationToken cancellationToken)
+    {
+        DateTimeOffset? since = query.Days is { } days ? clock.GetUtcNow().AddDays(-days) : null;
+        var spotsById = (await spots.ListAsync(cancellationToken)).ToDictionary(s => s.Id);
+        var seen = query.Layer == HeatQuery.Seen;
+        // A spot that no longer exists has no place to show.
+        var feedings = (await store.CountFeedingsBySpotAsync(since, seenOnly: seen, cancellationToken))
+            .Where(c => spotsById.ContainsKey(c.SpotId))
+            .Select(c => (Spot: spotsById[c.SpotId], c.Count));
+
+        IEnumerable<HeatCell> cells = seen
+            ? (await store.CountSightingsByPlaceAsync(since, cancellationToken))
+                .Select(c => (c.Place, c.Count))
+                .Concat(feedings.Select(f => (Place: f.Spot.Location, f.Count)))
+                .GroupBy(c => c.Place, (place, group) => new HeatCell(place, group.Sum(c => c.Count), SpotName: null))
+            : feedings.Select(f => new HeatCell(f.Spot.Location, f.Count, f.Spot.Name));
+
+        return TypedResults.Ok(new HeatMap(
+            [.. cells.OrderByDescending(c => c.Count).ThenBy(c => c.Location.Latitude).ThenBy(c => c.Location.Longitude)]));
     }
 
     // No configured center means no map; the app still works without one.
@@ -94,10 +140,22 @@ public static class KingEndpoints
         return TypedResults.Created($"/api/king/events/{kingEvent.Id}", EventView.From(kingEvent, spot));
     }
 
-    // Wrong device and unknown id both answer 404, so a guessed id reveals nothing.
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> Undo(
+    private static Task<Results<NoContent, NotFound, ProblemHttpResult>> Undo(
         string id, [FromHeader(Name = ReporterKeyHeader)] string reporterKey,
-        IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken)
+        IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken) =>
+        ChangeOwnRecent(id, reporterKey, store, clock, () => store.DeleteAsync(id, cancellationToken), cancellationToken);
+
+    private static Task<Results<NoContent, NotFound, ProblemHttpResult>> Rename(
+        string id, RenameEventRequest request, [FromHeader(Name = ReporterKeyHeader)] string reporterKey,
+        IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken) =>
+        ChangeOwnRecent(
+            id, reporterKey, store, clock, () => store.RenameAsync(id, request.ReporterName, cancellationToken), cancellationToken);
+
+    // Only the device that logged an entry may change it, and only within the undo window.
+    // Wrong device and unknown id both answer 404, so a guessed id reveals nothing.
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> ChangeOwnRecent(
+        string id, string reporterKey, IKingEventStore store, TimeProvider clock, Func<Task> change,
+        CancellationToken cancellationToken)
     {
         var kingEvent = await store.FindAsync(id, cancellationToken);
         if (kingEvent is null || kingEvent.ReporterKey != reporterKey)
@@ -110,7 +168,7 @@ public static class KingEndpoints
             return TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, type: "undo.expired");
         }
 
-        await store.DeleteAsync(id, cancellationToken);
+        await change();
         return TypedResults.NoContent();
     }
 }

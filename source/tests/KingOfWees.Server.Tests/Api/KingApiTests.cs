@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using FluentValidation;
 using KingOfWees.Server.King;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
@@ -43,6 +45,16 @@ public sealed class KingApiTests : IAsyncLifetime
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct));
 
     private async Task<JsonElement> Status() => await Json(await _client.GetAsync("/api/king/status", Ct));
+
+    private Task<HttpResponseMessage> Rename(string id, string key, object body)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Patch, $"/api/king/events/{id}") { Content = JsonContent.Create(body) };
+        request.Headers.Add(ReporterKeyHeader, key);
+        return _client.SendAsync(request, Ct);
+    }
+
+    private async Task<string> LoggedFeedingId(string? name = "Guy") =>
+        (await Json(await LogFeeding(new { reporterKey = DeviceKey, reporterName = name }))).GetProperty("id").GetString()!;
 
     private Task<HttpResponseMessage> Undo(string id, string key)
     {
@@ -215,7 +227,7 @@ public sealed class KingApiTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("spotId.unknown", ErrorCodes(await Json(response)));
-        Assert.Empty(await _factory.Store.GetRecentAsync(10, Ct));
+        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
     }
 
     [Fact]
@@ -248,7 +260,7 @@ public sealed class KingApiTests : IAsyncLifetime
         var response = await LogSighting(new { reporterKey = DeviceKey, location = new { latitude = 45.5 } });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(await _factory.Store.GetRecentAsync(10, Ct));
+        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
     }
 
     [Fact]
@@ -293,7 +305,7 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var errors = (await Json(response)).GetProperty("errors");
         Assert.Contains(code, errors.EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString()));
-        Assert.Empty(await _factory.Store.GetRecentAsync(10, Ct));
+        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
     }
 
     [Fact]
@@ -304,7 +316,7 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var errors = (await Json(response)).GetProperty("errors");
         Assert.Contains("food.invalid", errors.EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString()));
-        Assert.Empty(await _factory.Store.GetRecentAsync(10, Ct));
+        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
     }
 
     [Fact]
@@ -352,6 +364,73 @@ public sealed class KingApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_same_device_can_rename_its_entry_within_ten_minutes()
+    {
+        var id = await LoggedFeedingId();
+        _factory.Clock.Advance(TimeSpan.FromMinutes(10));
+
+        var response = await Rename(id, DeviceKey, new { reporterName = "Kael" });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal("Kael", (await _factory.Store.FindAsync(id, Ct))?.ReporterName);
+    }
+
+    [Fact]
+    public async Task Renaming_to_no_name_shows_the_entry_as_a_neighbor_s()
+    {
+        var id = await LoggedFeedingId();
+
+        var response = await Rename(id, DeviceKey, new { reporterName = (string?)null });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Null((await _factory.Store.FindAsync(id, Ct))?.ReporterName);
+    }
+
+    [Fact]
+    public async Task Another_device_cannot_rename_and_learns_nothing()
+    {
+        var id = await LoggedFeedingId();
+
+        var response = await Rename(id, "someone-else", new { reporterName = "Kael" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("Guy", (await _factory.Store.FindAsync(id, Ct))?.ReporterName);
+    }
+
+    [Fact]
+    public async Task Rename_after_ten_minutes_is_refused_with_an_error_code()
+    {
+        var id = await LoggedFeedingId();
+        _factory.Clock.Advance(TimeSpan.FromMinutes(10) + TimeSpan.FromSeconds(1));
+
+        var response = await Rename(id, DeviceKey, new { reporterName = "Kael" });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("undo.expired", (await Json(response)).GetProperty("type").GetString());
+        Assert.Equal("Guy", (await _factory.Store.FindAsync(id, Ct))?.ReporterName);
+    }
+
+    [Fact]
+    public async Task Rename_of_an_unknown_event_is_404()
+    {
+        var response = await Rename(Guid.CreateVersion7().ToString(), DeviceKey, new { reporterName = "Kael" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_new_name_longer_than_40_characters_is_rejected_with_an_error_code()
+    {
+        var id = await LoggedFeedingId();
+
+        var response = await Rename(id, DeviceKey, new { reporterName = new string('x', 41) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("reporterName.tooLong", ErrorCodes(await Json(response)));
+        Assert.Equal("Guy", (await _factory.Store.FindAsync(id, Ct))?.ReporterName);
+    }
+
+    [Fact]
     public async Task Undo_of_an_unknown_event_is_404()
     {
         var response = await Undo(Guid.CreateVersion7().ToString(), DeviceKey);
@@ -372,16 +451,19 @@ public sealed class KingApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Every_request_body_type_has_a_FluentValidation_validator()
+    public void Every_request_body_and_query_type_has_a_FluentValidation_validator()
     {
-        var bodyTypes = _factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
-            .Select(e => e.Metadata.GetMetadata<IAcceptsMetadata>()?.RequestType)
-            .OfType<Type>()
-            .Distinct()
-            .ToList();
+        var endpoints = _factory.Services.GetRequiredService<EndpointDataSource>().Endpoints;
+        var bodyTypes = endpoints.Select(e => e.Metadata.GetMetadata<IAcceptsMetadata>()?.RequestType).OfType<Type>();
+        // Minimal APIs put the handler's MethodInfo in endpoint metadata; [AsParameters] records are the query types.
+        var queryTypes = endpoints
+            .SelectMany(e => e.Metadata.GetMetadata<MethodInfo>()?.GetParameters() ?? [])
+            .Where(p => p.GetCustomAttribute<AsParametersAttribute>() is not null)
+            .Select(p => p.ParameterType);
+        var requestTypes = bodyTypes.Concat(queryTypes).Distinct().ToList();
 
-        Assert.NotEmpty(bodyTypes);
-        Assert.All(bodyTypes, type =>
+        Assert.NotEmpty(requestTypes);
+        Assert.All(requestTypes, type =>
             Assert.NotNull(_factory.Services.GetService(typeof(IValidator<>).MakeGenericType(type))));
     }
 
