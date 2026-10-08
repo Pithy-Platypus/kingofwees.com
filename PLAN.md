@@ -2,7 +2,7 @@
 
 **Status key:** ✅ done · 🔄 in progress · ⏳ pending · ⏸️ waiting on a decision
 
-**Now:** Slice 3 (history page + rename the entry just logged) committed on branch `slice-3`, branched from `phase-2b` (neither merged into `main` yet). Only the phase-end StrykerJS run remains — it was mid-run at commit time, so no score is recorded yet. Last updated 2026-10-08.
+**Now:** Slices 1–3 committed on `main` (local; not pushed — `origin/main` is behind). Only Slice 3's phase-end StrykerJS run remains — it was mid-run at commit time, so no score is recorded yet. Last updated 2026-10-08.
 
 ---
 
@@ -130,7 +130,7 @@ Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not fin
 Paste this to start the next session:
 
 ```text
-Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md, source/frontend/CLAUDE.md and source/README.md. Slice 1, Phase 2a and 2b, and Slice 3 are built. 2b is on branch `phase-2b`; Slice 3 (history page: heat map + full log, plus "change" renaming the entry just logged) is on branch `slice-3`, branched from `phase-2b`. Check whether Wallie has merged either into main.
+Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md, source/frontend/CLAUDE.md and source/README.md. Slice 1, Phase 2a and 2b, and Slice 3 (history page: heat map + full log, plus "change" renaming the entry just logged) are built and committed on `main`. `main` is local only — not pushed; check whether Wallie has pushed it (switch commits to a GitHub noreply address first if wanted — see "Open items for Wallie").
 
 Next: finish Slice 3's phase-end StrykerJS run. Ask Wallie to stop `aspire run` first — running tests while it is up once broke node_modules/.bin (see "Open items for Wallie"). Run `cd source/frontend && bun run mutate` alone (incremental), triage the survivors (equivalent vs real gaps; close real gaps test-first), record the score under Slice 3 in PLAN.md, flip Slice 3 to ✅, and stop for Wallie's review. Then ask Wallie which "Later" item comes next (photos, "not fed in 12 hours" alerts, admin delete for spam, go-live hosting) and plan it in PLAN.md with Wallie before building.
 
