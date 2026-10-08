@@ -2,7 +2,7 @@
 
 **Status key:** ✅ done · 🔄 in progress · ⏳ pending · ⏸️ waiting on a decision
 
-**Now:** Phase 2a done and committed (`d3b29cb`). Next: Phase 2b step 1 (optional nickname — "who fed"). Last updated 2026-10-08.
+**Now:** Phase 2a done and committed (`d3b29cb`). Next: Phase 2b step 1 (optional nickname + "fed means seen"). Last updated 2026-10-08.
 
 ---
 
@@ -42,7 +42,7 @@
 
 | # | Step | Status |
 |---|---|---|
-| 1 | **Optional nickname ("who fed / who saw")**: asked once per device on the first log ("What should neighbors call you? A first name or nickname" + big Skip), remembered in the browser, sent as `reporterName` (server already validates ≤ 40); "Logging as Sarah · change" on the confirmation screen; Lately shows "Fed by Sarah". **Privacy page must change** ("We don't ask for your name" → names are optional, shown publicly, use a first name or nickname; parents: suggest a nickname for kids). Tests incl. Skip path, change path, privacy promise, axe. | ⏳ |
+| 1 | **Optional nickname ("who fed / who saw")**: asked once per device on the first log ("What should neighbors call you? A first name or nickname" + big Skip), remembered in the browser, sent as `reporterName` (server already validates ≤ 40); "Logging as Sarah · change" on the confirmation screen; Lately shows "Fed by Sarah". **Privacy page must change** ("We don't ask for your name" → names are optional, shown publicly, use a first name or nickname; parents: suggest a nickname for kids). Tests incl. Skip path, change path, privacy promise, axe. **Fed means seen (option C):** a feeding counts as a sighting unless the feeder ticks "I left food out (didn't see him)" (off by default) — new `sawKing` flag on feedings (missing → true for old data). Status `lastSeen` = newest sighting **or** seen-feeding. Home chips: if the latest sighting *is* the feeding → one chip "Fed & seen {when}"; if a sighting is newer → "Fed {when}" · "Seen {when}"; left-food-out feedings never move "Seen". Tests: store contract, API status rules, chip rules, toggle default, perturbation. | ⏳ |
 | 2 | Location privacy rule: round to 3 decimals (~a block) on client **and** server before storing; rule in `CLAUDE.md` files, why in `docs/patterns/location-privacy.md` | ⏳ |
 | 3 | Feeding spots: `spots` collection, `GET/POST /api/king/spots`, anyone can add while logging; feeding `spotId` validated with `MustAsync` | ⏳ |
 | 4 | Sightings: optional rounded `location`; status returns it and the feeding's spot name | ⏳ |
@@ -84,6 +84,7 @@ New dependency: **Leaflet** (+ `@types/leaflet`), used directly — no `react-le
 | 2026-10-08 | `PLAN.md` is the single source of status; updated as steps start/finish, handoff prompt at every stop. |
 | 2026-10-08 | "Who fed": optional nickname asked once per device, shown publicly; first step of Phase 2b. |
 | 2026-10-08 | Contact email: Wallie supplies it later; the site keeps the placeholder until then. |
+| 2026-10-08 | Fed means seen unless "I left food out" is ticked (option C); one "Fed & seen" chip when they're the same entry. Part of Phase 2b step 1. |
 
 ## Open items for Wallie
 
@@ -99,7 +100,7 @@ Paste this to start the next session:
 ```text
 Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md and source/README.md. Slice 1 and Phase 2a are done and committed.
 
-Next: Slice 2, Phase 2b, starting with step 1 — the optional nickname ("who fed / who saw"). Ask once per device on the first log ("What should neighbors call you? A first name or nickname" with a big Skip), remember it in the browser, send it as reporterName (the server already validates ≤ 40 chars), show "Logging as {name} · change" on the confirmation screen, and update the Privacy page: it currently promises "We don't ask for your name" — replace that with: names are optional and shown publicly, use a first name or nickname, and a parents' note suggesting nicknames for kids. Cover the Skip path, the change path, the privacy promise and axe.
+Next: Slice 2, Phase 2b, starting with step 1 — the optional nickname ("who fed / who saw"). Ask once per device on the first log ("What should neighbors call you? A first name or nickname" with a big Skip), remember it in the browser, send it as reporterName (the server already validates ≤ 40 chars), show "Logging as {name} · change" on the confirmation screen, and update the Privacy page: it currently promises "We don't ask for your name" — replace that with: names are optional and shown publicly, use a first name or nickname, and a parents' note suggesting nicknames for kids. Cover the Skip path, the change path, the privacy promise and axe. Also in step 1, "fed means seen" (option C): a feeding counts as a sighting unless the feeder ticks "I left food out (didn't see him)" (off by default) — add a sawKing flag to feedings (missing → true for old documents); status lastSeen = newest sighting or seen-feeding; home shows one "Fed & seen {when}" chip when the latest sighting is that feeding, otherwise "Fed {when}" · "Seen {when}"; left-food-out feedings never move "Seen". See PLAN.md step 1 for the test list.
 
 Then steps 2–8 in order: the location privacy rule (round coordinates to 3 decimals on the client before sending AND on the server before storing; rule in source/KingOfWees.Server/CLAUDE.md and a new source/frontend/CLAUDE.md, the why in docs/patterns/location-privacy.md), feeding spots (anyone adds while logging; spotId validated with MustAsync), sighting location, map config from King:Map:Center via user-secrets — never in the public repo, Leaflet UI flows, the Privacy page OpenStreetMap tile disclosure, and tests. Leaflet (+ @types/leaflet) is the one approved new dependency; use it directly, no react-leaflet. Stop for review after 2b.
 
