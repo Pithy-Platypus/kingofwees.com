@@ -2,7 +2,7 @@
 
 **Status key:** ✅ done · 🔄 in progress · ⏳ pending · ⏸️ waiting on a decision
 
-**Now:** Slices 1–3 committed on `main` (local; not pushed — `origin/main` is behind). Only Slice 3's phase-end StrykerJS run remains — it was mid-run at commit time, so no score is recorded yet. Last updated 2026-10-08.
+**Now:** Slices 1–3 committed and pushed on `main`; real contact email in. Only Slice 3's phase-end StrykerJS run remains — stopped again at 44/589 mutants, so no score is recorded yet. Last updated 2026-10-08.
 
 ---
 
@@ -75,7 +75,7 @@ One `/history` page: a heat map of where King is seen / fed, then the full log. 
 
 | 10 | **"change" renames the entry just logged too** (from Wallie's manual test: changing Guy → Kael on the confirmation left that feeding as Guy). `PATCH /api/king/events/{id}` `{ reporterName }` — same device (`X-Reporter-Key`), within the 10-minute undo window, same 404/409 as Undo; store `RenameAsync`; the confirmation renames the entry, then later entries use the new name; if that fails (too late, offline) it says so and later entries still use it. Undo and rename share one ownership check. The e2e server's write limit is raised (`AppFixture`) — the suite outgrew 20 writes a minute from one address; `RateLimitTests` still covers the limit | ✅ |
 
-Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not finished: the run was stopped twice for fixes from Wallie's manual test and was still going when Slice 3 was committed; rerun it alone and record the score here. **Stop for review** after Slice 3.
+Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not finished: stopped four times so far (the last at 44/589). Stopped runs write no incremental file, so the next run is a full one — about 20–25 minutes; let it finish, then record the score here. **Stop for review** after Slice 3.
 
 ## Later ⏳
 
@@ -116,12 +116,11 @@ Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not fin
 
 ## Open items for Wallie
 
-- **Contact email address** — Wallie will supply it later; until then the site shows `replace-me@example.invalid` (one constant in `source/frontend/src/site.ts`). Swap it in when provided — the page tests read the constant, so no test changes.
 - **Map center** — set it once per machine (`source/README.md` → "Map center"); until then the app runs without maps. Hosting needs `King__Map__Center__Latitude/Longitude` (`infra/README.md`).
 - **Known gaps, not fixed in 2b** — (1) the catalog test checks message *ids*, not text, so an edited `defaultMessage` without `bun run i18n` still passes (that's how the stale tagline slipped through 2a); (2) a failed log, sighting or "Save spot" request isn't shown to the person (pre-existing for logs; spots inherit it).
 - **Broken `node_modules/.bin` (seen once)** — during Slice 3, `vitest`/`vite` vanished from `node_modules/.bin` while `aspire run` and the e2e AppHost were both up; both start a `bun install` (`webfrontend-installer`), and an earlier run logged `Failed to link @babel/parser: EEXIST`. Cause not confirmed. Fix: `cd source/frontend && bun install --frozen-lockfile`. Avoid running `dotnet test` while `aspire run` is up.
 - **Same-name places far from spots** — two blocks can both read "About 1,100 ft from Porch"; adding a direction ("1,100 ft north of Porch") would tell them apart. Not built; Wallie to decide.
-- **Commit author email** — commits use `jamie@pithyplatypus.com`; switch to a GitHub noreply address before the first push if it shouldn't be public.
+- **Commit author email** — `main` was pushed with `jamie@pithyplatypus.com`, so it's public in history; changing it now means rewriting history and force-pushing. For later commits only, set a noreply address (`git config user.email`) if wanted.
 
 ---
 
@@ -130,13 +129,13 @@ Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not fin
 Paste this to start the next session:
 
 ```text
-Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md, source/frontend/CLAUDE.md and source/README.md. Slice 1, Phase 2a and 2b, and Slice 3 (history page: heat map + full log, plus "change" renaming the entry just logged) are built and committed on `main`. `main` is local only — not pushed; check whether Wallie has pushed it (switch commits to a GitHub noreply address first if wanted — see "Open items for Wallie").
+Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md, source/frontend/CLAUDE.md and source/README.md. Slice 1, Phase 2a and 2b, and Slice 3 (history page: heat map + full log, plus "change" renaming the entry just logged) are built, committed and pushed on `main`. The contact email is set (kingcat.weesdistrict@gmail.com).
 
-Next: finish Slice 3's phase-end StrykerJS run. Ask Wallie to stop `aspire run` first — running tests while it is up once broke node_modules/.bin (see "Open items for Wallie"). Run `cd source/frontend && bun run mutate` alone (incremental), triage the survivors (equivalent vs real gaps; close real gaps test-first), record the score under Slice 3 in PLAN.md, flip Slice 3 to ✅, and stop for Wallie's review. Then ask Wallie which "Later" item comes next (photos, "not fed in 12 hours" alerts, admin delete for spam, go-live hosting) and plan it in PLAN.md with Wallie before building.
+Next: finish Slice 3's phase-end StrykerJS run. Ask Wallie to stop `aspire run` first — running tests while it is up once broke node_modules/.bin (see "Open items for Wallie"). Run `cd source/frontend && bun run mutate` alone and let it finish (a full run, ~20–25 min: stopped runs leave no incremental file), triage the survivors (equivalent vs real gaps; close real gaps test-first), record the score under Slice 3 in PLAN.md, flip Slice 3 to ✅, and stop for Wallie's review. Then ask Wallie which "Later" item comes next (photos, "not fed in 12 hours" alerts, admin delete for spam, go-live hosting) and plan it in PLAN.md with Wallie before building.
 
 Remember: "Seen means SawKing" (server CLAUDE.md); feedings store only a SpotId (their place is the spot's); every coordinate is already rounded; distances shown to people are feet/miles (frontend CLAUDE.md); query-string requests bind through an [AsParameters] record so they get validated.
 
-Open items: the contact email is still a placeholder (replace-me@example.invalid in source/frontend/src/site.ts) — swap it in when Wallie gives it. The map center needs setting in the server's user-secrets (source/README.md). Other known gaps are under "Open items for Wallie" in PLAN.md.
+Open items: the map center needs setting in the server's user-secrets (source/README.md). Other known gaps are under "Open items for Wallie" in PLAN.md.
 
 Working method: test-first (red on an assertion → green → perturb the code to prove the test can fail → refactor); FluentValidation for every request type; minimal APIs only; semantic CSS classes, no inline styles; all text via react-intl, then `bun run i18n`. Each step lands warning-free: `(cd source && dotnet clean && dotnet build)`, `dotnet test`, `cd source/frontend && bun run lint && bun run test && bun run build`. Run StrykerJS alone at phase end (`bun run mutate`, incremental). Update PLAN.md status as each step starts and finishes, and refresh this handoff prompt at every stop. Wallie drives commits.
 ```
