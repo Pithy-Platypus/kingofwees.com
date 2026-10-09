@@ -13,6 +13,7 @@
     "src/king/messages.ts",
     "src/king/reporter.ts",
     "src/king/time.ts",
+    "src/king/useSpotsByName.ts",
     "src/i18n/locale.ts",
     "src/routing/routes.ts"
   ],

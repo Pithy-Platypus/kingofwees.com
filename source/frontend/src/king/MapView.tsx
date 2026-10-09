@@ -1,18 +1,14 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef } from 'react';
-import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
+import { useEffect, useId, useRef } from 'react';
+import { defineMessages, useIntl, type NoMessageValues } from 'react-intl';
 import type { HeatLevel } from './heat';
+import { PinIcon } from './icons';
 import type { GeoPoint } from './location';
 
-type Values = { useCenter: NoMessageValues; attribution: { osm: string }; zoomIn: NoMessageValues; zoomOut: NoMessageValues };
+type Values = { attribution: { osm: string }; zoomIn: NoMessageValues; zoomOut: NoMessageValues };
 
 const m = defineMessages<Values>({
-  useCenter: {
-    id: 'map.useCenter',
-    defaultMessage: 'Use map center',
-    description: 'Picks the point under the cross in the middle of the map; the keyboard alternative to tapping it',
-  },
   attribution: {
     id: 'map.attribution',
     defaultMessage: '© {osm} contributors',
@@ -27,13 +23,21 @@ const ZOOM = 17;
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_LINK = '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-export type MapMarker = { point: GeoPoint; kind: 'fed' | 'seen' | 'picked' } | { point: GeoPoint; kind: 'heat'; level: HeatLevel };
+export type MapMarker = { point: GeoPoint; kind: 'fed' | 'seen' } | { point: GeoPoint; kind: 'heat'; level: HeatLevel };
 
 type Props = {
   center: GeoPoint;
   label: string;
   markers?: MapMarker[];
+  /**
+   * Makes this a picking map: a pin sits at the center and the person moves the map under it (drag, zoom, arrow
+   * keys, or a tap, which centers the map there). Called with the point under the pin each time the map stops moving.
+   */
   onPick?: (point: GeoPoint) => void;
+  /** Tells a picking map how to place its pin; shown above the map and read as its description. */
+  instruction?: string;
+  /** Moves a picking map here (e.g. to the device's location), which picks it like any other move. */
+  goTo?: GeoPoint | null;
   /** Keep every marker in view as they change (the home map); picking maps leave the view to the person. */
   fit?: boolean;
   className?: string;
@@ -51,12 +55,13 @@ const markerStyle = (marker: MapMarker): L.CircleMarkerOptions =>
 const toPoint = ({ lat, lng }: L.LatLng): GeoPoint => ({ latitude: lat, longitude: lng });
 
 // Leaflet used directly (no react-leaflet): React owns the container, Leaflet everything inside it.
-export function MapView({ center, label, markers = [], onPick, fit = false, className = '' }: Props) {
+export function MapView({ center, label, markers = [], onPick, instruction, goTo, fit = false, className = '' }: Props) {
   const intl = useIntl();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
   const pick = useRef(onPick);
+  const instructionId = useId();
   const attribution = intl.formatMessage(m.attribution, { osm: OSM_LINK });
   const zoomInTitle = intl.formatMessage(m.zoomIn);
   const zoomOutTitle = intl.formatMessage(m.zoomOut);
@@ -68,10 +73,15 @@ export function MapView({ center, label, markers = [], onPick, fit = false, clas
   // The map is built once per mount; the first center is where it opens, and panning is the person's business.
   useEffect(() => {
     const created = L.map(container.current!, { center: [center.latitude, center.longitude], zoom: ZOOM, zoomControl: false });
-    L.control.zoom({ zoomInTitle, zoomOutTitle }).addTo(created);
+    // Bottom right, so a "+" by the pin isn't taken for it.
+    L.control.zoom({ position: 'bottomright', zoomInTitle, zoomOutTitle }).addTo(created);
     L.tileLayer(TILES, { maxZoom: 19, attribution }).addTo(created);
     markerLayer.current = L.layerGroup().addTo(created);
-    created.on('click', (e: L.LeafletMouseEvent) => pick.current?.(toPoint(e.latlng)));
+    // Registered after the first view is set, so only a move picks: an untouched map has picked nothing.
+    created.on('moveend', () => pick.current?.(toPoint(created.getCenter())));
+    created.on('click', (e: L.LeafletMouseEvent) => {
+      if (pick.current) created.panTo(e.latlng);
+    });
     map.current = created;
     return () => {
       created.remove();
@@ -79,6 +89,10 @@ export function MapView({ center, label, markers = [], onPick, fit = false, clas
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recreating the map on every prop change would reset the view
   }, []);
+
+  useEffect(() => {
+    if (goTo) map.current!.setView([goTo.latitude, goTo.longitude], map.current!.getZoom(), { animate: false });
+  }, [goTo]);
 
   useEffect(() => {
     const layer = markerLayer.current!;
@@ -95,14 +109,15 @@ export function MapView({ center, label, markers = [], onPick, fit = false, clas
 
   return (
     <div className={`map-block ${className}`}>
-      <div role="region" aria-label={label} className={onPick ? 'map-frame map-frame-picking' : 'map-frame'}>
-        <div ref={container} className="map-canvas" />
-      </div>
-      {onPick && (
-        <button type="button" className="map-center-button" onClick={() => onPick(toPoint(map.current!.getCenter()))}>
-          <FormattedMessage {...m.useCenter} />
-        </button>
+      {instruction && (
+        <p id={instructionId} className="map-instruction">
+          {instruction}
+        </p>
       )}
+      <div role="region" aria-label={label} aria-describedby={instruction ? instructionId : undefined} className="map-frame">
+        <div ref={container} className="map-canvas" />
+        {onPick && <PinIcon className="map-pin" />}
+      </div>
     </div>
   );
 }

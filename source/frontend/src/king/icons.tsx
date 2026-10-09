@@ -50,3 +50,10 @@ export const CheckIcon = ({ className }: IconProps) => (
     <path d="M5 12l5 5 9-10" />
   </svg>
 );
+
+export const PinIcon = ({ className }: IconProps) => (
+  <svg {...strokeProps} className={className}>
+    <path d="M12 22s7-7.2 7-12a7 7 0 0 0-14 0c0 4.8 7 12 7 12z" />
+    <circle cx="12" cy="10" r="2.5" />
+  </svg>
+);

@@ -59,10 +59,6 @@
     "defaultMessage": "Couldn’t reach King’s tracker. Check your connection and try again.",
     "description": "Shown when the status cannot be loaded"
   },
-  "feed.atSpot": {
-    "defaultMessage": "At {spot} · <change>change</change>",
-    "description": "The feeding spot that will be logged; {spot} is its name. <change> becomes a button."
-  },
   "feed.back": {
     "defaultMessage": "Back",
     "description": "Return home without logging"
@@ -79,13 +75,21 @@
     "defaultMessage": "Log feeding",
     "description": "Saves the feeding with the picked foods"
   },
+  "feed.newSpot": {
+    "defaultMessage": "Somewhere new",
+    "description": "Opens the form to add a new feeding spot"
+  },
   "feed.noSpot": {
-    "defaultMessage": "Where? <change>Pick a spot</change>",
-    "description": "No feeding spot picked yet. <change> becomes a button."
+    "defaultMessage": "No spot",
+    "description": "Choice: log the feeding without a spot"
   },
   "feed.title": {
     "defaultMessage": "What did King eat?",
     "description": "Heading over the food choices"
+  },
+  "feed.where": {
+    "defaultMessage": "Where did you feed him?",
+    "description": "Heading over the feeding spot choices"
   },
   "food.dry": {
     "defaultMessage": "Dry food",
@@ -379,10 +383,6 @@
     "defaultMessage": "© {osm} contributors",
     "description": "Required map data credit; {osm} is the “OpenStreetMap” link"
   },
-  "map.useCenter": {
-    "defaultMessage": "Use map center",
-    "description": "Picks the point under the cross in the middle of the map; the keyboard alternative to tapping it"
-  },
   "map.zoomIn": {
     "defaultMessage": "Zoom in",
     "description": "Map button"
@@ -491,6 +491,10 @@
     "defaultMessage": "Privacy",
     "description": "Privacy page heading"
   },
+  "seen.bySpot": {
+    "defaultMessage": "By {spot}",
+    "description": "Logs the sighting at a feeding spot; {spot} is its name"
+  },
   "seen.hint": {
     "defaultMessage": "Helps neighbors know where he hangs out. We only keep it to about a block.",
     "description": "Why a place is asked for, and that it is rounded"
@@ -499,24 +503,32 @@
     "defaultMessage": "Log sighting here",
     "description": "Logs the sighting at the place picked on the map"
   },
+  "seen.mapInstruction": {
+    "defaultMessage": "Or move the map so the pin is where you saw him.",
+    "description": "Above the map, after the quicker choices: the pin stays in the middle and the map moves under it"
+  },
   "seen.mapLabel": {
-    "defaultMessage": "Map: tap where you saw King",
+    "defaultMessage": "Map of where you saw King",
     "description": "Accessible name of the map"
   },
-  "seen.skip": {
-    "defaultMessage": "Skip",
+  "seen.noPlace": {
+    "defaultMessage": "Log without a place",
     "description": "Logs the sighting without a place"
+  },
+  "seen.spots": {
+    "defaultMessage": "Spots",
+    "description": "Accessible name of the list of feeding spots a sighting can be logged at"
   },
   "seen.title": {
     "defaultMessage": "Where is King?",
     "description": "Heading of the sighting place screen"
   },
-  "spot.list": {
-    "defaultMessage": "Spots",
-    "description": "Accessible name of the list of saved feeding spots"
+  "spot.mapInstruction": {
+    "defaultMessage": "Move the map so the pin is where you fed him.",
+    "description": "Above the map: the pin stays in the middle and the map moves under it"
   },
   "spot.mapLabel": {
-    "defaultMessage": "Map: tap where you fed King",
+    "defaultMessage": "Map of where you fed King",
     "description": "Accessible name of the map"
   },
   "spot.nameHint": {
@@ -528,16 +540,8 @@
     "description": "Label of the new spot’s name field"
   },
   "spot.needNameAndPlace": {
-    "defaultMessage": "Give the spot a name and pick its place.",
+    "defaultMessage": "Give the spot a name and move the map to its place.",
     "description": "Shown when saving a new spot without a name or place"
-  },
-  "spot.new": {
-    "defaultMessage": "Somewhere new",
-    "description": "Opens the form to add a new feeding spot"
-  },
-  "spot.none": {
-    "defaultMessage": "No spot",
-    "description": "Logs the feeding without a spot"
   },
   "spot.placeSet": {
     "defaultMessage": "Place picked.",
@@ -548,8 +552,8 @@
     "description": "Adds the new spot and uses it for this feeding"
   },
   "spot.title": {
-    "defaultMessage": "Where did you feed him?",
-    "description": "Heading of the feeding spot screen"
+    "defaultMessage": "Add a feeding spot",
+    "description": "Heading of the screen that adds a new feeding spot"
   },
   "time.justNow": {
     "defaultMessage": "just now",

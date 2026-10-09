@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { defineMessages, FormattedMessage, type MessageTag, type NoMessageValues } from 'react-intl';
-import type { Food } from './api';
+import { useEffect, useId, useRef } from 'react';
+import { defineMessages, FormattedMessage, type NoMessageValues } from 'react-intl';
+import type { Food, SpotView } from './api';
 import { BackIcon, BowlIcon, CheckIcon } from './icons';
 import { foodMessage } from './messages';
+import { useSpotsByName } from './useSpotsByName';
 
 type Values = {
   back: NoMessageValues;
@@ -10,8 +11,9 @@ type Values = {
   hint: NoMessageValues;
   log: NoMessageValues;
   leftOut: NoMessageValues;
-  atSpot: { spot: string; change: MessageTag };
-  noSpot: { change: MessageTag };
+  where: NoMessageValues;
+  noSpot: NoMessageValues;
+  newSpot: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -28,43 +30,40 @@ const m = defineMessages<Values>({
     defaultMessage: 'I left food out (didn’t see him)',
     description: 'Checkbox: the feeder put food out but did not see King, so it does not count as a sighting',
   },
-  atSpot: {
-    id: 'feed.atSpot',
-    defaultMessage: 'At {spot} · <change>change</change>',
-    description: 'The feeding spot that will be logged; {spot} is its name. <change> becomes a button.',
-  },
-  noSpot: {
-    id: 'feed.noSpot',
-    defaultMessage: 'Where? <change>Pick a spot</change>',
-    description: 'No feeding spot picked yet. <change> becomes a button.',
-  },
+  where: { id: 'feed.where', defaultMessage: 'Where did you feed him?', description: 'Heading over the feeding spot choices' },
+  noSpot: { id: 'feed.noSpot', defaultMessage: 'No spot', description: 'Choice: log the feeding without a spot' },
+  newSpot: { id: 'feed.newSpot', defaultMessage: 'Somewhere new', description: 'Opens the form to add a new feeding spot' },
 });
+
+/** A feeding being filled in; kept by the app so adding a spot midway doesn't lose it. */
+export type FeedDraft = { foods: Food[]; leftOut: boolean };
 
 const foods: Food[] = ['wet', 'dry', 'treats'];
 
 type Props = {
   busy: boolean;
-  spotName: string | null;
+  spots: SpotView[];
+  spotId: string | null;
+  draft: FeedDraft;
+  onDraft: (draft: FeedDraft) => void;
+  onPickSpot: (spotId: string | null) => void;
+  onAddSpot: () => void;
   onLog: (foods: Food[], sawKing: boolean) => void;
-  onChangeSpot: () => void;
   onBack: () => void;
 };
 
-export function FeedScreen({ busy, spotName, onLog, onChangeSpot, onBack }: Props) {
+export function FeedScreen({ busy, spots, spotId, draft, onDraft, onPickSpot, onAddSpot, onLog, onBack }: Props) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const [picked, setPicked] = useState<Food[]>([]);
-  // Feeding him usually means seeing him; only a tick says otherwise.
-  const [leftOut, setLeftOut] = useState(false);
+  const radioName = useId();
+  const sorted = useSpotsByName(spots);
+  // Feeding him usually means seeing him; only a tick (leftOut) says otherwise.
+  const { foods: picked, leftOut } = draft;
   useEffect(() => heading.current?.focus(), []);
 
-  const changeSpot = (chunks: ReactNode[]) => (
-    <button type="button" className="text-button" onClick={onChangeSpot}>
-      {chunks}
-    </button>
-  );
-
   const toggle = (food: Food) =>
-    setPicked((current) => (current.includes(food) ? current.filter((f) => f !== food) : [...current, food]));
+    onDraft({ ...draft, foods: picked.includes(food) ? picked.filter((f) => f !== food) : [...picked, food] });
+
+  const choices = [...sorted, { id: null, name: null }];
 
   return (
     <main className="app-screen">
@@ -92,15 +91,36 @@ export function FeedScreen({ busy, spotName, onLog, onChangeSpot, onBack }: Prop
           </button>
         ))}
       </div>
-      <p className="logging-as">
-        {spotName ? (
-          <FormattedMessage {...m.atSpot} values={{ spot: spotName, change: changeSpot }} />
-        ) : (
-          <FormattedMessage {...m.noSpot} values={{ change: changeSpot }} />
-        )}
-      </p>
+      <fieldset className="where-choices">
+        <legend className="where-heading">
+          <FormattedMessage {...m.where} />
+        </legend>
+        <div className="where-tiles">
+          {choices.map((c) => (
+            <label key={c.id ?? ''} className="where-tile">
+              <input
+                type="radio"
+                className="where-radio"
+                name={radioName}
+                checked={spotId === c.id}
+                onChange={() => onPickSpot(c.id)}
+              />
+              {spotId === c.id && <CheckIcon className="button-icon" />}
+              {c.name ?? <FormattedMessage {...m.noSpot} />}
+            </label>
+          ))}
+          <button type="button" className="where-tile where-tile-new" onClick={onAddSpot}>
+            <FormattedMessage {...m.newSpot} />
+          </button>
+        </div>
+      </fieldset>
       <label className="left-out">
-        <input type="checkbox" className="left-out-box" checked={leftOut} onChange={(e) => setLeftOut(e.target.checked)} />
+        <input
+          type="checkbox"
+          className="left-out-box"
+          checked={leftOut}
+          onChange={(e) => onDraft({ ...draft, leftOut: e.target.checked })}
+        />
         <FormattedMessage {...m.leftOut} />
       </label>
       {/* Logged in menu order, whatever order they were tapped in. */}

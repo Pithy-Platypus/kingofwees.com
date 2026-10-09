@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { Footer } from './Footer';
 import { kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
-import { FeedScreen } from './king/FeedScreen';
+import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
 import { LoggedScreen } from './king/LoggedScreen';
 import { NicknameScreen } from './king/NicknameScreen';
@@ -36,6 +36,7 @@ const titles = defineMessages({
 const titleOf = (route: Route) => titles[route];
 
 const REFRESH_TIMES_EVERY_MS = 30_000;
+const noFeedDraft: FeedDraft = { foods: [], leftOut: false };
 
 type Logged = { name: 'logged'; event: KingEventView };
 // The name question comes first on a device that was never asked, or from "change"; `then` is where it leads.
@@ -65,6 +66,7 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
   const [mapCenter, setMapCenter] = useState<GeoPoint | null>(null);
   const [spots, setSpots] = useState<SpotView[]>([]);
   const [spotId, setSpotId] = useState(() => loadLastSpotId(storage));
+  const [feedDraft, setFeedDraft] = useState<FeedDraft>(noFeedDraft);
   const [, setTick] = useState(0);
   const route = useRoute();
   const intl = useIntl();
@@ -135,19 +137,18 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
       setScreen({ name: 'logged', event: await api.logSighting({ ...reporter(nickname), ...(location ? { location } : {}) }) }),
     );
 
-  const chooseSpot = (id: string | null) => {
-    setSpotId(id);
-    setScreen({ name: 'feed' });
-  };
-
   const addSpot = (name: string, location: GeoPoint) =>
     run(async () => {
       const added = await api.addSpot({ reporterKey, name, location });
       setSpots((current) => [...current, added]);
-      chooseSpot(added.id);
+      setSpotId(added.id);
+      setScreen({ name: 'feed' });
     });
 
-  const startFeeding = () => setScreen(nickname === null ? { name: 'nickname', then: 'feed' } : { name: 'feed' });
+  const startFeeding = () => {
+    setFeedDraft(noFeedDraft);
+    setScreen(nickname === null ? { name: 'nickname', then: 'feed' } : { name: 'feed' });
+  };
 
   const startSighting = () => setScreen(nickname === null ? { name: 'nickname', then: 'seen' } : { name: 'seen' });
 
@@ -196,9 +197,13 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
     content = (
       <FeedScreen
         busy={busy}
-        spotName={spot?.name ?? null}
+        spots={spots}
+        spotId={spot?.id ?? null}
+        draft={feedDraft}
+        onDraft={setFeedDraft}
+        onPickSpot={setSpotId}
+        onAddSpot={() => setScreen({ name: 'spots' })}
         onLog={logFeeding}
-        onChangeSpot={() => setScreen({ name: 'spots' })}
         onBack={goHome}
       />
     );
@@ -206,11 +211,9 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
   } else if (screen.name === 'spots') {
     content = (
       <SpotScreen
-        spots={spots}
         mapCenter={mapCenter}
         geolocation={geolocation}
         busy={busy}
-        onChoose={chooseSpot}
         onAdd={addSpot}
         onBack={() => setScreen({ name: 'feed' })}
       />
@@ -218,7 +221,7 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
     withFooter = false;
   } else if (screen.name === 'seen') {
     content = (
-      <SeenScreen mapCenter={mapCenter} geolocation={geolocation} busy={busy} onLog={logSighting} onBack={goHome} />
+      <SeenScreen spots={spots} mapCenter={mapCenter} geolocation={geolocation} busy={busy} onLog={logSighting} onBack={goHome} />
     );
     withFooter = false;
   } else if (screen.name === 'logged') {

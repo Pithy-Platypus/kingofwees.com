@@ -323,6 +323,50 @@
     @apply btn btn-outline mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
   }
 
+  /* "Where" answers are as big as the food tiles, so a quick glance can't miss them. */
+  .where-now {
+    @apply btn btn-primary h-auto min-h-24 rounded-box font-display text-xl font-semibold;
+  }
+
+  .where-tiles {
+    @apply grid grid-cols-2 gap-3;
+  }
+
+  .where-tile {
+    @apply btn btn-outline h-auto min-h-20 w-full rounded-box border-secondary font-display text-lg font-semibold text-base-content;
+  }
+
+  /* Feed's spot choices: native radios (arrow keys, one pick) drawn as tiles; the check mark shows the pick without color. */
+  .where-choices {
+    @apply flex min-w-0 flex-col gap-3;
+  }
+
+  .where-heading {
+    @apply mb-3 font-display text-xl font-semibold;
+  }
+
+  /* daisyUI fills a pressed .btn only for aria-pressed/aria-checked, not a label holding a checked radio: btn-active does it. */
+  .where-tile:has(:checked) {
+    @apply btn-active btn-secondary text-secondary-content;
+  }
+
+  .where-tile:has(:focus-visible) {
+    @apply outline-2 outline-offset-2 outline-base-content;
+  }
+
+  .where-radio {
+    @apply sr-only;
+  }
+
+  .where-tile-new {
+    @apply border-dashed;
+  }
+
+  /* Deliberately quieter than every "where" answer: it still logs, so it must never read as the main action. */
+  .no-place-button {
+    @apply btn btn-ghost mt-auto min-h-12 self-center text-base underline underline-offset-4;
+  }
+
   .place-button {
     @apply btn btn-outline min-h-14 rounded-field border-secondary text-lg text-base-content;
   }
@@ -343,14 +387,17 @@
     @apply flex flex-col gap-2;
   }
 
-  /* The cross marks the map center, which "Use map center" picks (the keyboard way to choose a place). */
   .map-frame {
     @apply relative overflow-hidden rounded-box border-2 border-base-300;
   }
 
-  .map-frame-picking::after {
-    @apply pointer-events-none absolute top-1/2 left-1/2 z-[1000] size-6 -translate-x-1/2 -translate-y-1/2 text-center text-2xl leading-6 font-bold text-base-content;
-    content: '+';
+  /* The pin stays put and the map moves under it; its tip marks the center, the point that gets picked. */
+  .map-pin {
+    @apply pointer-events-none absolute top-1/2 left-1/2 z-[1000] size-10 -translate-x-1/2 -translate-y-full fill-accent text-base-content;
+  }
+
+  .map-instruction {
+    @apply text-base font-semibold;
   }
 
   .map-canvas {
@@ -390,10 +437,6 @@
     @apply btn btn-primary min-h-16 rounded-field font-display text-xl font-semibold;
   }
 
-  .map-center-button {
-    @apply btn btn-ghost min-h-12 self-start text-base underline underline-offset-4;
-  }
-
   /* Leaflet draws markers as SVG paths; these classes color them from the theme. */
   .map-marker {
     stroke: var(--color-base-content);
@@ -407,10 +450,6 @@
 
   .map-marker-seen {
     fill: var(--color-primary);
-  }
-
-  .map-marker-picked {
-    fill: var(--color-accent);
   }
 
   /* Heat: busier blocks are bigger (radius, set in MapView) and more solid; the list under the map has the numbers. */

@@ -70,8 +70,9 @@ describe('nearestSpot', () => {
     expect(nearestSpot({ latitude: 45.523, longitude: -122.680 }, [steps])).toBeNull();
   });
 
-  it('picks the closer of two near spots', () => {
+  it('picks the closer of two near spots, whatever order they come in', () => {
     expect(nearestSpot({ latitude: 45.523, longitude: -122.675 }, [steps, corner])).toBe(corner);
+    expect(nearestSpot({ latitude: 45.523, longitude: -122.675 }, [corner, steps])).toBe(corner);
   });
 
   it('is nothing when there are no spots', () => {

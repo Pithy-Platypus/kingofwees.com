@@ -44,8 +44,12 @@ public sealed class KingFlowTests(AppFixture app)
     private static async Task SkipWhereQuestion(IPage page)
     {
         await Assertions.Expect(WhereQuestion(page)).ToBeFocusedAsync();
-        await Button(page, "Skip").ClickAsync();
+        await Button(page, "Log without a place").ClickAsync();
     }
+
+    private static ILocator SpotChoice(IPage page, string name) =>
+        page.GetByRole(AriaRole.Group, new() { Name = "Where did you feed him?" })
+            .GetByRole(AriaRole.Radio, new() { Name = name, Exact = true });
 
     private static async Task<JsonElement> Status(IPage page)
     {
@@ -210,18 +214,25 @@ public sealed class KingFlowTests(AppFixture app)
     }
 
     [Fact]
-    public async Task A_sighting_can_be_placed_by_tapping_the_map()
+    public async Task A_sighting_is_placed_by_dragging_the_map_under_the_pin()
     {
         var page = await app.NewPageAsync();
         await page.GotoAsync("/");
         await Button(page, "I saw King").ClickAsync();
         await SkipNameQuestion(page);
-        var map = page.GetByRole(AriaRole.Region, new() { Name = "Map: tap where you saw King" });
-        await Assertions.Expect(map).ToBeVisibleAsync();
+        var map = page.GetByRole(AriaRole.Region, new() { Name = "Map of where you saw King" });
+        await Assertions.Expect(map.Locator(".map-pin")).ToBeVisibleAsync();
+        // An untouched map has picked nothing; "Log without a place" is the only other way on.
+        await Assertions.Expect(Button(page, "Log sighting here")).ToHaveCountAsync(0);
         await AssertNoAxeViolations(page);
 
-        await map.ClickAsync();
-        await Assertions.Expect(map.Locator(".map-marker-picked")).ToBeVisibleAsync();
+        // What Wallie's tester did: move the map, then look for the button to log.
+        var box = (await map.BoundingBoxAsync())!;
+        await page.Mouse.MoveAsync(box.X + box.Width / 2, box.Y + box.Height / 2);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(box.X + box.Width / 2 - 60, box.Y + box.Height / 2 - 40, new() { Steps = 5 });
+        await page.Mouse.UpAsync();
+        await AssertNoAxeViolations(page);
         await Button(page, "Log sighting here").ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Thanks for spotting King!" })).ToBeVisibleAsync();
 
@@ -240,14 +251,20 @@ public sealed class KingFlowTests(AppFixture app)
         await SkipNameQuestion(page);
         await Assertions.Expect(WhereQuestion(page)).ToBeFocusedAsync();
 
-        await TabUntilFocused(page, "Use map center");
-        await page.Keyboard.PressAsync("Enter");
+        // Leaflet's map takes focus with Tab, and arrow keys move it under the pin.
+        for (var i = 0; i < 20 && !await page.EvaluateAsync<bool>("() => document.activeElement?.classList.contains('leaflet-container') ?? false"); i++)
+            await page.Keyboard.PressAsync("Tab");
+        for (var i = 0; i < 3; i++)
+            await page.Keyboard.PressAsync("ArrowUp");
+        // Each pan animates; the button appears once the map has moved.
+        await Assertions.Expect(Button(page, "Log sighting here")).ToBeVisibleAsync();
         await TabUntilFocused(page, "Log sighting here");
         await page.Keyboard.PressAsync("Enter");
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Thanks for spotting King!" })).ToBeFocusedAsync();
 
+        // Moved north of the center, by no more than a couple of blocks.
         var location = (await Status(page)).GetProperty("lastSeen").GetProperty("location");
-        Assert.Equal(AppFixture.MapLatitude, location.GetProperty("latitude").GetDouble());
+        Assert.InRange(location.GetProperty("latitude").GetDouble(), AppFixture.MapLatitude + 0.0005, AppFixture.MapLatitude + 0.003);
         Assert.Equal(AppFixture.MapLongitude, location.GetProperty("longitude").GetDouble());
     }
 
@@ -260,23 +277,24 @@ public sealed class KingFlowTests(AppFixture app)
         await Button(page, "I fed King").ClickAsync();
         await SkipNameQuestion(page);
 
-        await Button(page, "Pick a spot").ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Where did you feed him?" })).ToBeFocusedAsync();
+        await Assertions.Expect(SpotChoice(page, "No spot")).ToBeCheckedAsync();
         await AssertNoAxeViolations(page);
         await Button(page, "Somewhere new").ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Add a feeding spot" })).ToBeFocusedAsync();
         await page.GetByLabel("Name this spot").FillAsync(name);
-        await Button(page, "Use map center").ClickAsync();
+        await Button(page, "Use where I am").ClickAsync();
         await Assertions.Expect(page.GetByText("Place picked.")).ToBeVisibleAsync();
         await AssertNoAxeViolations(page);
         await Button(page, "Save spot").ClickAsync();
 
-        await Assertions.Expect(page.GetByText($"At {name}")).ToBeVisibleAsync();
+        await Assertions.Expect(SpotChoice(page, name)).ToBeCheckedAsync();
+        await AssertNoAxeViolations(page);
         await Button(page, "Log feeding").ClickAsync();
         await Button(page, "Done").ClickAsync();
         await Assertions.Expect(page.GetByText($"at {name}").First).ToBeVisibleAsync();
 
         await Button(page, "I fed King").ClickAsync();
-        await Assertions.Expect(page.GetByText($"At {name}")).ToBeVisibleAsync();
+        await Assertions.Expect(SpotChoice(page, name)).ToBeCheckedAsync();
     }
 
     [Fact]
@@ -287,10 +305,11 @@ public sealed class KingFlowTests(AppFixture app)
         await page.GotoAsync("/");
         await Button(page, "I fed King").ClickAsync();
         await SkipNameQuestion(page);
-        await Button(page, "Pick a spot").ClickAsync();
         await Button(page, "Somewhere new").ClickAsync();
         await page.GetByLabel("Name this spot").FillAsync(UniqueSpotName("Steps"));
-        await Button(page, "Use map center").ClickAsync();
+        // A tap on the pin picks the map center, away from the device's position.
+        await page.GetByRole(AriaRole.Region, new() { Name = "Map of where you fed King" }).ClickAsync();
+        await Assertions.Expect(page.GetByText("Place picked.")).ToBeVisibleAsync();
         await Button(page, "Save spot").ClickAsync();
         await Button(page, "Log feeding").ClickAsync();
         await Button(page, "Done").ClickAsync();

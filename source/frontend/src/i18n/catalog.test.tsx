@@ -41,17 +41,27 @@ function renderInPseudoLocale(ui: ReactElement) {
 describe('pseudo-locale catalog', () => {
   it.each<[string, ReactElement]>([
     ['home', <HomeScreen status={status} spots={[spot('c', 'Corner')]} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />],
-    ['feed', <FeedScreen busy={false} spotName="Corner" onLog={noop} onChangeSpot={noop} onBack={noop} />],
-    ['feed, no spot', <FeedScreen busy={false} spotName={null} onLog={noop} onChangeSpot={noop} onBack={noop} />],
-    ['where seen', <SeenScreen mapCenter={CENTER} geolocation={undefined} busy={false} onLog={noop} onBack={noop} />],
+    [
+      'feed',
+      <FeedScreen
+        busy={false}
+        spots={[spot('c', 'Corner')]}
+        spotId="c"
+        draft={{ foods: ['wet'], leftOut: false }}
+        onDraft={noop}
+        onPickSpot={noop}
+        onAddSpot={noop}
+        onLog={noop}
+        onBack={noop}
+      />,
+    ],
+    ['where seen', <SeenScreen spots={[spot('c', 'Corner')]} mapCenter={CENTER} geolocation={undefined} busy={false} onLog={noop} onBack={noop} />],
     [
       'spots',
       <SpotScreen
-        spots={[spot('c', 'Corner')]}
         mapCenter={CENTER}
         geolocation={undefined}
         busy={false}
-        onChoose={noop}
         onAdd={noop}
         onBack={noop}
       />,

@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -26,11 +26,15 @@ const renderApp = (api = fakeApi(), storage = deviceNamed('')) => {
 
 const nameQuestion = () => screen.queryByRole('heading', { name: 'What should neighbors call you?' });
 
-// After "I saw King" comes "Where is King?"; Skip logs the sighting with no place.
+// After "I saw King" comes "Where is King?"; "Log without a place" logs the sighting with no place.
 const skipWhere = async () => {
   await screen.findByRole('heading', { name: 'Where is King?' });
-  await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Log without a place' }));
 };
+// Moves a picking map as a tap well off its center would: the map re-centers there, under the pin.
+const moveMap = (name: string) =>
+  fireEvent.click(screen.getByRole('region', { name }).querySelector('.leaflet-container')!, { clientX: 120, clientY: 80 });
+const anyPlace = { latitude: expect.any(Number), longitude: expect.any(Number) };
 const nameBox = () => screen.getByRole('textbox', { name: 'Your first name or nickname' });
 
 describe('App', () => {
@@ -213,7 +217,7 @@ describe('App', () => {
     expect(nameQuestion()).toBeInTheDocument();
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
@@ -229,9 +233,7 @@ describe('App', () => {
     renderApp(api);
 
     await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
-    expect(screen.queryByRole('list', { name: 'Spots' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(within(screen.getByRole('group', { name: 'Where did you feed him?' })).getAllByRole('radio')).toHaveLength(1);
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
 
     expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true });
@@ -248,13 +250,13 @@ describe('App', () => {
     expect(api.logFeeding).toHaveBeenCalledOnce();
   });
 
-  it('logs one sighting even when Skip is double-tapped', async () => {
+  it('logs one sighting even when “Log without a place” is double-tapped', async () => {
     const api = fakeApi();
     api.logSighting.mockReturnValue(new Promise<KingEventView>(() => {}));
     renderApp(api);
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
 
-    await userEvent.dblClick(await screen.findByRole('button', { name: 'Skip' }));
+    await userEvent.dblClick(await screen.findByRole('button', { name: 'Log without a place' }));
 
     expect(api.logSighting).toHaveBeenCalledOnce();
   });
@@ -357,6 +359,7 @@ describe('App — who fed', () => {
     expect(await screen.findByRole('heading', { name: 'Thanks for spotting King!' })).toHaveFocus();
     expect(api.renameEvent).toHaveBeenCalledWith('new-seen', KEY, 'Captain Whiskers');
     expect(screen.getByText(/Logging as Captain Whiskers/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(loadNickname(storage)).toBe('Captain Whiskers');
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
@@ -425,11 +428,11 @@ describe('App — where he was seen', () => {
     expect(screen.getByRole('heading', { name: 'Where is King?' })).toHaveFocus();
   };
 
-  it('Skip logs the sighting with no place', async () => {
+  it('“Log without a place” logs the sighting with no place', async () => {
     const api = renderSeen({ map: CENTER });
     await startSighting();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Log without a place' }));
 
     expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY });
     expect(await screen.findByRole('heading', { name: 'Thanks for spotting King!' })).toBeInTheDocument();
@@ -444,7 +447,7 @@ describe('App — where he was seen', () => {
     expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, location: near });
   });
 
-  it('says so when the location is refused, and still offers the map and Skip', async () => {
+  it('says so when the location is refused, and still offers the map and logging without a place', async () => {
     const api = renderSeen({ map: CENTER }, fakeGeolocation('denied'));
     await startSighting();
 
@@ -452,23 +455,53 @@ describe('App — where he was seen', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t get your location');
     expect(api.logSighting).not.toHaveBeenCalled();
-    expect(screen.getByRole('region', { name: 'Map: tap where you saw King' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Map of where you saw King' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Log without a place' })).toBeInTheDocument();
   });
 
-  it('logs a place picked on the map only once “Log sighting here” is pressed', async () => {
+  it('says how to pick a place: move the map so the pin is on the spot', async () => {
+    renderSeen({ map: CENTER });
+    await startSighting();
+
+    expect(
+      screen.getByRole('region', { name: 'Map of where you saw King', description: 'Or move the map so the pin is where you saw him.' }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers “Log sighting here” only once the map is moved, and logs the place under the pin', async () => {
     const api = renderSeen({ map: CENTER });
     await startSighting();
     expect(screen.queryByRole('button', { name: 'Log sighting here' })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Use map center' }));
+    moveMap('Map of where you saw King');
     expect(api.logSighting).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Log sighting here' }));
 
-    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, location: CENTER });
+    const { location } = api.logSighting.mock.lastCall![0];
+    expect(location).toEqual(anyPlace);
+    expect(location).not.toEqual(CENTER);
   });
 
-  it('offers only “I’m near him now” and Skip when the site has no map', async () => {
+  it('offers “By {spot}” for each spot, which logs the sighting at the spot', async () => {
+    const porch = { id: 'porch', name: 'Porch', location: { latitude: 45.524, longitude: -122.676 } };
+    const api = renderSeen({ map: CENTER, spots: [porch, spot('corner', 'Corner')] });
+    await startSighting();
+
+    const tiles = within(screen.getByRole('list', { name: 'Spots' })).getAllByRole('button').map((b) => b.textContent);
+    expect(tiles).toEqual(['By Corner', 'By Porch']);
+    await userEvent.click(screen.getByRole('button', { name: 'By Porch' }));
+
+    expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, location: porch.location });
+  });
+
+  it('offers no spot list when there are no spots', async () => {
+    renderSeen({ map: CENTER });
+    await startSighting();
+
+    expect(screen.queryByRole('list', { name: 'Spots' })).not.toBeInTheDocument();
+  });
+
+  it('offers only “I’m near him now” and logging without a place when the site has no map', async () => {
     renderSeen({ map: null });
     await startSighting();
 
@@ -497,76 +530,78 @@ describe('App — feeding spots', () => {
     return api;
   };
 
-  it('logs with no spot until one is picked', async () => {
+  const where = () => screen.getByRole('group', { name: 'Where did you feed him?' });
+  const choices = () => within(where()).getAllByRole('radio').map((r) => r.closest('label')!.textContent);
+
+  it('asks where on the feeding screen itself, opening on “No spot” on first use', async () => {
     const api = await renderFeed();
 
-    expect(screen.getByText(/Where\?/)).toBeInTheDocument();
+    expect(within(where()).getByRole('radio', { name: 'No spot' })).toBeChecked();
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
 
     expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true });
   });
 
-  it('lists the spots by name, and picking one returns to the feeding with it', async () => {
+  it('offers every spot by name, then “No spot”, and logs at the one picked', async () => {
     const api = await renderFeed();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
-    expect(screen.getByRole('heading', { name: 'Where did you feed him?' })).toHaveFocus();
-    const names = within(screen.getByRole('list', { name: 'Spots' })).getAllByRole('button').map((b) => b.textContent);
-    expect(names).toEqual(['Blue house steps', 'Corner']);
-    await userEvent.click(screen.getByRole('button', { name: 'Corner' }));
+    expect(choices()).toEqual(['Blue house steps', 'Corner', 'No spot']);
+    await userEvent.click(screen.getByRole('radio', { name: 'Corner' }));
 
-    expect(screen.getByRole('heading', { name: 'What did King eat?' })).toHaveFocus();
-    expect(screen.getByText(/At Corner/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Corner' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'No spot' })).not.toBeChecked();
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
     expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true, spotId: 'corner' });
   });
 
-  it('picks the last spot used on this device next time', async () => {
+  it('opens on the last spot used on this device next time', async () => {
     const storage = deviceNamed('');
     const first = await renderFeed(storage);
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Corner' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Corner' }));
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
     expect(first.logFeeding).toHaveBeenCalled();
     cleanup();
 
     const second = await renderFeed(storage);
 
-    expect(screen.getByText(/At Corner/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Corner' })).toBeChecked();
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
     expect(second.logFeeding).toHaveBeenCalledWith(expect.objectContaining({ spotId: 'corner' }));
   });
 
   it('“No spot” clears the picked spot', async () => {
     const api = await renderFeed();
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Corner' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Corner' }));
 
-    await userEvent.click(screen.getByRole('button', { name: 'change' }));
-    await userEvent.click(screen.getByRole('button', { name: 'No spot' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'No spot' }));
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
 
     expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: [], sawKing: true });
   });
 
-  it('adds somewhere new with a name and a place on the map, then feeds there', async () => {
+  it('adds somewhere new with a name and a place on the map, then feeds there, keeping the foods picked', async () => {
     const api = await renderFeed();
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Wet food' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'I left food out (didn’t see him)' }));
 
-    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+    await userEvent.click(within(where()).getByRole('button', { name: 'Somewhere new' }));
+    expect(screen.getByRole('heading', { name: 'Add a feeding spot' })).toHaveFocus();
     await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Garden gate');
-    await userEvent.click(screen.getByRole('button', { name: 'Use map center' }));
+    expect(
+      screen.getByRole('region', { name: 'Map of where you fed King', description: 'Move the map so the pin is where you fed him.' }),
+    ).toBeInTheDocument();
+    moveMap('Map of where you fed King');
     await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
 
-    expect(api.addSpot).toHaveBeenCalledWith({ reporterKey: KEY, name: 'Garden gate', location: CENTER });
-    expect(await screen.findByText(/At Garden gate/)).toBeInTheDocument();
+    expect(api.addSpot).toHaveBeenCalledWith({ reporterKey: KEY, name: 'Garden gate', location: anyPlace });
+    expect(await screen.findByRole('radio', { name: 'Garden gate' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Wet food' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
-    expect(api.logFeeding).toHaveBeenCalledWith(expect.objectContaining({ spotId: 'new-spot' }));
+    expect(api.logFeeding).toHaveBeenCalledWith({ reporterKey: KEY, foods: ['wet'], sawKing: false, spotId: 'new-spot' });
   });
 
   it('can place somewhere new where the device is', async () => {
     const api = await renderFeed(deviceNamed(''), fakeGeolocation({ latitude: 45.52, longitude: -122.68 }));
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
     await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
 
     await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Porch');
@@ -578,31 +613,40 @@ describe('App — feeding spots', () => {
 
   it('asks for both a name and a place before saving somewhere new', async () => {
     const api = await renderFeed();
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
     await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
 
     await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Porch');
     await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Give the spot a name and pick its place.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Give the spot a name and move the map to its place.');
     expect(api.addSpot).not.toHaveBeenCalled();
   });
 
   it('keeps spot names within the 40 characters the server accepts', async () => {
     await renderFeed();
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
     await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
 
     expect(screen.getByRole('textbox', { name: 'Name this spot' })).toHaveAttribute('maxLength', '40');
   });
 
-  it('Back returns to the feeding without changing the spot', async () => {
+  it('Back from “Somewhere new” returns to the feeding without changing the spot', async () => {
     await renderFeed();
-    await userEvent.click(screen.getByRole('button', { name: 'Pick a spot' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Corner' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
 
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
 
     expect(screen.getByRole('heading', { name: 'What did King eat?' })).toHaveFocus();
-    expect(screen.getByText(/Where\?/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Corner' })).toBeChecked();
+  });
+
+  it('starts the next feeding with no foods picked', async () => {
+    await renderFeed();
+    await userEvent.click(screen.getByRole('button', { name: 'Wet food' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+
+    expect(screen.getByRole('button', { name: 'Wet food' })).toHaveAttribute('aria-pressed', 'false');
   });
 });

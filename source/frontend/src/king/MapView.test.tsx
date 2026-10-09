@@ -1,5 +1,4 @@
 import { fireEvent, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import L from 'leaflet';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderInEnglish } from '../test/render';
@@ -35,7 +34,7 @@ describe('MapView', () => {
   it('leaves the view alone when not asked to fit, so a picking map doesn’t jump', () => {
     const fitBounds = vi.spyOn(L.Map.prototype, 'fitBounds');
 
-    renderInEnglish(<MapView center={center} label="Map of King’s street" markers={[{ point: center, kind: 'picked' }]} />);
+    renderInEnglish(<MapView center={center} label="Map of King’s street" markers={[{ point: center, kind: 'seen' }]} />);
 
     expect(fitBounds).not.toHaveBeenCalled();
   });
@@ -74,29 +73,75 @@ describe('MapView', () => {
     expect(screen.getByRole('button', { name: 'Zoom out' })).toBeInTheDocument();
   });
 
-  it('offers no picking when nothing is to be picked', () => {
+  const pickingMap = (props: { instruction?: string; goTo?: { latitude: number; longitude: number } } = {}) => {
+    const onPick = vi.fn();
+    const spy = vi.spyOn(L, 'map');
+    const view = renderInEnglish(
+      <MapView center={center} label="Map of King’s street" instruction="Move the map so the pin is on him." onPick={onPick} {...props} />,
+    );
+    // The map Leaflet built, to move it as a person would.
+    const map = spy.mock.results[0].value as L.Map;
+    return { onPick, map, ...view };
+  };
+
+  it('shows no pin when nothing is to be picked', () => {
     renderInEnglish(<MapView center={center} label="Map of King’s street" />);
 
-    expect(screen.queryByRole('button', { name: 'Use map center' })).not.toBeInTheDocument();
+    expect(region().querySelector('.map-pin')).toBeNull();
   });
 
-  it('picks the center with a button, for people who can’t tap a map', async () => {
-    const onPick = vi.fn();
-    renderInEnglish(<MapView center={center} label="Map of King’s street" onPick={onPick} />);
+  it('shows a pin at the center, with the instruction describing the map', () => {
+    pickingMap();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Use map center' }));
-
-    expect(onPick).toHaveBeenCalledWith(center);
+    expect(region().querySelector('.map-pin')).not.toBeNull();
+    expect(screen.getByRole('region', { name: 'Map of King’s street', description: 'Move the map so the pin is on him.' })).toBeInTheDocument();
   });
 
-  it('picks the tapped point', () => {
-    const onPick = vi.fn();
-    renderInEnglish(<MapView center={center} label="Map of King’s street" onPick={onPick} />);
+  it('picks nothing until the map is moved', () => {
+    const { onPick } = pickingMap();
 
-    fireEvent.click(region().querySelector('.leaflet-container')!);
+    expect(onPick).not.toHaveBeenCalled();
+  });
 
-    expect(onPick).toHaveBeenCalledOnce();
-    expect(onPick.mock.calls[0][0]).toEqual({ latitude: expect.any(Number), longitude: expect.any(Number) });
+  it('picks the point under the pin whenever the map stops moving (drag, zoom or arrow keys)', () => {
+    const { onPick, map } = pickingMap();
+    const moved = { lat: 45.524, lng: -122.676 };
+
+    map.setView(moved, map.getZoom(), { animate: false });
+
+    expect(onPick).toHaveBeenLastCalledWith({ latitude: moved.lat, longitude: moved.lng });
+  });
+
+  it('a tap moves the map so the pin is on the tapped point, and picks it', () => {
+    const { onPick, map } = pickingMap();
+    const panTo = vi.spyOn(map, 'panTo');
+
+    // Well off-center: a tap under a pixel from the pin doesn't move the map.
+    fireEvent.click(region().querySelector('.leaflet-container')!, { clientX: 120, clientY: 80 });
+
+    const tapped = panTo.mock.lastCall![0] as L.LatLng;
+    expect(tapped.equals(L.latLng(center.latitude, center.longitude), 1e-6)).toBe(false);
+    const picked = onPick.mock.lastCall![0];
+    expect(picked.latitude).toBeCloseTo(tapped.lat, 6);
+    expect(picked.longitude).toBeCloseTo(tapped.lng, 6);
+  });
+
+  it('moves to a place it is sent to, and picks it', () => {
+    const elsewhere = { latitude: 45.52, longitude: -122.68 };
+    const { onPick, map, rerender } = pickingMap();
+
+    rerender(
+      <MapView center={center} label="Map of King’s street" instruction="Move the map so the pin is on him." onPick={onPick} goTo={elsewhere} />,
+    );
+
+    expect(map.getCenter()).toEqual(L.latLng(elsewhere.latitude, elsewhere.longitude));
+    expect(onPick).toHaveBeenLastCalledWith(elsewhere);
+  });
+
+  it('keeps its zoom buttons in the bottom corner, away from the pin', () => {
+    pickingMap();
+
+    expect(region().querySelector('.leaflet-bottom.leaflet-right .leaflet-control-zoom')).not.toBeNull();
   });
 
   it('draws a marker of each kind it is given, and redraws when they change', () => {
@@ -111,13 +156,12 @@ describe('MapView', () => {
         label="Map of King’s street"
         markers={[
           { point: center, kind: 'fed' },
-          { point: center, kind: 'picked' },
+          { point: center, kind: 'fed' },
         ]}
       />,
     );
 
     expect(region().querySelectorAll('.map-marker-seen')).toHaveLength(0);
-    expect(region().querySelectorAll('.map-marker-fed')).toHaveLength(1);
-    expect(region().querySelectorAll('.map-marker-picked')).toHaveLength(1);
+    expect(region().querySelectorAll('.map-marker-fed')).toHaveLength(2);
   });
 });

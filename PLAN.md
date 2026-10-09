@@ -2,7 +2,7 @@
 
 **Status key:** ✅ done · 🔄 in progress · ⏳ pending · ⏸️ waiting on a decision
 
-**Now:** Slices 1–3 committed and pushed on `main`; real contact email in. Only Slice 3's phase-end StrykerJS run remains — stopped again at 44/589 mutants, so no score is recorded yet. Last updated 2026-10-08.
+**Now:** Slice 3 ✅ incl. Phase 3b (make "where" obvious) and StrykerJS (88.6%; 2 gaps closed), committed on `main` (not yet pushed). Wallie is running another round of manual tests with people; next item from "Later" to be chosen. Last updated 2026-10-09.
 
 ---
 
@@ -57,7 +57,7 @@ StrykerJS (phase end): scope narrowed to logic files (588 → 201 mutants, ~37 �
 
 **Stop for review** after 2b.
 
-## Slice 3 — History page: heat map + full log 🔄
+## Slice 3 — History page: heat map + full log ✅
 
 One `/history` page: a heat map of where King is seen / fed, then the full log. The home map stays as it is — only "Last fed & seen", two markers. Here it's every entry with a place, counted per block. No new dependencies.
 
@@ -72,10 +72,22 @@ One `/history` page: a heat map of where King is seen / fed, then the full log. 
 | 7 | **Full log:** grouped by day (`formatDate`, "Today" / "Yesterday"), each line as in Lately (foods, who, spot / "near {spot}", left food out); "Show older" loads the next page and moves focus to the first new entry; hidden when `next` is null; loading and error states. The activity line is shared with Lately (`ActivityItem`), so Lately now says "left food out" too; it sets its own line height (`leading-7`) so it doesn't inherit About/Privacy's relaxed prose spacing on the history page (Wallie saw the lines look different) | ✅ |
 | 8 | **Privacy page:** say that the history and heat map are public (nicknames, spots and rounded places), linking the existing "kept as King's history" wording. Done as one sentence: the history page (linked) shows every entry with its name and a map of places never more exact than a block | ✅ |
 | 9 | **E2E + docs:** Playwright `/history` (layers, range switch, Show older, keyboard-only), axe on every state, `en-XA`; `source/README.md` API, routes and layout. In `KingFlowTests` (one class: its flows share the database). "Show older" is covered by API and Vitest tests, not e2e: 51 more entries would push the other flows' entries out of their recent lists | ✅ |
-
 | 10 | **"change" renames the entry just logged too** (from Wallie's manual test: changing Guy → Kael on the confirmation left that feeding as Guy). `PATCH /api/king/events/{id}` `{ reporterName }` — same device (`X-Reporter-Key`), within the 10-minute undo window, same 404/409 as Undo; store `RenameAsync`; the confirmation renames the entry, then later entries use the new name; if that fails (too late, offline) it says so and later entries still use it. Undo and rename share one ownership check. The e2e server's write limit is raised (`AppFixture`) — the suite outgrew 20 writes a minute from one address; `RateLimitTests` still covers the limit | ✅ |
 
-Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not finished: stopped four times so far (the last at 44/589). Stopped runs write no incremental file, so the next run is a full one — about 20–25 minutes; let it finish, then record the score here. **Stop for review** after Slice 3.
+### Phase 3b — make "where" obvious (from Wallie's tester) ✅
+
+What the tester did: missed "where" on both flows; read the map's center "+" as the place; on "I saw King" moved the map, then pressed **Skip** thinking it meant submit — and the sighting was logged (with no place). Skip working "as built" is the bug: the biggest button on "Where is King?" was Skip, and the word reads as "leave". Cause in the code: on Feed, "Where? Pick a spot" is one small grey line (`.logging-as`) under big food tiles; on Seen, Skip (`.skip-button`, 64px, display font, bottom) outranks "I'm near him now" (outline, 56px) and the map's "Log sighting here" only appears after a tap. Frontend only — no API change. Tweaks expected as more people test.
+
+| # | Step | Status |
+|---|---|---|
+| 1 | **Seen: buttons in the right order.** "I'm near him now" becomes the primary filled button, as big as a food tile. Spot tiles ("By Porch") in the same two-column grid — one tap logs a sighting at the spot's location (reads "near Porch" via `nearestSpot`; no server change). Skip → **"Log without a place"**, a small outline button; only **Back** leaves without logging (test: Back logs nothing). Spots sort by name via a shared `useSpotsByName`. | ✅ |
+| 2 | **Picking maps: pin at the center, move the map under it** (Seen and new-spot). The center "+" becomes a pin; a line above the map says "Move the map so the pin is where you saw him" / "…where you fed him"; tapping the map pans it to the tap. The log/save button appears once the map has been moved or tapped (an untouched map would log the default center as if chosen) and uses the center. "Use map center" goes — the main button does its job, and arrow keys pan the map for keyboard users. "Use where I am" on the spot form pans the map to the fix. Zoom buttons stay (zoom-out needs a one-finger way, WCAG 2.5.1) but move to the bottom right, away from the pin. Built as: `MapView` picks on Leaflet's `moveend` (registered after the first view, so an untouched map picks nothing), a tap pans to the tap, `goTo` moves the map ("Use where I am" picks only through it, so the pin always shows what gets saved); the `picked` marker kind is gone. | ✅ |
+| 3 | **Feed: "where" as big tiles on the same screen.** Under the foods, a "Where did you feed him?" subheading and the spots as tiles (two columns, a pick-one radio group — native radios styled as tiles, check mark when picked), plus "No spot" and "Somewhere new". Opens on last time's spot, else "No spot", so the choice is always visible. "Somewhere new" opens the add-spot form (the spot screen keeps only the form) and comes back with the new spot picked. No extra tap for a regular feeder. The picked foods and the left-out tick live in `App` (`FeedDraft`), so a trip to "Somewhere new" keeps them; a new feeding starts empty. | ✅ |
+| 4 | **E2E + docs:** update `KingFlowTests` (Skip / "Pick a spot" / "Use map center" go), keyboard-only for both flows, axe on the new states, `en-XA`; `source/README.md` screens. Then Slice 3's StrykerJS run (below) covers this too. The tap e2e became a **drag** e2e (the tester's path: no "Log sighting here" until the map moves); keyboard-only pans with arrow keys. axe caught a picked spot tile with white text on a transparent background: daisyUI fills a `.btn` only for `aria-pressed`/`aria-checked`, so the checked label applies `btn-active`. | ✅ |
+
+Not now (tweak if testers need it): with many spots, show the most-used and put the rest behind "More spots…"; a two-step Feed (foods → Next → where) if the tiles still get missed.
+
+Phase end: StrykerJS alone — `src/king/heat.ts` and `src/king/useSpotsByName.ts` added to `mutate`. ✅ **88.6%** (597 mutants: 463 killed, 66 timed out, 68 survived; 2 h 46 min — the 30 s timeouts dominate). 2 real gaps closed test-first, each proved by applying the surviving mutant by hand (so **88.9%** counting them): a successful "change" never checked that the "couldn't rename" alert stays hidden; `nearestSpot`'s tests always listed the closest spot last, so "always take the last" survived. The other 66 are equivalent: `defaultMessage` strings (tests render the compiled catalog), `locale.ts` matching with one browser locale (every path returns en-US), optional chaining inside `reporter.ts`'s try/catch, `pushState`'s unused title argument, effect deps/cleanup and initial state that is overwritten before use, error-message text, and exact-boundary `<`/`<=` on distances that rounded blocks can't land on. The incremental file now exists; with the command runner (no per-test coverage) a test-file change probably still reruns everything — not yet measured. **Stop for review** after Slice 3.
 
 ## Later ⏳
 
@@ -113,12 +125,14 @@ Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not fin
 | 2026-10-08 | US site: distances shown in feet (to 50 ft) under a quarter mile, then miles (to 0.1) — not metres, not from the locale — until people can choose their own formats. Rule in `source/frontend/CLAUDE.md`. |
 | 2026-10-08 | Heat map: the server counts per block; the page folds every block within about a block of a spot into one place at that spot, so a spot's name appears once. Blocks with no spot near stay per block. |
 | 2026-10-08 | Slice 3: one `/history` page (heat map on top, log below, 50 per page). Heat drawn as one circle per rounded block, counted on the server, with a written list as the text alternative — not `leaflet.heat` (unmaintained dependency, color-only, implies finer-than-a-block precision). Layers "Where he's seen" (sightings + seen-feedings) / "Where he's fed" (by spot); range 7 / 30 days / All, opening on 30. |
+| 2026-10-08 | "Where" gets the same big tiles as food, on both flows; picking maps use a pin fixed at the center (move the map under it), not tap-to-drop; "Skip" on Where is King? becomes "Log without a place" (a tester pressed Skip as submit). Feed stays one screen (a two-step Feed only if tiles still get missed). |
 
 ## Open items for Wallie
 
 - **Map center** — set it once per machine (`source/README.md` → "Map center"); until then the app runs without maps. Hosting needs `King__Map__Center__Latitude/Longitude` (`infra/README.md`).
 - **Known gaps, not fixed in 2b** — (1) the catalog test checks message *ids*, not text, so an edited `defaultMessage` without `bun run i18n` still passes (that's how the stale tagline slipped through 2a); (2) a failed log, sighting or "Save spot" request isn't shown to the person (pre-existing for logs; spots inherit it).
 - **Broken `node_modules/.bin` (seen once)** — during Slice 3, `vitest`/`vite` vanished from `node_modules/.bin` while `aspire run` and the e2e AppHost were both up; both start a `bun install` (`webfrontend-installer`), and an earlier run logged `Failed to link @babel/parser: EEXIST`. Cause not confirmed. Fix: `cd source/frontend && bun install --frozen-lockfile`. Avoid running `dotnet test` while `aspire run` is up.
+- **Occasional Vitest timeouts under load** — twice during Slice 3's triage a long App test (normally ~100 ms) passed 5 s while the machine was heavily loaded (load average ~12); three runs on a quiet machine passed. Not root-caused. If it recurs on a quiet machine, look for an await that never settles (e.g. a Leaflet pan animation) before raising the timeout.
 - **Same-name places far from spots** — two blocks can both read "About 1,100 ft from Porch"; adding a direction ("1,100 ft north of Porch") would tell them apart. Not built; Wallie to decide.
 - **Commit author email** — `main` was pushed with `jamie@pithyplatypus.com`, so it's public in history; changing it now means rewriting history and force-pushing. For later commits only, set a noreply address (`git config user.email`) if wanted.
 
@@ -129,9 +143,9 @@ Phase end: StrykerJS alone — `src/king/heat.ts` added to `mutate`. ⏳ Not fin
 Paste this to start the next session:
 
 ```text
-Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md, source/frontend/CLAUDE.md and source/README.md. Slice 1, Phase 2a and 2b, and Slice 3 (history page: heat map + full log, plus "change" renaming the entry just logged) are built, committed and pushed on `main`. The contact email is set (kingcat.weesdistrict@gmail.com).
+Continue kingofwees.com. Read PLAN.md first (status key at the top), then CLAUDE.md, source/KingOfWees.Server/CLAUDE.md, source/frontend/CLAUDE.md and source/README.md. Slice 1, Phase 2a and 2b, and Slice 3 (history page: heat map + full log, plus "change" renaming the entry just logged) are built and committed on `main` (Phase 3b — tile-based "where" and pin-under-the-map picking — is committed but not yet pushed). The contact email is set (kingcat.weesdistrict@gmail.com).
 
-Next: finish Slice 3's phase-end StrykerJS run. Ask Wallie to stop `aspire run` first — running tests while it is up once broke node_modules/.bin (see "Open items for Wallie"). Run `cd source/frontend && bun run mutate` alone and let it finish (a full run, ~20–25 min: stopped runs leave no incremental file), triage the survivors (equivalent vs real gaps; close real gaps test-first), record the score under Slice 3 in PLAN.md, flip Slice 3 to ✅, and stop for Wallie's review. Then ask Wallie which "Later" item comes next (photos, "not fed in 12 hours" alerts, admin delete for spam, go-live hosting) and plan it in PLAN.md with Wallie before building.
+Next: Slice 3 is ✅ (Phase 3b built; StrykerJS 88.6%, 2 gaps closed). Wallie is manually testing Phase 3b with more people — fold their findings in test-first, as Phase 3b steps in PLAN.md. Then ask Wallie which "Later" item comes next (photos, "not fed in 12 hours" alerts, admin delete for spam, go-live hosting — hosting first may settle how alerts work) and plan it in PLAN.md with Wallie before building. Always ask Wallie to stop `aspire run` before running tests — running tests while it is up once broke node_modules/.bin (see "Open items for Wallie"). StrykerJS takes ~3 hours now; run it alone at phase end and don't stop it.
 
 Remember: "Seen means SawKing" (server CLAUDE.md); feedings store only a SpotId (their place is the spot's); every coordinate is already rounded; distances shown to people are feet/miles (frontend CLAUDE.md); query-string requests bind through an [AsParameters] record so they get validated.
 
