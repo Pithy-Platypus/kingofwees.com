@@ -1,6 +1,6 @@
 # infra
 
-Nothing deployed yet. The hosting choice is deferred until the app is ready to go live.
+Nothing deployed yet. Chosen (2026-10-09): Azure Container Apps with the Azure DocumentDB free tier, Cloudflare DNS only — the steps are Slice 5 in `PLAN.md`; this page is rewritten for it at go-live. The table below is the original comparison.
 
 | Option | Shape | Monthly cost (est.) |
 |---|---|---|
