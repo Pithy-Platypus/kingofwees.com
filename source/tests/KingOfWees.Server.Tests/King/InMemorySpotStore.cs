@@ -4,7 +4,7 @@ using KingOfWees.Server.King;
 namespace KingOfWees.Server.Tests.King;
 
 // Test double for API tests; held to the same SpotStoreContract as the Mongo store.
-public sealed class InMemorySpotStore : ISpotStore
+public sealed class InMemorySpotStore(IHiddenReporterStore hiddenReporters) : ISpotStore
 {
     private readonly ConcurrentDictionary<string, Spot> _spots = new();
 
@@ -17,6 +17,12 @@ public sealed class InMemorySpotStore : ISpotStore
     public Task<Spot?> FindAsync(string id, CancellationToken cancellationToken) =>
         Task.FromResult(_spots.GetValueOrDefault(id));
 
-    public Task<IReadOnlyList<Spot>> ListAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Spot>>([.. _spots.Values.OrderBy(s => s.CreatedAt)]);
+    public Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) =>
+        Task.FromResult(_spots.Values.Count(s => s.ReporterKey == reporterKey));
+
+    public async Task<IReadOnlyList<Spot>> ListAsync(CancellationToken cancellationToken)
+    {
+        var hiddenKeys = (await hiddenReporters.ListAsync(cancellationToken)).Select(h => h.ReporterKey).ToHashSet();
+        return [.. _spots.Values.Where(s => !hiddenKeys.Contains(s.ReporterKey)).OrderBy(s => s.CreatedAt)];
+    }
 }

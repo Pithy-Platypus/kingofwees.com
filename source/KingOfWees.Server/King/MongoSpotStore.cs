@@ -3,7 +3,8 @@ using MongoDB.Driver;
 
 namespace KingOfWees.Server.King;
 
-public sealed class MongoSpotStore(IMongoDatabase database) : ISpotStore
+// ListAsync leaves out spots from hidden devices; FindAsync deliberately doesn't.
+public sealed class MongoSpotStore(IMongoDatabase database, IHiddenReporterStore hiddenReporters) : ISpotStore
 {
     private readonly IMongoCollection<SpotDocument> _spots = database.GetCollection<SpotDocument>("spots");
 
@@ -16,9 +17,13 @@ public sealed class MongoSpotStore(IMongoDatabase database) : ISpotStore
         return document?.ToSpot();
     }
 
+    public async Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) =>
+        (int)await _spots.CountDocumentsAsync(s => s.ReporterKey == reporterKey, cancellationToken: cancellationToken);
+
     public async Task<IReadOnlyList<Spot>> ListAsync(CancellationToken cancellationToken)
     {
-        var documents = await _spots.Find(FilterDefinition<SpotDocument>.Empty)
+        var hiddenKeys = (await hiddenReporters.ListAsync(cancellationToken)).Select(h => h.ReporterKey);
+        var documents = await _spots.Find(Builders<SpotDocument>.Filter.Nin(s => s.ReporterKey, hiddenKeys))
             .SortBy(s => s.CreatedAtUtc)
             .ToListAsync(cancellationToken);
         return documents.ConvertAll(d => d.ToSpot());

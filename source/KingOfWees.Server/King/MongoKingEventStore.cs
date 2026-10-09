@@ -3,7 +3,8 @@ using MongoDB.Driver;
 
 namespace KingOfWees.Server.King;
 
-public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventStore
+// Public reads go through Visible(): never a hidden entry, never one from a hidden device. FindAsync deliberately doesn't.
+public sealed class MongoKingEventStore(IMongoDatabase database, IHiddenReporterStore hiddenReporters) : IKingEventStore
 {
     private readonly IMongoCollection<KingEventDocument> _events =
         database.GetCollection<KingEventDocument>("events");
@@ -19,7 +20,7 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
 
     public async Task<KingEvent?> GetLatestAsync(KingEventKind kind, CancellationToken cancellationToken)
     {
-        var document = await _events.Find(e => e.Kind == kind.ToString())
+        var document = await _events.Find(await Visible(cancellationToken) & Builders<KingEventDocument>.Filter.Eq(e => e.Kind, kind.ToString()))
             .SortByDescending(e => e.OccurredAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
         return document?.ToEvent();
@@ -28,7 +29,7 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
     // Sightings are always stored as seen, so one flag covers both kinds; Ne also matches documents written before the flag.
     public async Task<KingEvent?> GetLatestSightingAsync(CancellationToken cancellationToken)
     {
-        var document = await _events.Find(Builders<KingEventDocument>.Filter.Ne(e => e.SawKing, false))
+        var document = await _events.Find(await Visible(cancellationToken) & Builders<KingEventDocument>.Filter.Ne(e => e.SawKing, false))
             .SortByDescending(e => e.OccurredAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
         return document?.ToEvent();
@@ -41,7 +42,7 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
             ? filter.Empty
             : filter.Lt(e => e.OccurredAtUtc, before.OccurredAt.UtcDateTime)
               | (filter.Eq(e => e.OccurredAtUtc, before.OccurredAt.UtcDateTime) & filter.Lt(e => e.Id, before.Id));
-        var documents = await _events.Find(olderThanBefore)
+        var documents = await _events.Find(await Visible(cancellationToken) & olderThanBefore)
             .SortByDescending(e => e.OccurredAtUtc)
             .ThenByDescending(e => e.Id)
             .Limit(count)
@@ -54,7 +55,7 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
     {
         var filter = Builders<KingEventDocument>.Filter;
         var groups = await _events.Aggregate()
-            .Match(Since(since) & filter.Ne(e => e.SawKing, false) & filter.Ne(e => e.Latitude, null))
+            .Match(await Visible(cancellationToken) & Since(since) & filter.Ne(e => e.SawKing, false) & filter.Ne(e => e.Latitude, null))
             .Group(e => new { e.Latitude, e.Longitude }, g => new { g.Key.Latitude, g.Key.Longitude, Count = g.Count() })
             .ToListAsync(cancellationToken);
         return groups.ConvertAll(g => new PlaceCount(new GeoPoint(g.Latitude!.Value, g.Longitude!.Value), g.Count));
@@ -65,16 +66,48 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
     {
         var filter = Builders<KingEventDocument>.Filter;
         var groups = await _events.Aggregate()
-            .Match(Since(since) & filter.Ne(e => e.SpotId, null) & (seenOnly ? filter.Ne(e => e.SawKing, false) : filter.Empty))
+            .Match(await Visible(cancellationToken) & Since(since) & filter.Ne(e => e.SpotId, null) & (seenOnly ? filter.Ne(e => e.SawKing, false) : filter.Empty))
             .Group(e => e.SpotId, g => new { SpotId = g.Key, Count = g.Count() })
             .ToListAsync(cancellationToken);
         return groups.ConvertAll(g => new SpotCount(g.SpotId!, g.Count));
+    }
+
+    // Ne(true) also matches documents written before the Hidden field existed.
+    private async Task<FilterDefinition<KingEventDocument>> Visible(CancellationToken cancellationToken)
+    {
+        var hiddenKeys = (await hiddenReporters.ListAsync(cancellationToken)).Select(h => h.ReporterKey);
+        var filter = Builders<KingEventDocument>.Filter;
+        return filter.Ne(e => e.Hidden, true) & filter.Nin(e => e.ReporterKey, hiddenKeys);
     }
 
     private static FilterDefinition<KingEventDocument> Since(DateTimeOffset? since) =>
         since is { } start
             ? Builders<KingEventDocument>.Filter.Gte(e => e.OccurredAtUtc, start.UtcDateTime)
             : FilterDefinition<KingEventDocument>.Empty;
+
+    public async Task<IReadOnlyList<KingEvent>> GetHiddenEntriesAsync(CancellationToken cancellationToken)
+    {
+        var documents = await _events.Find(Builders<KingEventDocument>.Filter.Eq(e => e.Hidden, true))
+            .SortByDescending(e => e.OccurredAtUtc)
+            .ThenByDescending(e => e.Id)
+            .ToListAsync(cancellationToken);
+        return documents.ConvertAll(d => d.ToEvent());
+    }
+
+    public async Task<ReporterSummary> SummarizeReporterAsync(string reporterKey, CancellationToken cancellationToken)
+    {
+        var fromDevice = Builders<KingEventDocument>.Filter.Eq(e => e.ReporterKey, reporterKey);
+        var count = await _events.CountDocumentsAsync(fromDevice, cancellationToken: cancellationToken);
+        var newest = await _events.Find(fromDevice).SortByDescending(e => e.OccurredAtUtc).FirstOrDefaultAsync(cancellationToken);
+        return new ReporterSummary((int)count, newest?.ToEvent().OccurredAt, newest?.ReporterName);
+    }
+
+    public async Task<bool> SetHiddenAsync(string id, bool hidden, CancellationToken cancellationToken)
+    {
+        var result = await _events.UpdateOneAsync(
+            e => e.Id == id, Builders<KingEventDocument>.Update.Set(e => e.Hidden, hidden), cancellationToken: cancellationToken);
+        return result.MatchedCount == 1;
+    }
 
     public async Task<bool> RenameAsync(string id, string? reporterName, CancellationToken cancellationToken)
     {
@@ -106,6 +139,7 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
         public string? SpotId { get; init; }
         public double? Latitude { get; init; }
         public double? Longitude { get; init; }
+        public bool Hidden { get; init; }
 
         public static KingEventDocument From(KingEvent e) => new()
         {

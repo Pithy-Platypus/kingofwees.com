@@ -1,8 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { HeatCell, HistoryPage as HistoryPageData } from '../king/api';
-import { CENTER, event, fakeApi, NOW, spot } from '../test/fakeApi';
+import { ADMIN_KEY, CENTER, device, event, fakeAdminApi, fakeApi, NOW, spot } from '../test/fakeApi';
+import { ApiError } from '../king/api';
 import { renderInEnglish } from '../test/render';
 import { HistoryPage } from './HistoryPage';
 
@@ -243,5 +244,90 @@ describe('HistoryPage — every entry', () => {
 
     await waitFor(() => expect(day('Today').getAllByRole('listitem')).toHaveLength(2));
     expect(api.getHistory).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('HistoryPage — hiding, for admins', () => {
+  const history = { events: [event({ id: 'e1', reporterName: 'Sarah' }), event({ id: 'e2', kind: 'seen' })], next: null };
+  const renderAsAdmin = (adminApi = fakeAdminApi(), api = fakeApi(undefined, { history })) => {
+    const onRejected = vi.fn();
+    renderInEnglish(
+      <HistoryPage api={api} spots={[]} mapCenter={null} now={NOW} admin={{ key: ADMIN_KEY, api: adminApi, onRejected }} />,
+    );
+    return { api, adminApi, onRejected };
+  };
+  const firstEntry = async () => within((await screen.findAllByRole('listitem'))[0]);
+
+  it('offers nothing to visitors', async () => {
+    renderInEnglish(<HistoryPage api={fakeApi(undefined, { history })} spots={[]} mapCenter={null} now={NOW} />);
+
+    await screen.findByText('Fed by Sarah');
+    expect(screen.queryByRole('button', { name: /^Hide/ })).not.toBeInTheDocument();
+  });
+
+  it('hides one entry after asking, then shows the log without it', async () => {
+    const { api, adminApi } = renderAsAdmin();
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide this entry' }));
+
+    expect(screen.getByText('Hide this entry from everyone?')).toHaveFocus();
+    expect(adminApi.hideEntry).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Hide it' }));
+
+    expect(adminApi.hideEntry).toHaveBeenCalledWith(ADMIN_KEY, 'e1');
+    await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/^Hidden\. You can restore it on the/)).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'admin page' })).toHaveAttribute('href', '/admin');
+  });
+
+  it('cancels without hiding and puts focus back', async () => {
+    const { adminApi } = renderAsAdmin();
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide this entry' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(adminApi.hideEntry).not.toHaveBeenCalled();
+    expect((await firstEntry()).getByRole('button', { name: 'Hide this entry' })).toHaveFocus();
+  });
+
+  it('says how much a poster’s hiding covers before hiding it all', async () => {
+    const adminApi = fakeAdminApi({ device: device({ entries: 14, spots: 2, reporterName: 'Sarah' }) });
+    const { api } = renderAsAdmin(adminApi);
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide everything from this poster' }));
+
+    expect(adminApi.describeDevice).toHaveBeenCalledWith(ADMIN_KEY, 'e1');
+    expect(await screen.findByText('Hide 14 entries and 2 spots from Sarah, including anything they post later?')).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Hide all' }));
+
+    expect(adminApi.hideDevice).toHaveBeenCalledWith(ADMIN_KEY, 'e1');
+    await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
+  });
+
+  it('names an unnamed poster and counts one entry and no spots', async () => {
+    renderAsAdmin(fakeAdminApi({ device: device({ entries: 1, spots: 0, reporterName: null }) }));
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide everything from this poster' }));
+
+    expect(await screen.findByText('Hide 1 entry and no spots from a neighbor, including anything they post later?')).toBeInTheDocument();
+  });
+
+  it('says so when hiding fails, keeping the entry', async () => {
+    const adminApi = fakeAdminApi();
+    adminApi.hideEntry.mockRejectedValue(new TypeError('offline'));
+    const { api } = renderAsAdmin(adminApi);
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide this entry' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hide it' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t hide it. Try again.');
+    expect(api.getHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops admin mode when the key is no longer accepted', async () => {
+    const adminApi = fakeAdminApi();
+    adminApi.describeDevice.mockRejectedValue(new ApiError(401));
+    const { onRejected } = renderAsAdmin(adminApi);
+
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide everything from this poster' }));
+
+    await waitFor(() => expect(onRejected).toHaveBeenCalled());
   });
 });

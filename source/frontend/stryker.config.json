@@ -7,6 +7,8 @@
   "coverageAnalysis": "off",
   "mutate": [
     "src/App.tsx",
+    "src/i18n/locale.ts",
+    "src/king/admin.ts",
     "src/king/api.ts",
     "src/king/heat.ts",
     "src/king/location.ts",
@@ -14,7 +16,6 @@
     "src/king/reporter.ts",
     "src/king/time.ts",
     "src/king/useSpotsByName.ts",
-    "src/i18n/locale.ts",
     "src/routing/routes.ts"
   ],
   "reporters": [

@@ -33,6 +33,18 @@ dotnet user-secrets set "King:Map:Center:Longitude" "<longitude>" --project King
 
 Without it, `/api/king/map` answers 404 and the app works without maps.
 
+### Admin key (optional)
+
+Admin routes (`/api/admin/...`) exist only when a key hash is configured. Make a key and its hash with the server's own hasher, then store **only the hash**:
+
+```sh
+cd source
+dotnet run tools/new-admin-key.cs                  # prints the key (keep it) and its hash
+dotnet user-secrets set "King:Admin:KeyHash" "<hash>" --project KingOfWees.Server
+```
+
+Enter the key at `/admin` (the browser keeps it on that device; **Sign out on this device** forgets it); the history page then shows hide buttons under each entry. The API takes it as `Authorization: Bearer <key>`. A hash that isn't 64 hex characters stops the server starting. Rotating at go-live: `infra/README.md`.
+
 ## Test
 
 ```sh
@@ -41,7 +53,7 @@ dotnet test                       # store contract (real Mongo), API, validators
 cd frontend
 bun run lint                      # zero warnings allowed
 bun run test                      # Vitest
-bun run mutate                    # StrykerJS on the logic files → reports/mutation/mutation.html (~10 min; run alone; incremental — reuses results for unchanged code)
+bun run mutate                    # StrykerJS on the logic files → reports/mutation/mutation.html (run alone; incremental — after a change only the changed files' mutants rerun, minutes; a full run ~3 h)
 ```
 
 The first e2e run downloads Chromium via Playwright's own installer (no PowerShell needed).
@@ -51,10 +63,11 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | Path | What it is |
 |---|---|
 | `KingOfWees.AppHost/` | Aspire orchestration: Mongo (+ `king` database), server, Vite frontend (`WithBun`) |
-| `KingOfWees.Server/` | Minimal API. `King/` holds the domain, Mongo stores (`events`, `spots`), endpoints, validators, metrics, `GeoPoint` (rounds coordinates); `Validation/` the FluentValidation endpoint filter |
+| `KingOfWees.Server/` | Minimal API. `King/` holds the domain, Mongo stores (`events`, `spots`, `hiddenReporters`), endpoints, validators, metrics, `GeoPoint` (rounds coordinates); `Admin/` the admin key (hasher, options, authentication handler) and the `/api/admin` endpoints (hide, describe, list, restore); `Validation/` the FluentValidation endpoint filter |
+| `tools/` | Command-line helpers (`new-admin-key.cs`: a new admin key and its hash) — see `tools/README.md` |
 | `frontend/` | React + Vite + TypeScript, Tailwind v4 + daisyUI 5 custom `king` theme |
-| `tests/KingOfWees.Server.Tests/` | Store contract tests for events and spots (Mongo and in-memory doubles), API tests (`WebApplicationFactory`), validator and `GeoPoint` unit tests |
-| `tests/KingOfWees.E2E/` | Playwright + axe (WCAG 2.2 AA) against the full AppHost |
+| `tests/KingOfWees.Server.Tests/` | Store contract tests for events, spots and hidden devices (Mongo and in-memory doubles), API tests (`WebApplicationFactory`), validator and `GeoPoint` unit tests |
+| `tests/KingOfWees.E2E/` | Playwright + axe (WCAG 2.2 AA) against the full AppHost. `AppFixture` sets a test map center, a test admin key's hash and high rate limits; `KingFlowTests` (admin flows in `KingFlowTests.Admin.cs`) is one class so its flows share the database one at a time |
 
 ## API
 
@@ -70,8 +83,17 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | POST | `/api/king/spots` | `{ reporterKey, name, location: { latitude, longitude } }` — anyone can add; name ≤ 40, trimmed; location rounded to 3 decimals |
 | DELETE | `/api/king/events/{id}` | `X-Reporter-Key` header; same device, within 10 minutes |
 | PATCH | `/api/king/events/{id}` | `{ reporterName }` (null = no name) — renames an entry; same device and 10-minute window as DELETE (404 / 409 `undo.expired`) |
+| GET | `/api/admin/check` | 204 with the right `Authorization: Bearer <admin key>`, else 401. Every `/api/admin` route: 404 when no key hash is configured; requests with the right key are never limited; no key or a wrong one: per-IP limit `RateLimiting:AdminPerMinute` (default 10) |
+| POST / DELETE | `/api/admin/events/{id}/hide` | Hide one entry from every public read / show it again. 204; unknown id 404 |
+| GET | `/api/admin/events/{id}/device` | What hiding that entry's device would hide: `{ entries, spots, reporterName, newestAt }` (name on its newest entry; hidden ones counted too) |
+| POST | `/api/admin/events/{id}/hide-device` | Hide every entry and spot from that entry's device, including later posts. Hiding again keeps the first record. Returns the hidden-device view below |
+| GET | `/api/admin/hidden-entries` | Entries hidden one by one, newest first, same shape as history events |
+| GET | `/api/admin/hidden` | Hidden devices, newest hidden first: `[{ id, hiddenAt, entries, spots, reporterName, newestAt }]` — `id` is the record's own, never the device key |
+| DELETE | `/api/admin/hidden/{id}` | Restore a device: everything comes back, including posts made while hidden. 204; unknown id 404 |
 
 Any other path serves the SPA (`index.html`) so links like `/about` work; unknown `/api/...` routes stay 404.
+
+Entries an admin has hidden, and everything from a device an admin has hidden (including its later posts and its spots), are left out of every public read: status, history, heat and spots. A feeding at a hidden device's spot stays, without a place.
 
 Writes go through the `CanPost` policy (open today; the switch for invite-only posting) and a per-IP rate limit (`RateLimiting:WritesPerMinute`, default 20). Validation errors return codes such as `reporterName.tooLong`, which the frontend translates.
 
@@ -79,12 +101,12 @@ Writes go through the `CanPost` policy (open today; the switch for invite-only p
 
 | Path | What it is |
 |---|---|
-| `src/App.tsx` | Routes (`/`, `/history`, `/about`, `/privacy`), page titles, screen state (home → feed → logged), loading and error states, footer |
+| `src/App.tsx` | Routes (`/`, `/history`, `/about`, `/privacy`, `/admin` — not linked anywhere), the admin key on this device, page titles, screen state (home → feed → logged), loading and error states, footer |
 | `src/routing/` | History-API router (`useRoute`, `navigate`) and `Link` — no router library |
-| `src/pages/` | History (`HeatMapSection` + `HistoryLog`, paged by day), About and Privacy pages (`PageShell` gives the back link and focused heading) |
+| `src/pages/` | History (`HeatMapSection` + `HistoryLog`, paged by day; with an admin key each entry gets `AdminEntryActions`: hide it, or everything from its poster, asked in place), Admin (`AdminPage`: key form, hidden entries and posters, restore, sign out), About and Privacy pages (`PageShell` gives the back link and focused heading) |
 | `src/site.ts` | Contact email shown on the pages |
-| `src/king/` | Screens (home, name question, feed — foods and spot tiles, add a spot, "Where is King?", logged), `useSpotsByName.ts` (spots sorted for the reader's language), `ActivityItem.tsx` (one activity line, shared by Lately and the history log), API client (rounds every location it sends), per-device storage (`reporter.ts`: undo key, nickname, last spot), `location.ts` (rounding, geolocation, nearest and closest spot), `heat.ts` (heat levels, folding blocks near a spot into one place, naming places after the spots, feet/miles), `MapView.tsx` (the only Leaflet code; heat circles too; picking maps keep a pin at the center and report the point under it whenever the map stops moving), time/mood logic, shared messages |
-| `src/i18n/` | Locale resolution, `LocaleProvider` (sets `<html lang dir>`), compiled catalogs |
+| `src/king/` | Screens (home, name question, feed — foods and spot tiles, add a spot, "Where is King?", logged), `useSpotsByName.ts` (spots sorted for the reader's language), `ActivityItem.tsx` (one activity line, shared by Lately and the history log), API client (rounds every location it sends), `admin.ts` (admin API calls with the key as a `Bearer` header, the key kept on this device, spotting a pasted hash), per-device storage (`reporter.ts`: undo key, nickname, last spot), `location.ts` (rounding, geolocation, nearest and closest spot), `heat.ts` (heat levels, folding blocks near a spot into one place, naming places after the spots, feet/miles), `MapView.tsx` (the only Leaflet code; heat circles too; picking maps keep a pin at the center and report the point under it whenever the map stops moving), time/mood logic, shared messages |
+| `src/i18n/` | Locale resolution, `LocaleProvider` (sets `<html lang dir>`; waits for a non-default catalog), compiled catalogs — loaded on demand (`loadCatalog`), so the `en-XA` test catalog isn't in every visitor's download |
 | `lang/en-US.json` | Extracted source messages with translator descriptions — the file translators receive |
 
 ### Adding or changing text

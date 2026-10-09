@@ -221,7 +221,28 @@
 
   /* Sets its own line height, so it looks the same on Home and inside a page's relaxed prose spacing. */
   .activity-item {
-    @apply flex items-center gap-3 rounded-box bg-white px-4 py-3 leading-7;
+    @apply flex flex-wrap items-center gap-3 rounded-box bg-white px-4 py-3 leading-7;
+  }
+
+  /* Admin controls under an entry: a full row, lined up with the text past the icon. */
+  .activity-actions {
+    @apply flex basis-full flex-col gap-2 ps-13;
+  }
+
+  .admin-buttons {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .admin-button {
+    @apply btn btn-outline min-h-12 rounded-field text-base;
+  }
+
+  .admin-confirm-button {
+    @apply btn btn-secondary min-h-12 rounded-field text-base;
+  }
+
+  .admin-question {
+    @apply font-bold;
   }
 
   .activity-icon {

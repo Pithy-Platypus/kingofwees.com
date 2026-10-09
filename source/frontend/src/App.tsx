@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { Footer } from './Footer';
+import { adminApi as liveAdminApi, loadAdminKey, saveAdminKey, type AdminApi, type AdminSession } from './king/admin';
 import { kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
 import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
@@ -11,6 +12,7 @@ import { loadLastSpotId, loadNickname, saveLastSpotId, saveNickname, type KeyVal
 import { SeenScreen } from './king/SeenScreen';
 import { SpotScreen } from './king/SpotScreen';
 import { AboutPage } from './pages/AboutPage';
+import { AdminPage } from './pages/AdminPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { useRoute, type Route } from './routing/routes';
@@ -31,6 +33,7 @@ const titles = defineMessages({
   history: { id: 'title.history', defaultMessage: 'History · King of Wees', description: 'Browser tab title of the history page' },
   about: { id: 'title.about', defaultMessage: 'About · King of Wees', description: 'Browser tab title of the About page' },
   privacy: { id: 'title.privacy', defaultMessage: 'Privacy · King of Wees', description: 'Browser tab title of the Privacy page' },
+  admin: { id: 'title.admin', defaultMessage: 'Admin · King of Wees', description: 'Browser tab title of the admin page (caretakers only)' },
 });
 
 const titleOf = (route: Route) => titles[route];
@@ -49,13 +52,14 @@ type Screen =
   | { name: 'nickname'; then: 'feed' | 'seen' | Logged };
 type Props = {
   api?: typeof kingApi;
+  adminApi?: AdminApi;
   reporterKey: string;
   storage?: KeyValueStorage;
   geolocation?: Geolocator;
   now?: () => Date;
 };
 
-function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new Date() }: Props) {
+function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geolocation, now = () => new Date() }: Props) {
   const [status, setStatus] = useState<KingStatus | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
@@ -67,6 +71,7 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
   const [spots, setSpots] = useState<SpotView[]>([]);
   const [spotId, setSpotId] = useState(() => loadLastSpotId(storage));
   const [feedDraft, setFeedDraft] = useState<FeedDraft>(noFeedDraft);
+  const [adminKey, setAdminKey] = useState(() => loadAdminKey(storage));
   const [, setTick] = useState(0);
   const route = useRoute();
   const intl = useIntl();
@@ -99,6 +104,19 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
     const id = setInterval(() => setTick((t) => t + 1), REFRESH_TIMES_EVERY_MS);
     return () => clearInterval(id);
   }, []);
+
+  // Stable, so the admin page's loading effect doesn't rerun on every render (the clock ticks every 30 s).
+  const changeAdminKey = useCallback(
+    (key: string | null) => {
+      saveAdminKey(storage, key);
+      setAdminKey(key);
+    },
+    [storage],
+  );
+  const admin = useMemo<AdminSession | undefined>(
+    () => (adminKey ? { key: adminKey, api: adminApi, onRejected: () => changeAdminKey(null) } : undefined),
+    [adminKey, adminApi, changeAdminKey],
+  );
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -184,7 +202,9 @@ function App({ api = kingApi, reporterKey, storage, geolocation, now = () => new
   let content: ReactElement;
   let withFooter = true;
   if (route === 'history') {
-    content = <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} />;
+    content = <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} />;
+  } else if (route === 'admin') {
+    content = <AdminPage api={adminApi} adminKey={adminKey} onKey={changeAdminKey} spots={spots} now={now()} />;
   } else if (route === 'about') {
     content = <AboutPage />;
   } else if (route === 'privacy') {

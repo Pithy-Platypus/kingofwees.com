@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 using FluentValidation;
+using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +20,8 @@ public sealed class KingApiTests : IAsyncLifetime
     private const string DeviceKey = "device-key-1";
     private const string ReporterKeyHeader = "X-Reporter-Key";
 
-    private readonly KingApiFactory _factory = new();
+    // With a key hash configured, so the admin routes exist and the endpoint guards below see them too.
+    private readonly KingApiFactory _factory = new(settings: [("King:Admin:KeyHash", AdminKeyHasher.Hash("test-admin-key"))]);
     private HttpClient _client = null!;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -439,10 +441,12 @@ public sealed class KingApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Every_write_endpoint_requires_the_CanPost_policy()
+    public void Every_public_write_endpoint_requires_the_CanPost_policy()
     {
+        // Admin writes use the Admin policy instead (AdminHidingApiTests).
         var writes = _factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
             .OfType<RouteEndpoint>()
+            .Where(e => e.RoutePattern.RawText?.StartsWith("/api/king", StringComparison.Ordinal) == true)
             .Where(e => e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Any(m => m is "POST" or "PUT" or "PATCH" or "DELETE") == true)
             .ToList();
 
@@ -465,6 +469,24 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.NotEmpty(requestTypes);
         Assert.All(requestTypes, type =>
             Assert.NotNull(_factory.Services.GetService(typeof(IValidator<>).MakeGenericType(type))));
+    }
+
+    [Fact]
+    public async Task A_feeding_at_a_hidden_device_s_spot_keeps_its_entry_but_loses_the_place()
+    {
+        var spot = await (await AddSpot(new
+        {
+            reporterKey = "spammer", name = "Spam spot", location = new { latitude = 45.523, longitude = -122.677 },
+        })).Content.ReadFromJsonAsync<JsonElement>(Ct);
+        await LogFeeding(new { reporterKey = DeviceKey, spotId = spot.GetProperty("id").GetString() });
+
+        await _factory.Hidden.HideAsync("spammer", _factory.Clock.GetUtcNow(), Ct);
+
+        var lastFed = (await _client.GetFromJsonAsync<JsonElement>("/api/king/status", Ct)).GetProperty("lastFed");
+        Assert.Equal(JsonValueKind.Null, lastFed.GetProperty("spotName").ValueKind);
+        Assert.Equal(JsonValueKind.Null, lastFed.GetProperty("location").ValueKind);
+        var fedHeat = await _client.GetFromJsonAsync<JsonElement>("/api/king/heat?layer=fed", Ct);
+        Assert.Equal(0, fedHeat.GetProperty("cells").GetArrayLength());
     }
 
     [Fact]

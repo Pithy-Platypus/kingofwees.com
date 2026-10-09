@@ -87,7 +87,7 @@ const m = defineMessages<Values>({
   retention: {
     id: 'privacy.retention',
     defaultMessage:
-      'Entries are kept as King’s history, which everyone can see on the <history>history page</history>: every entry with its name, and a map of the places (never more exact than a block). Want one removed? Email <mail>{email}</mail>.',
+      'Entries are kept as King’s history, which everyone can see on the <history>history page</history>: every entry with its name, and a map of the places (never more exact than a block). Entries that look like spam can be hidden by the site’s caretakers. Want one removed? Email <mail>{email}</mail>.',
     description: 'Retention, the public history page, and removal requests; keep the <history></history> tags around the link text and the <mail></mail> tags around {email}',
   },
 });

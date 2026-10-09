@@ -4,7 +4,7 @@
     "description": "Contact line; keep the <mail></mail> tags around {email}"
   },
   "about.honor": {
-    "defaultMessage": "Anyone can post — we trust our neighbors. If spam shows up, we’ll add a neighborhood code or sign-in. Kids are welcome to help with a grown-up’s OK.",
+    "defaultMessage": "Anyone can post — we trust our neighbors. Entries that look like spam can be hidden by the site’s caretakers. If spam keeps showing up, we’ll add a neighborhood code or sign-in. Kids are welcome to help with a grown-up’s OK.",
     "description": "Explains open posting and what happens if it is abused"
   },
   "about.honor.title": {
@@ -42,6 +42,122 @@
   "activity.leftOut": {
     "defaultMessage": "left food out",
     "description": "Activity detail for a feeding where the feeder only left food out and didn’t see King"
+  },
+  "admin.actionFailed": {
+    "defaultMessage": "That didn’t work. Try again.",
+    "description": "Show again or Restore failed"
+  },
+  "admin.cancel": {
+    "defaultMessage": "Cancel",
+    "description": "Closes the hide question without hiding"
+  },
+  "admin.check": {
+    "defaultMessage": "Check key",
+    "description": "Checks the admin key with the site and keeps it on this device"
+  },
+  "admin.confirmDevice": {
+    "defaultMessage": "Hide {entries, plural, one {# entry} other {# entries}} and {spots, plural, =0 {no spots} one {# spot} other {# spots}} from {name}, including anything they post later?",
+    "description": "Asked before hiding a poster; {name} is the name on their newest entry, or “a neighbor”"
+  },
+  "admin.confirmEntry": {
+    "defaultMessage": "Hide this entry from everyone?",
+    "description": "Asked before hiding one entry"
+  },
+  "admin.counting": {
+    "defaultMessage": "Counting…",
+    "description": "Shown while counting what hiding a poster would hide"
+  },
+  "admin.entriesHeading": {
+    "defaultMessage": "Hidden entries",
+    "description": "Heading over entries hidden one by one"
+  },
+  "admin.hashPasted": {
+    "defaultMessage": "That looks like the key’s hash. Enter the key itself — the shorter line from the key tool.",
+    "description": "The 64-character server setting was entered instead of the admin key"
+  },
+  "admin.hideDevice": {
+    "defaultMessage": "Hide everything from this poster",
+    "description": "Admin button under an entry: hides every entry and spot from the device that posted it"
+  },
+  "admin.hideEntry": {
+    "defaultMessage": "Hide this entry",
+    "description": "Admin button under an entry: hides it from everyone"
+  },
+  "admin.hideFailed": {
+    "defaultMessage": "Couldn’t hide it. Try again.",
+    "description": "Shown when hiding fails"
+  },
+  "admin.howToHide": {
+    "defaultMessage": "To hide something, use the buttons under each entry on <history>King’s history</history>.",
+    "description": "Tells admins where hiding happens; <history> links to the history page"
+  },
+  "admin.keyHint": {
+    "defaultMessage": "Only the site’s caretakers have one.",
+    "description": "Under the admin key field"
+  },
+  "admin.keyLabel": {
+    "defaultMessage": "Admin key",
+    "description": "Label of the admin key field"
+  },
+  "admin.loadFailed": {
+    "defaultMessage": "Couldn’t load what’s hidden.",
+    "description": "The hidden lists failed to load"
+  },
+  "admin.loading": {
+    "defaultMessage": "Loading what’s hidden…",
+    "description": "Shown while the hidden lists load"
+  },
+  "admin.noEntries": {
+    "defaultMessage": "No hidden entries.",
+    "description": "No entry is hidden on its own"
+  },
+  "admin.noPosters": {
+    "defaultMessage": "No hidden posters.",
+    "description": "No poster is hidden"
+  },
+  "admin.poster": {
+    "defaultMessage": "{entries, plural, one {# entry} other {# entries}} · {spots, plural, one {# spot} other {# spots}} · hidden {when}",
+    "description": "What a hidden poster posted; {when} is the date they were hidden"
+  },
+  "admin.postersHeading": {
+    "defaultMessage": "Hidden posters",
+    "description": "Heading over hidden posters (devices)"
+  },
+  "admin.restore": {
+    "defaultMessage": "Restore",
+    "description": "Shows everything from a hidden poster again"
+  },
+  "admin.showAgain": {
+    "defaultMessage": "Show again",
+    "description": "Un-hides one entry"
+  },
+  "admin.signOut": {
+    "defaultMessage": "Sign out on this device",
+    "description": "Forgets the admin key on this device"
+  },
+  "admin.title": {
+    "defaultMessage": "Admin",
+    "description": "Heading of the admin page, for the site’s caretakers"
+  },
+  "admin.tooMany": {
+    "defaultMessage": "Too many tries. Wait a minute, then try again.",
+    "description": "The site is limiting admin requests from this address"
+  },
+  "admin.unreachable": {
+    "defaultMessage": "Couldn’t reach the site. Try again.",
+    "description": "Checking the key failed"
+  },
+  "admin.wrongKey": {
+    "defaultMessage": "That key didn’t work.",
+    "description": "The site refused the admin key"
+  },
+  "admin.yesDevice": {
+    "defaultMessage": "Hide all",
+    "description": "Confirms hiding everything from a poster"
+  },
+  "admin.yesEntry": {
+    "defaultMessage": "Hide it",
+    "description": "Confirms hiding one entry"
   },
   "app.loading": {
     "defaultMessage": "Finding King…",
@@ -319,6 +435,10 @@
     "defaultMessage": "Every entry",
     "description": "Heading over the full log on the history page"
   },
+  "log.hidden": {
+    "defaultMessage": "Hidden. You can restore it on the <admin>admin page</admin>.",
+    "description": "Shown to an admin after hiding an entry or a poster; <admin> links to the admin page"
+  },
   "log.loading": {
     "defaultMessage": "Loading King’s history…",
     "description": "Shown while the log loads"
@@ -460,7 +580,7 @@
     "description": "Note for parents about children using the site"
   },
   "privacy.retention": {
-    "defaultMessage": "Entries are kept as King’s history, which everyone can see on the <history>history page</history>: every entry with its name, and a map of the places (never more exact than a block). Want one removed? Email <mail>{email}</mail>.",
+    "defaultMessage": "Entries are kept as King’s history, which everyone can see on the <history>history page</history>: every entry with its name, and a map of the places (never more exact than a block). Entries that look like spam can be hidden by the site’s caretakers. Want one removed? Email <mail>{email}</mail>.",
     "description": "Retention, the public history page, and removal requests; keep the <history></history> tags around the link text and the <mail></mail> tags around {email}"
   },
   "privacy.stored.code": {
@@ -562,6 +682,10 @@
   "title.about": {
     "defaultMessage": "About · King of Wees",
     "description": "Browser tab title of the About page"
+  },
+  "title.admin": {
+    "defaultMessage": "Admin · King of Wees",
+    "description": "Browser tab title of the admin page (caretakers only)"
   },
   "title.history": {
     "defaultMessage": "History · King of Wees",

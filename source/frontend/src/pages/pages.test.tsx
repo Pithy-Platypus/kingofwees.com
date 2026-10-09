@@ -22,6 +22,14 @@ describe('AboutPage', () => {
     expect(screen.getByText(/neighborhood code or sign-in/)).toBeInTheDocument();
   });
 
+  it('says spam can be hidden by the caretakers, and a code comes only if it keeps showing up', () => {
+    renderInEnglish(<AboutPage />);
+
+    expect(screen.getByText(/Anyone can post/)).toHaveTextContent(
+      'Entries that look like spam can be hidden by the site’s caretakers. If spam keeps showing up,',
+    );
+  });
+
   it('offers an email link for questions', () => {
     renderInEnglish(<AboutPage />);
 
@@ -105,5 +113,11 @@ describe('PrivacyPage', () => {
     expect(retention).toHaveTextContent(/everyone can see/);
     expect(retention).toHaveTextContent(/map of the places/);
     expect(screen.getByRole('link', { name: 'history page' })).toHaveAttribute('href', '/history');
+  });
+
+  it('says entries that look like spam can be hidden by the caretakers', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.getByText(/kept as King’s history/)).toHaveTextContent('Entries that look like spam can be hidden by the site’s caretakers.');
   });
 });

@@ -13,7 +13,7 @@ public sealed class ValidatorTests
 
     private static readonly GeoPoint Porch = new(45.523, -122.677);
 
-    private readonly InMemorySpotStore _spots = new();
+    private readonly InMemorySpotStore _spots = new(new InMemoryHiddenReporterStore());
     private readonly LogFeedingRequestValidator _feeding;
     private readonly LogSightingRequestValidator _sighting = new();
     private readonly AddSpotRequestValidator _spot = new();

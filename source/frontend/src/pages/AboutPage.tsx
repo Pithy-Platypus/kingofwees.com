@@ -41,7 +41,7 @@ const m = defineMessages<Values>({
   honor: {
     id: 'about.honor',
     defaultMessage:
-      'Anyone can post — we trust our neighbors. If spam shows up, we’ll add a neighborhood code or sign-in. Kids are welcome to help with a grown-up’s OK.',
+      'Anyone can post — we trust our neighbors. Entries that look like spam can be hidden by the site’s caretakers. If spam keeps showing up, we’ll add a neighborhood code or sign-in. Kids are welcome to help with a grown-up’s OK.',
     description: 'Explains open posting and what happens if it is abused',
   },
   contact: {

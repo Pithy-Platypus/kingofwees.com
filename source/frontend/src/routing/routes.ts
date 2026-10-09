@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
-// A four-page site doesn't need a router library: the History API plus popstate is enough.
-export type Route = 'home' | 'history' | 'about' | 'privacy';
+// A few pages don't need a router library: the History API plus popstate is enough.
+export type Route = 'home' | 'history' | 'about' | 'privacy' | 'admin';
 
-const paths: Record<Route, string> = { home: '/', history: '/history', about: '/about', privacy: '/privacy' };
+const paths: Record<Route, string> = { home: '/', history: '/history', about: '/about', privacy: '/privacy', admin: '/admin' };
 
 export const pathOf = (route: Route) => paths[route];
 

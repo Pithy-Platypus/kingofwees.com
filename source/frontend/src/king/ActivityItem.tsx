@@ -1,4 +1,4 @@
-import type { Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import type { KingEventView, SpotView } from './api';
 import { BowlIcon, EyeIcon } from './icons';
@@ -16,10 +16,11 @@ const m = defineMessages<Values>({
   },
 });
 
-type Props = { event: KingEventView; spots: SpotView[]; time: string; ref?: Ref<HTMLLIElement> };
+/** `actions` (admins only) go on their own row under the entry. */
+type Props = { event: KingEventView; spots: SpotView[]; time: string; ref?: Ref<HTMLLIElement>; actions?: ReactNode };
 
 /** One line of activity, on Home (Lately) and the history page: who, what, where, when. */
-export function ActivityItem({ event: e, spots, time, ref }: Props) {
+export function ActivityItem({ event: e, spots, time, ref, actions }: Props) {
   const intl = useIntl();
   const name = e.reporterName ?? intl.formatMessage(common.aNeighbor);
   // "Wet food and Treats · at Corner · left food out": whichever parts the entry has.
@@ -43,6 +44,7 @@ export function ActivityItem({ event: e, spots, time, ref }: Props) {
         {detail && <span className="activity-detail">{detail}</span>}
       </span>
       <span className="activity-time">{time}</span>
+      {actions && <div className="activity-actions">{actions}</div>}
     </li>
   );
 }

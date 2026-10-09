@@ -8,14 +8,17 @@ public abstract class KingEventStoreContract
     // Mongo stores milliseconds; contract times stay on whole seconds so every store round-trips exactly.
     private static readonly DateTimeOffset T0 = new(2026, 10, 8, 12, 0, 0, TimeSpan.Zero);
 
-    protected abstract IKingEventStore CreateStore();
+    // Both share state: the event store leaves out devices the hidden-reporter store has hidden.
+    protected abstract (IKingEventStore Events, IHiddenReporterStore Hidden) CreateStores();
+
+    private IKingEventStore CreateStore() => CreateStores().Events;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static KingEvent Event(
         KingEventKind kind, int minutesAfterT0, string? name = "Jamie", Food[]? foods = null, bool sawKing = true,
-        string? spotId = null, GeoPoint? location = null) =>
-        new(Guid.CreateVersion7().ToString(), kind, T0.AddMinutes(minutesAfterT0), "device-key-1", name, foods ?? [], sawKing, spotId,
+        string? spotId = null, GeoPoint? location = null, string device = "device-key-1") =>
+        new(Guid.CreateVersion7().ToString(), kind, T0.AddMinutes(minutesAfterT0), device, name, foods ?? [], sawKing, spotId,
             location);
 
     // Records holding lists compare the lists by reference, so compare structure instead.
@@ -325,5 +328,124 @@ public abstract class KingEventStoreContract
         Assert.True(await store.DeleteAsync(fed.Id, Ct));
         Assert.Null(await store.FindAsync(fed.Id, Ct));
         Assert.False(await store.DeleteAsync(fed.Id, Ct));
+    }
+
+    // Hiding spam: every read a visitor can reach leaves out hidden entries and every entry from a hidden device.
+    private static readonly GeoPoint Block = new(45.523, -122.677);
+
+    private static async Task AssertPublicReadsShowOnly(IKingEventStore store, KingEvent fed, KingEvent seen)
+    {
+        Assert.Equal(fed.Id, (await store.GetLatestAsync(KingEventKind.Fed, Ct))?.Id);
+        Assert.Equal(seen.Id, (await store.GetLatestAsync(KingEventKind.Seen, Ct))?.Id);
+        Assert.Equal(seen.Id, (await store.GetLatestSightingAsync(Ct))?.Id);
+        Assert.Equal([seen.Id, fed.Id], (await store.GetPageAsync(before: null, 10, Ct)).Select(e => e.Id));
+        Assert.Equal([new PlaceCount(Block, 1)], await store.CountSightingsByPlaceAsync(since: null, Ct));
+        Assert.Equal([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: null, seenOnly: false, Ct));
+        Assert.Equal([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: null, seenOnly: true, Ct));
+    }
+
+    [Fact]
+    public async Task A_hidden_entry_is_left_out_of_every_public_read_but_the_device_s_others_stay()
+    {
+        var store = CreateStore();
+        var fed = Event(KingEventKind.Fed, 0, spotId: "porch");
+        var seen = Event(KingEventKind.Seen, 1, location: Block);
+        var spamFed = Event(KingEventKind.Fed, 5, spotId: "porch");
+        var spamSeen = Event(KingEventKind.Seen, 6, location: Block);
+        foreach (var e in new[] { fed, seen, spamFed, spamSeen }) await store.AddAsync(e, Ct);
+
+        Assert.True(await store.SetHiddenAsync(spamFed.Id, hidden: true, Ct));
+        Assert.True(await store.SetHiddenAsync(spamSeen.Id, hidden: true, Ct));
+
+        await AssertPublicReadsShowOnly(store, fed, seen);
+    }
+
+    [Fact]
+    public async Task Every_entry_from_a_hidden_device_is_left_out_including_later_ones()
+    {
+        var (store, hidden) = CreateStores();
+        var fed = Event(KingEventKind.Fed, 0, spotId: "porch", device: "neighbor");
+        var seen = Event(KingEventKind.Seen, 1, location: Block, device: "neighbor");
+        await store.AddAsync(fed, Ct);
+        await store.AddAsync(seen, Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 5, spotId: "porch", device: "spammer"), Ct);
+
+        await hidden.HideAsync("spammer", T0.AddMinutes(10), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 11, location: Block, device: "spammer"), Ct);
+
+        await AssertPublicReadsShowOnly(store, fed, seen);
+    }
+
+    [Fact]
+    public async Task Unhiding_an_entry_and_restoring_a_device_bring_everything_back()
+    {
+        var (store, hidden) = CreateStores();
+        var fed = Event(KingEventKind.Fed, 0, spotId: "porch");
+        var seen = Event(KingEventKind.Seen, 1, location: Block, device: "spammer");
+        await store.AddAsync(fed, Ct);
+        await store.AddAsync(seen, Ct);
+        await store.SetHiddenAsync(fed.Id, hidden: true, Ct);
+        var record = await hidden.HideAsync("spammer", T0.AddMinutes(10), Ct);
+
+        Assert.True(await store.SetHiddenAsync(fed.Id, hidden: false, Ct));
+        Assert.True(await hidden.RestoreAsync(record.Id, Ct));
+
+        await AssertPublicReadsShowOnly(store, fed, seen);
+    }
+
+    [Fact]
+    public async Task Hidden_entries_are_still_found_by_id()
+    {
+        // Undo, rename and history cursors look entries up by id.
+        var (store, hidden) = CreateStores();
+        var hiddenEntry = Event(KingEventKind.Fed, 0);
+        var fromHiddenDevice = Event(KingEventKind.Seen, 1, device: "spammer");
+        await store.AddAsync(hiddenEntry, Ct);
+        await store.AddAsync(fromHiddenDevice, Ct);
+
+        await store.SetHiddenAsync(hiddenEntry.Id, hidden: true, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        AssertSameEvent(hiddenEntry, await store.FindAsync(hiddenEntry.Id, Ct));
+        AssertSameEvent(fromHiddenDevice, await store.FindAsync(fromHiddenDevice.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Hiding_an_unknown_entry_reports_false()
+    {
+        var store = CreateStore();
+
+        Assert.False(await store.SetHiddenAsync(Guid.CreateVersion7().ToString(), hidden: true, Ct));
+    }
+
+    [Fact]
+    public async Task Hidden_entries_are_listed_newest_first_leaving_out_ones_hidden_only_by_device()
+    {
+        var (store, hidden) = CreateStores();
+        var older = Event(KingEventKind.Fed, 0);
+        var newer = Event(KingEventKind.Seen, 1);
+        var visible = Event(KingEventKind.Fed, 2);
+        var fromHiddenDevice = Event(KingEventKind.Fed, 3, device: "spammer");
+        foreach (var e in new[] { older, newer, visible, fromHiddenDevice }) await store.AddAsync(e, Ct);
+        await store.SetHiddenAsync(older.Id, hidden: true, Ct);
+        await store.SetHiddenAsync(newer.Id, hidden: true, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.Equal([newer.Id, older.Id], (await store.GetHiddenEntriesAsync(Ct)).Select(e => e.Id));
+    }
+
+    [Fact]
+    public async Task A_device_summary_counts_all_its_entries_and_names_the_newest()
+    {
+        var (store, hidden) = CreateStores();
+        var first = Event(KingEventKind.Fed, 0, name: "Old name", device: "spammer");
+        await store.AddAsync(first, Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 2, name: "Spammy", device: "spammer"), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 5, name: "Neighbor", device: "neighbor"), Ct);
+        await store.SetHiddenAsync(first.Id, hidden: true, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.Equal(new ReporterSummary(2, T0.AddMinutes(2), "Spammy"), await store.SummarizeReporterAsync("spammer", Ct));
+        Assert.Equal(new ReporterSummary(0, null, null), await store.SummarizeReporterAsync("nobody", Ct));
     }
 }

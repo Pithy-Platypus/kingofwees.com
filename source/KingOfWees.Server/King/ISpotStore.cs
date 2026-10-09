@@ -6,6 +6,9 @@ public interface ISpotStore
 
     Task<Spot?> FindAsync(string id, CancellationToken cancellationToken);
 
-    /// <summary>Oldest first; the client sorts by name in the reader's language.</summary>
+    /// <summary>Spots one device added, hidden or not (admin).</summary>
+    Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken);
+
+    /// <summary>Oldest first, leaving out spots from hidden devices; the client sorts by name in the reader's language.</summary>
     Task<IReadOnlyList<Spot>> ListAsync(CancellationToken cancellationToken);
 }

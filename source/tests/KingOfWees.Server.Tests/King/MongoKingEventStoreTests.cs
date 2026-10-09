@@ -7,7 +7,12 @@ namespace KingOfWees.Server.Tests.King;
 public sealed class MongoKingEventStoreTests(MongoAppFixture mongo)
     : KingEventStoreContract, IClassFixture<MongoAppFixture>
 {
-    protected override IKingEventStore CreateStore() => new MongoKingEventStore(mongo.NewDatabase());
+    protected override (IKingEventStore Events, IHiddenReporterStore Hidden) CreateStores()
+    {
+        var database = mongo.NewDatabase();
+        var hidden = new MongoHiddenReporterStore(database);
+        return (new MongoKingEventStore(database, hidden), hidden);
+    }
 
     [Fact]
     public async Task A_slice_1_document_with_a_single_food_field_still_reads_with_no_foods()
@@ -24,7 +29,7 @@ public sealed class MongoKingEventStoreTests(MongoAppFixture mongo)
             ["Food"] = "Wet",
         }, cancellationToken: ct);
 
-        var found = await new MongoKingEventStore(database).FindAsync("old-1", ct);
+        var found = await new MongoKingEventStore(database, new MongoHiddenReporterStore(database)).FindAsync("old-1", ct);
 
         Assert.NotNull(found);
         Assert.Empty(found.Foods);
@@ -46,7 +51,7 @@ public sealed class MongoKingEventStoreTests(MongoAppFixture mongo)
             ["ReporterName"] = BsonNull.Value,
             ["Foods"] = new BsonArray { "Wet" },
         }, cancellationToken: ct);
-        var store = new MongoKingEventStore(database);
+        var store = new MongoKingEventStore(database, new MongoHiddenReporterStore(database));
 
         Assert.True((await store.FindAsync("old-2", ct))?.SawKing);
         Assert.Equal("old-2", (await store.GetLatestSightingAsync(ct))?.Id);
@@ -67,7 +72,7 @@ public sealed class MongoKingEventStoreTests(MongoAppFixture mongo)
             ["SpotId"] = "porch",
         }, cancellationToken: ct);
 
-        var counts = await new MongoKingEventStore(database).CountFeedingsBySpotAsync(since: null, seenOnly: true, ct);
+        var counts = await new MongoKingEventStore(database, new MongoHiddenReporterStore(database)).CountFeedingsBySpotAsync(since: null, seenOnly: true, ct);
 
         Assert.Equal([new SpotCount("porch", 1)], counts);
     }
@@ -87,7 +92,7 @@ public sealed class MongoKingEventStoreTests(MongoAppFixture mongo)
             ["Longitude"] = -122.677,
         }, cancellationToken: ct);
 
-        var counts = await new MongoKingEventStore(database).CountSightingsByPlaceAsync(since: null, ct);
+        var counts = await new MongoKingEventStore(database, new MongoHiddenReporterStore(database)).CountSightingsByPlaceAsync(since: null, ct);
 
         Assert.Equal([new PlaceCount(new GeoPoint(45.523, -122.677), 1)], counts);
     }

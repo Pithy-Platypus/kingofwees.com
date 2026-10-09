@@ -31,7 +31,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
+export async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
   if (!response.ok) throw new ApiError(response.status);
   return (response.status === 204 ? undefined : await response.json()) as T;

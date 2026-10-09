@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Net;
+using KingOfWees.Server.Admin;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using OpenTelemetry;
 using OpenTelemetry.Trace;
@@ -34,6 +36,30 @@ public sealed class TelemetryPrivacyTests
         var span = await ServerSpan(spans, traceId);
         Assert.Contains(span.TagObjects, t => t.Key == "http.route");
         Assert.DoesNotContain(span.TagObjects, t => t.Key is "client.address" or "client.port" or "user_agent.original" or "url.query");
+    }
+
+    [Fact]
+    public async Task Request_traces_never_carry_the_admin_key()
+    {
+        const string key = "telemetry-admin-key";
+        var spans = new List<Activity>();
+        await using var factory = new KingApiFactory(settings: [("King:Admin:KeyHash", AdminKeyHasher.Hash(key))])
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddInMemoryExporter(spans))));
+        var traceId = ActivityTraceId.CreateRandom();
+
+        var response = await factory.Server.SendAsync(context =>
+        {
+            context.Request.Method = "GET";
+            context.Request.Path = "/api/admin/check";
+            context.Request.Headers.Authorization = $"Bearer {key}";
+            context.Request.Headers.TraceParent = $"00-{traceId}-{ActivitySpanId.CreateRandom()}-01";
+        }, TestContext.Current.CancellationToken);
+        var span = await ServerSpan(spans, traceId);
+
+        Assert.Equal(StatusCodes.Status204NoContent, response.Response.StatusCode);
+        Assert.DoesNotContain(span.TagObjects, t => t.Key.Contains("authorization", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(span.TagObjects, t => t.Value?.ToString()?.Contains(key) == true);
     }
 
     // The request's activity stops (and is exported) just after the response completes, so wait for it.

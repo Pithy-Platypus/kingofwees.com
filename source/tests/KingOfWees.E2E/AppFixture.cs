@@ -3,6 +3,8 @@ using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
 using KingOfWees.E2E;
 using Microsoft.Playwright;
+using System.Security.Cryptography;
+using System.Text;
 
 [assembly: AssemblyFixture(typeof(AppFixture))]
 
@@ -20,6 +22,9 @@ public sealed class AppFixture : IAsyncLifetime
     // Where every test browser says it is; deliberately finer than a block, to prove it gets rounded.
     public const float DeviceLatitude = 45.524567f;
     public const float DeviceLongitude = -122.678912f;
+
+    // A test-only admin key; the server gets only its hash, as in production.
+    public const string AdminKey = "e2e-admin-key";
 
     // 1×1 transparent PNG: map tiles are stubbed so tests never call OpenStreetMap.
     private static readonly byte[] BlankTile = Convert.FromBase64String(
@@ -47,7 +52,9 @@ public sealed class AppFixture : IAsyncLifetime
             .WithEnvironment("King__Map__Center__Latitude", MapLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
             .WithEnvironment("King__Map__Center__Longitude", MapLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
             // Every flow posts from one address, faster than any neighbor would; the limit itself is covered by RateLimitTests.
-            .WithEnvironment("RateLimiting__WritesPerMinute", "1000");
+            .WithEnvironment("RateLimiting__WritesPerMinute", "1000")
+            .WithEnvironment("King__Admin__KeyHash", Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(AdminKey))))
+            .WithEnvironment("RateLimiting__AdminPerMinute", "1000");
         _app = await builder.BuildAsync(cts.Token);
         await _app.StartAsync(cts.Token);
         await _app.ResourceNotifications.WaitForResourceHealthyAsync("server", cts.Token);

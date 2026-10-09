@@ -16,9 +16,12 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
 {
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero));
 
-    public InMemoryKingEventStore Store { get; } = new();
+    public InMemoryHiddenReporterStore Hidden { get; } = new();
 
-    public InMemorySpotStore Spots { get; } = new();
+    // Both read Hidden, so a device hidden there leaves their reads.
+    public InMemoryKingEventStore Store => field ??= new(Hidden);
+
+    public InMemorySpotStore Spots => field ??= new(Hidden);
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -43,6 +46,8 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
             services.AddSingleton<IKingEventStore>(Store);
             services.RemoveAll<ISpotStore>();
             services.AddSingleton<ISpotStore>(Spots);
+            services.RemoveAll<IHiddenReporterStore>();
+            services.AddSingleton<IHiddenReporterStore>(Hidden);
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
         });

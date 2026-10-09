@@ -1,3 +1,4 @@
+using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,7 @@ builder.Services.Configure<ExceptionHandlerOptions>(options =>
         ? bad.StatusCode
         : StatusCodes.Status500InternalServerError);
 builder.Services.AddKing();
+builder.Services.AddAdmin();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -32,6 +34,7 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapKingEndpoints();
+app.MapAdminEndpoints();
 app.MapDefaultEndpoints();
 
 app.UseFileServer();

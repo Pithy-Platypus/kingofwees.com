@@ -5,8 +5,8 @@ using Microsoft.Playwright;
 
 namespace KingOfWees.E2E;
 
-// One class so these flows run one after another against the shared database.
-public sealed class KingFlowTests(AppFixture app)
+// One class (admin flows in KingFlowTests.Admin.cs) so these run one after another against the shared database.
+public sealed partial class KingFlowTests(AppFixture app)
 {
     private static readonly AxeRunOptions Wcag22AA = new()
     {
@@ -490,9 +490,9 @@ public sealed class KingFlowTests(AppFixture app)
         return await page.GetByText("Seen by a neighbor").CountAsync();
     }
 
-    private static async Task TabUntilFocused(IPage page, string buttonName)
+    private static async Task TabUntilFocused(IPage page, string buttonName, int maxTabs = 20)
     {
-        for (var i = 0; i < 20; i++)
+        for (var i = 0; i < maxTabs; i++)
         {
             await page.Keyboard.PressAsync("Tab");
             var focused = await page.EvaluateAsync<string?>("() => document.activeElement?.textContent?.trim() ?? null");

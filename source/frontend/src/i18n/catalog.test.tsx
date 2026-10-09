@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { IntlProvider } from 'react-intl';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import App from '../App';
 import { FeedScreen } from '../king/FeedScreen';
 import { HomeScreen } from '../king/HomeScreen';
@@ -13,7 +13,7 @@ import { PrivacyPage } from '../pages/PrivacyPage';
 import { SeenScreen } from '../king/SeenScreen';
 import { SpotScreen } from '../king/SpotScreen';
 import { CENTER, event, fakeApi, NOW, spot } from '../test/fakeApi';
-import { catalogs } from './catalogs';
+import { loadCatalog, type Catalog } from './catalogs';
 
 const noop = () => {};
 const status = {
@@ -22,13 +22,18 @@ const status = {
   recent: [event({ id: 'f', kind: 'fed', foods: ['wet', 'treats'], spotName: 'Corner' }), event({ id: 's', kind: 'seen', location: CENTER })],
 };
 
+let pseudo: Catalog;
+beforeAll(async () => {
+  pseudo = await loadCatalog('en-XA');
+});
+
 // If this fails with MISSING_TRANSLATION, run `bun run i18n` to regenerate the catalogs.
 function renderInPseudoLocale(ui: ReactElement) {
   return render(
     <IntlProvider
       locale="en-XA"
       defaultLocale="en-US"
-      messages={catalogs['en-XA']}
+      messages={pseudo}
       onError={(error) => {
         throw error;
       }}

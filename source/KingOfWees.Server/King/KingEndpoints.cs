@@ -47,7 +47,7 @@ public static class KingEndpoints
     }
 
     // A street has a handful of spots; one read beats a lookup per event.
-    private static async Task<Func<KingEvent, EventView>> EventViews(ISpotStore spots, CancellationToken cancellationToken)
+    internal static async Task<Func<KingEvent, EventView>> EventViews(ISpotStore spots, CancellationToken cancellationToken)
     {
         var spotsById = (await spots.ListAsync(cancellationToken)).ToDictionary(s => s.Id);
         return e => EventView.From(e, e.SpotId is null ? null : spotsById.GetValueOrDefault(e.SpotId));

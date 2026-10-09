@@ -24,6 +24,7 @@ describe('routing', () => {
     ['/about', 'About King', 'About · King of Wees'],
     ['/privacy', 'Privacy', 'Privacy · King of Wees'],
     ['/history', 'King’s history', 'History · King of Wees'],
+    ['/admin', 'Admin', 'Admin · King of Wees'],
   ])('opens %s directly with its heading focused and its own title', async (path, heading, title) => {
     renderAt(path);
 
@@ -89,6 +90,13 @@ describe('routing', () => {
     renderAt('/no-such-page');
 
     expect(await screen.findByRole('button', { name: 'I fed King' })).toBeInTheDocument();
+  });
+
+  it('doesn’t advertise the admin page', async () => {
+    renderAt('/');
+
+    await screen.findByRole('button', { name: 'I fed King' });
+    expect(footer().queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
   });
 
   it('credits the neighbors in the footer', async () => {
