@@ -13,6 +13,7 @@ GROUP="kingofwees.com"
 LOCATION="eastus"
 ENVIRONMENT="kingofwees-env"
 APP="kingofwees"
+DOMAIN="kingofwees.com" # and www.$DOMAIN; records at Cloudflare, DNS only (infra/README.md)
 STORAGE="kingofweesbackups"
 BACKUPS="backups"
 BACKUP_JOB="kingofwees-backup"
@@ -171,7 +172,9 @@ if ! az monitor metrics alert show -g "$GROUP" -n "$BACKUP_ALERT" -o none 2>/dev
 fi
 
 echo "== Container app $APP"
-APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAGE="$IMAGE" APP_LOCATION="$LOCATION" python3 -I - >"$WORK/app.json" <<'PY'
+# Re-applying the definition without the bound domains would drop them, so they're carried over.
+APP_DOMAINS=$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.customDomains -o json 2>/dev/null || true)
+APP_DOMAINS="${APP_DOMAINS:-null}" APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAGE="$IMAGE" APP_LOCATION="$LOCATION" python3 -I - >"$WORK/app.json" <<'PY'
 import json, os
 e = os.environ
 secrets = [{"name": "king-connection", "value": e["KING_CONN"]}]
@@ -185,6 +188,9 @@ if e["MAP_CENTER"]:
     secrets += [{"name": "map-center-latitude", "value": latitude}, {"name": "map-center-longitude", "value": longitude}]
     env += [{"name": "King__Map__Center__Latitude", "secretRef": "map-center-latitude"},
             {"name": "King__Map__Center__Longitude", "secretRef": "map-center-longitude"}]
+ingress = {"external": True, "targetPort": 8080, "transport": "auto", "allowInsecure": False}
+if json.loads(e["APP_DOMAINS"]):
+    ingress["customDomains"] = json.loads(e["APP_DOMAINS"])
 probe = lambda kind, path: {"type": kind, "httpGet": {"path": path, "port": 8080},
                             "periodSeconds": 10, "failureThreshold": 3, "timeoutSeconds": 5}
 print(json.dumps({
@@ -194,7 +200,7 @@ print(json.dumps({
         "configuration": {
             "activeRevisionsMode": "Single",
             # One replica only: the rate limits live in memory, so a second replica would double them.
-            "ingress": {"external": True, "targetPort": 8080, "transport": "auto", "allowInsecure": False},
+            "ingress": ingress,
             "secrets": secrets,
         },
         "template": {
@@ -214,5 +220,24 @@ if [[ -n "$EXISTING_IMAGE" ]]; then
 else
   az containerapp create -g "$GROUP" -n "$APP" --yaml "$WORK/app.json" -o none
 fi
+
+echo "== Custom domains $DOMAIN and www.$DOMAIN (free managed certificates)"
+# Both need their records first (A @ → environment IP or CNAME www → app address, plus TXT asuid.<host>), DNS only:
+# the certificate is issued and renewed only while DigiCert reaches the app directly.
+APP_FQDN=$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv)
+VERIFICATION=$(az containerapp show -g "$GROUP" -n "$APP" --query properties.customDomainVerificationId -o tsv)
+bind_domain() { # host record-type expected-value validation-method
+  local listed
+  listed=$(az containerapp hostname list -g "$GROUP" -n "$APP" --query "[?name=='$1'].bindingType" -o tsv)
+  if [[ "$listed" == "SniEnabled" ]]; then echo "$1: bound"; return; fi
+  if [[ "$(dig +short "$1" "$2" | head -1)" != "$3" || "$(dig +short "asuid.$1" TXT)" != "\"$VERIFICATION\"" ]]; then
+    echo "$1: skipped, its DNS records aren't there yet ($2 → $3, TXT asuid.$1)"; return
+  fi
+  [[ -n "$listed" ]] || az containerapp hostname add -g "$GROUP" -n "$APP" --hostname "$1" -o none
+  az containerapp hostname bind -g "$GROUP" -n "$APP" --hostname "$1" --environment "$ENVIRONMENT" --validation-method "$4" -o none
+  echo "$1: bound"
+}
+bind_domain "$DOMAIN" A "$(az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" --query properties.staticIp -o tsv)" HTTP
+bind_domain "www.$DOMAIN" CNAME "$APP_FQDN." CNAME
 
 echo "== Done: https://$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv) ($IMAGE)"

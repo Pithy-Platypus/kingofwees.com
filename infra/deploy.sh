@@ -59,4 +59,6 @@ for _ in $(seq 60); do # up to 5 minutes for the readiness probe (/health, datab
 done
 ready || { echo "$REVISION never became ready (/health failing?); the previous revision keeps serving if it was healthy." >&2; exit 1; }
 
-"$ROOT/infra/smoke.sh" "https://$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv)"
+# The public domain once it's bound (that checks its certificate too), else the Container Apps address.
+HOST=$(az containerapp show -g "$GROUP" -n "$APP" --query "properties.configuration.ingress.customDomains[?name=='kingofwees.com'].name | [0]" -o tsv)
+"$ROOT/infra/smoke.sh" "https://${HOST:-$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv)}"
