@@ -1,6 +1,6 @@
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { fakeApi, NOW } from './test/fakeApi';
 import { renderInEnglish } from './test/render';
@@ -49,6 +49,23 @@ describe('routing', () => {
       await new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
     });
     expect(await screen.findByRole('heading', { level: 1, name: 'About King' })).toBeInTheDocument();
+  });
+
+  it('opens each page followed by a link at its top, not where the last page was scrolled to', async () => {
+    // Wallie's phone kept the footer's scroll position: About and Privacy opened at their bottoms.
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    renderAt('/');
+    await screen.findByRole('button', { name: 'I fed King' });
+
+    await userEvent.click(footer().getByRole('link', { name: 'About' }));
+    await screen.findByRole('heading', { level: 1, name: 'About King' });
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+    scrollTo.mockClear();
+
+    await userEvent.click(footer().getByRole('link', { name: 'Privacy' }));
+    await screen.findByRole('heading', { level: 1, name: 'Privacy' });
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+    scrollTo.mockRestore();
   });
 
   it('reaches the history from the footer and from under Lately on Home', async () => {

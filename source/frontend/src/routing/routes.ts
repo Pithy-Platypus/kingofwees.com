@@ -13,6 +13,8 @@ export function routeFromPath(pathname: string): Route {
 
 export function navigate(route: Route) {
   window.history.pushState(null, '', paths[route]);
+  // A new page starts at its top; otherwise it opens wherever the last one was scrolled to (e.g. the footer).
+  window.scrollTo(0, 0);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
