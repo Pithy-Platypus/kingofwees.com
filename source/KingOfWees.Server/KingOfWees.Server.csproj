@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Azure.Storage.Blobs" />
     <PackageReference Include="Aspire.MongoDB.Driver" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="MaxMind.Db" />

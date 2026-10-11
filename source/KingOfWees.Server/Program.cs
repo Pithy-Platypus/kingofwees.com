@@ -1,5 +1,6 @@
 using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 using Microsoft.AspNetCore.HttpOverrides;
 using MongoDB.Driver;
 
@@ -16,6 +17,8 @@ if (builder.Configuration.GetConnectionString("king") is { } kingConnection
         "ConnectionStrings:king must name the database: put /king before the '?' (mongodb+srv://host/king?tls=true…).");
 }
 builder.AddMongoDBClient("king");
+// No health check: /health is the readiness probe, and a photo-storage outage must not take the whole site offline.
+builder.AddAzureBlobContainerClient("photos", settings => settings.DisableHealthChecks = true);
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -26,6 +29,7 @@ builder.Services.Configure<ExceptionHandlerOptions>(options =>
         : StatusCodes.Status500InternalServerError);
 builder.Services.AddKing();
 builder.Services.AddAdmin();
+builder.Services.AddSingleton<IPhotoBlobStore, AzurePhotoBlobStore>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

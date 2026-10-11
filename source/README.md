@@ -10,7 +10,7 @@ The King of Wees app: an ASP.NET Core minimal API that also serves a React SPA, 
 | Aspire CLI | 13.6 | `aspire run` |
 | Bun | 1.4 | Package manager only — Node runs Vite, Vitest and Stryker |
 | Node | 22+ | |
-| Docker | any recent | Mongo container |
+| Docker | any recent | Mongo and Azurite (Azure Storage emulator, for photos) containers |
 
 ## Run
 
@@ -19,7 +19,7 @@ cd source
 aspire run          # dashboard link prints in the terminal: server, webfrontend, mongo
 ```
 
-Dev data persists in a Docker volume. Tests run the AppHost with `PersistData=false`, so they never touch it.
+Dev data persists in Docker volumes (Mongo and Azurite). Tests run the AppHost with `PersistData=false`, so they never touch it.
 
 ### Map center (once per machine)
 
@@ -64,11 +64,11 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 
 | Path | What it is |
 |---|---|
-| `KingOfWees.AppHost/` | Aspire orchestration: Mongo (+ `king` database), server, Vite frontend (`WithBun`) |
-| `KingOfWees.Server/` | Minimal API. `King/` holds the domain, Mongo stores (`events`, `spots`, `hiddenReporters`), endpoints, validators, metrics, `GeoPoint` (rounds coordinates); `Admin/` the admin key (hasher, options, authentication handler), the `/api/admin` endpoints (hide, describe, list, restore, rename and merge places, activity) and the audit log (`AdminAudit`, Mongo `adminLog` with a 1-year TTL index the app creates on its first record); `Validation/` the FluentValidation endpoint filter |
+| `KingOfWees.AppHost/` | Aspire orchestration: Mongo (+ `king` database), Azurite (+ `photos` blob container), server, Vite frontend (`WithBun`) |
+| `KingOfWees.Server/` | Minimal API. `King/` holds the domain, Mongo stores (`events`, `spots`, `hiddenReporters`), endpoints, validators, metrics, `GeoPoint` (rounds coordinates); `Admin/` the admin key (hasher, options, authentication handler), the `/api/admin` endpoints (hide, describe, list, restore, rename and merge places, activity) and the audit log (`AdminAudit`, Mongo `adminLog` with a 1-year TTL index the app creates on its first record); `Photos/` photo records (Mongo `photos`, hidden like entries), photo files (`IPhotoBlobStore`, Blob Storage) and `JpegMetadata` (strips EXIF/XMP and other metadata segments without decoding); `Validation/` the FluentValidation endpoint filter |
 | `tools/` | Command-line helpers (`new-admin-key.cs`: a new admin key and its hash) — see `tools/README.md` |
 | `frontend/` | React + Vite + TypeScript, Tailwind v4 + daisyUI 5 custom `king` theme |
-| `tests/KingOfWees.Server.Tests/` | Store contract tests for events, spots, hidden devices and the audit log (Mongo and in-memory doubles; the log's expiry index on Mongo only), API tests (`WebApplicationFactory`), validator and `GeoPoint` unit tests |
+| `tests/KingOfWees.Server.Tests/` | Store contract tests for events, spots, hidden devices and the audit log (Mongo and in-memory doubles; the log's expiry index on Mongo only), photo records and the photo file store (Mongo, Azurite and in-memory doubles), JPEG metadata stripping (synthetic segments and a real JPEG in `TestData/`), API tests (`WebApplicationFactory`), validator and `GeoPoint` unit tests |
 | `tests/KingOfWees.E2E/` | Playwright + axe (WCAG 2.2 AA) against the full AppHost. `AppFixture` sets a test map center, a test admin key's hash, high rate limits and MaxMind's test country database (with forwarded addresses trusted, so a page can pose as a GB visitor); `KingFlowTests` (admin flows in `KingFlowTests.Admin.cs`) is one class so its flows share the database one at a time |
 
 ## API

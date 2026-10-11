@@ -15,6 +15,10 @@ Both are mapped in every environment (`MapDefaultEndpoints` in `Extensions.cs`):
 
 The template's security concern is about detailed health output. The default writer returns only `Healthy` / `Unhealthy`, with no check names, exceptions or timings; keep it that way. Health requests are already left out of traces. A public `/health` costs one database ping per call; the probes call it every few seconds, which is nothing at this size.
 
+## Photo storage is left out
+
+Added 2026-10-11, Slice 6 step 1. Aspire's Blob client adds a health check to `/health` by default. `/health` is the readiness probe, so a Blob Storage outage would leave the app with no ready replica — status, history and posting gone because photos can't be stored. `Program.cs` turns that check off: a failed upload says so on the page and the entry stays.
+
 ## The database name
 
 Found in step 2: DocumentDB's portal connection string doesn't name a database, and `AddMongoDBClient("king")` then registers no `IMongoDatabase` — the server starts and every request is a 500. `Program.cs` now refuses to start with a connection string that names no database, saying to put `/king` before the `?`, so the mistake shows at deploy.
