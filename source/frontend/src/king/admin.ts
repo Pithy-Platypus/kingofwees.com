@@ -7,6 +7,8 @@ const ADMIN_KEY_KEY = 'kingofwees.adminKey';
 export type DeviceView = { entries: number; spots: number; reporterName: string | null; newestAt: string | null };
 /** `id` is the hidden-device record's own id, used to restore it. */
 export type HiddenDevice = DeviceView & { id: string; hiddenAt: string };
+/** Every place, for renaming; `hiddenPoster` marks one whose poster is hidden (it isn't in the public list). */
+export type AdminSpot = { id: string; name: string; hiddenPoster: boolean };
 
 // The key goes in a header, never a URL, so it stays out of logs and browser history.
 const as = (key: string, method?: 'POST' | 'DELETE'): RequestInit => ({
@@ -25,6 +27,13 @@ export const adminApi = {
   hiddenDevices: (key: string) => request<HiddenDevice[]>('/api/admin/hidden', as(key)),
   restoreDevice: (key: string, id: string) =>
     request<void>(`/api/admin/hidden/${encodeURIComponent(id)}`, as(key, 'DELETE')),
+  listSpots: (key: string) => request<AdminSpot[]>('/api/admin/spots', as(key)),
+  renameSpot: (key: string, spotId: string, name: string) =>
+    request<void>('/api/admin/spots/rename', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spotId, name }),
+    }),
 };
 export type AdminApi = typeof adminApi;
 /** An accepted key on this device; `onRejected` drops it when the server stops accepting it (rotated). */

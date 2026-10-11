@@ -4,16 +4,17 @@ import { act } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { loadAdminKey, saveAdminKey } from './king/admin';
+import { saveNickname } from './king/reporter';
 import { ApiError } from './king/api';
 import { navigate } from './routing/routes';
-import { ADMIN_KEY, event, fakeAdminApi, fakeApi, NOW } from './test/fakeApi';
+import { ADMIN_KEY, adminSpot, event, fakeAdminApi, fakeApi, NOW, spot } from './test/fakeApi';
 import { memoryStorage } from './test/memoryStorage';
 import { renderInEnglish } from './test/render';
 
 // The whole admin loop through App: key checked and remembered, history unlocked, signed out or rejected.
 const renderAt = (path: string, storage = memoryStorage(), adminApi = fakeAdminApi()) => {
   window.history.replaceState(null, '', path);
-  const api = fakeApi(undefined, { history: { events: [event({ id: 'e1' })], next: null } });
+  const api = fakeApi(undefined, { history: { events: [event({ id: 'e1' })], next: null }, spots: [spot('s1', 'Porch'), spot('s2', 'Corner')] });
   renderInEnglish(<App api={api} adminApi={adminApi} reporterKey="k" storage={storage} now={() => NOW} />);
   return { storage, adminApi };
 };
@@ -101,5 +102,27 @@ describe('admin, through the app', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('a renamed place shows its new name across the app at once', async () => {
+    const storage = memoryStorage();
+    saveAdminKey(storage, ADMIN_KEY);
+    saveNickname(storage, 'Kit');
+    const adminApi = fakeAdminApi({ spots: [adminSpot('s1', 'Porch'), adminSpot('s2', 'Corner')] });
+    renderAt('/admin', storage, adminApi);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Rename Porch' }));
+    await userEvent.clear(screen.getByRole('textbox', { name: 'New name' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'New name' }), 'Front porch');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await screen.findByRole('button', { name: 'Rename Front porch' });
+
+    act(() => navigate('home'));
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+
+    // The feed screen's tiles are the app's own list: the new name, the other place untouched.
+    expect(screen.getByRole('radio', { name: 'Front porch' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Corner' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Porch' })).not.toBeInTheDocument();
   });
 });

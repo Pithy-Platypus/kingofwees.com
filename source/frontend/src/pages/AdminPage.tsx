@@ -1,9 +1,10 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor, type MessageTag, type NoMessageValues } from 'react-intl';
-import { isKeyRejected, looksLikeKeyHash, type AdminApi, type HiddenDevice } from '../king/admin';
+import { isKeyRejected, looksLikeKeyHash, type AdminApi, type AdminSpot, type HiddenDevice } from '../king/admin';
 import { ActivityItem } from '../king/ActivityItem';
-import { ApiError, type KingEventView, type SpotView } from '../king/api';
+import { ApiError, SPOT_NAME_MAX_LENGTH, type KingEventView, type SpotView } from '../king/api';
 import { common } from '../king/messages';
+import { useSpotsByName } from '../king/useSpotsByName';
 import { Link } from '../routing/Link';
 import { PageShell } from './PageShell';
 
@@ -28,6 +29,16 @@ type Values = {
   loadFailed: NoMessageValues;
   actionFailed: NoMessageValues;
   signOut: NoMessageValues;
+  placesHeading: NoMessageValues;
+  noPlaces: NoMessageValues;
+  rename: NoMessageValues;
+  renamePlace: { name: string };
+  newName: NoMessageValues;
+  save: NoMessageValues;
+  cancel: NoMessageValues;
+  nameTaken: NoMessageValues;
+  nameRequired: NoMessageValues;
+  fromHiddenPoster: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -68,16 +79,45 @@ const m = defineMessages<Values>({
   loadFailed: { id: 'admin.loadFailed', defaultMessage: 'Couldn’t load what’s hidden.', description: 'The hidden lists failed to load' },
   actionFailed: { id: 'admin.actionFailed', defaultMessage: 'That didn’t work. Try again.', description: 'Show again or Restore failed' },
   signOut: { id: 'admin.signOut', defaultMessage: 'Sign out on this device', description: 'Forgets the admin key on this device' },
+  placesHeading: { id: 'admin.placesHeading', defaultMessage: 'Places', description: 'Heading over the list of feeding places (spots)' },
+  noPlaces: { id: 'admin.noPlaces', defaultMessage: 'No places yet.', description: 'Nobody has added a feeding place' },
+  rename: { id: 'admin.rename', defaultMessage: 'Rename', description: 'Opens a field to change a place’s name' },
+  renamePlace: {
+    id: 'admin.renamePlace',
+    defaultMessage: 'Rename {name}',
+    description: 'Accessible name of a Rename button; {name} is the place’s current name',
+  },
+  newName: { id: 'admin.newName', defaultMessage: 'New name', description: 'Label of the field for a place’s new name' },
+  save: { id: 'admin.save', defaultMessage: 'Save', description: 'Saves a place’s new name' },
+  cancel: { id: 'admin.cancel', defaultMessage: 'Cancel', description: 'Closes the rename field without saving' },
+  nameTaken: {
+    id: 'admin.nameTaken',
+    defaultMessage: 'Another place already has that name.',
+    description: 'The new name matches another place’s name (ignoring capitals)',
+  },
+  nameRequired: { id: 'admin.nameRequired', defaultMessage: 'Enter a name.', description: 'The new name was empty' },
+  fromHiddenPoster: {
+    id: 'admin.fromHiddenPoster',
+    defaultMessage: 'from a hidden poster',
+    description: 'Under a place added by a hidden poster: only admins see it',
+  },
 });
 
-type Props = { api: AdminApi; adminKey: string | null; onKey: (key: string | null) => void; spots: SpotView[]; now: Date };
+type Props = {
+  api: AdminApi;
+  adminKey: string | null;
+  onKey: (key: string | null) => void;
+  spots: SpotView[];
+  onSpotRenamed: (id: string, name: string) => void;
+  now: Date;
+};
 
 /** The caretakers' page: not linked anywhere. Without a key it asks for one; with one it lists what's hidden. */
-export function AdminPage({ api, adminKey, onKey, spots, now }: Props) {
+export function AdminPage({ api, adminKey, onKey, spots, onSpotRenamed, now }: Props) {
   return (
     <PageShell title={<FormattedMessage {...m.title} />}>
       {adminKey ? (
-        <HiddenLists api={api} adminKey={adminKey} onKey={onKey} spots={spots} now={now} />
+        <HiddenLists api={api} adminKey={adminKey} onKey={onKey} spots={spots} onSpotRenamed={onSpotRenamed} now={now} />
       ) : (
         <KeyForm api={api} onKey={onKey} />
       )}
@@ -143,19 +183,171 @@ function KeyForm({ api, onKey }: Pick<Props, 'api' | 'onKey'>) {
   );
 }
 
-function HiddenLists({ api, adminKey, onKey, spots, now }: Props & { adminKey: string }) {
+type PlacesProps = Pick<Props, 'api' | 'onKey' | 'onSpotRenamed'> & {
+  adminKey: string;
+  places: AdminSpot[];
+  onRenamed: (id: string, name: string) => void;
+};
+
+/** Every place, hidden posters' too, with a Rename button; one place is renamed at a time, inline. */
+function Places({ api, adminKey, onKey, places, onRenamed, onSpotRenamed }: PlacesProps) {
+  const intl = useIntl();
+  const sorted = useSpotsByName(places);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const focusAfterClose = useRef<string | null>(null);
+
+  // Closing the field brings back the place's button; focus goes to it once it's rendered.
+  useEffect(() => {
+    if (renaming !== null || focusAfterClose.current === null) return;
+    buttons.current.get(focusAfterClose.current)?.focus();
+    focusAfterClose.current = null;
+  });
+
+  const close = (id: string) => {
+    focusAfterClose.current = id;
+    setRenaming(null);
+  };
+
+  return (
+    <section aria-labelledby="places" className="log-section">
+      <h2 id="places" className="section-title">
+        <FormattedMessage {...m.placesHeading} />
+      </h2>
+      {sorted.length === 0 ? (
+        <p className="activity-detail">
+          <FormattedMessage {...m.noPlaces} />
+        </p>
+      ) : (
+        <ul className="activity-list" aria-labelledby="places">
+          {sorted.map((s) => (
+            <li key={s.id} className="activity-item">
+              {renaming === s.id ? (
+                <RenameForm
+                  api={api}
+                  adminKey={adminKey}
+                  onKey={onKey}
+                  spot={s}
+                  onSaved={(name) => {
+                    onRenamed(s.id, name);
+                    onSpotRenamed(s.id, name);
+                    close(s.id);
+                  }}
+                  onCancel={() => close(s.id)}
+                />
+              ) : (
+                <>
+                  <span className="activity-text">
+                    <strong>{s.name}</strong>
+                    {s.hiddenPoster && (
+                      <span className="activity-detail">
+                        <FormattedMessage {...m.fromHiddenPoster} />
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="admin-button"
+                    ref={(button) => {
+                      if (button) buttons.current.set(s.id, button);
+                      else buttons.current.delete(s.id);
+                    }}
+                    aria-label={intl.formatMessage(m.renamePlace, { name: s.name })}
+                    onClick={() => setRenaming(s.id)}
+                  >
+                    <FormattedMessage {...m.rename} />
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+type RenameFormProps = Pick<Props, 'api' | 'onKey'> & {
+  adminKey: string;
+  spot: AdminSpot;
+  onSaved: (name: string) => void;
+  onCancel: () => void;
+};
+
+function RenameForm({ api, adminKey, onKey, spot, onSaved, onCancel }: RenameFormProps) {
+  const [draft, setDraft] = useState(spot.name);
+  const [problem, setProblem] = useState<MessageDescriptor | null>(null);
+  const [busy, setBusy] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const inputId = useId();
+  const problemId = useId();
+
+  useEffect(() => input.current?.focus(), []);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const name = draft.trim();
+    setBusy(true);
+    try {
+      await api.renameSpot(adminKey, spot.id, name);
+      onSaved(name);
+    } catch (error) {
+      const codes = error instanceof ApiError ? error.codes : [];
+      if (isKeyRejected(error)) onKey(null);
+      else if (codes.includes('name.taken')) setProblem(m.nameTaken);
+      else if (codes.includes('name.required')) setProblem(m.nameRequired);
+      else setProblem(m.actionFailed);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="field-form place-form" onSubmit={(e) => void save(e)}>
+      <label htmlFor={inputId} className="field-label">
+        <FormattedMessage {...m.newName} />
+      </label>
+      <input
+        id={inputId}
+        ref={input}
+        className="field-input"
+        required
+        maxLength={SPOT_NAME_MAX_LENGTH}
+        aria-describedby={problem ? problemId : undefined}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+      />
+      {problem && (
+        <div id={problemId} role="alert" className="alert alert-error">
+          <FormattedMessage {...problem} />
+        </div>
+      )}
+      <div className="admin-buttons">
+        <button type="submit" className="admin-confirm-button" disabled={busy}>
+          <FormattedMessage {...m.save} />
+        </button>
+        <button type="button" className="admin-button" onClick={onCancel}>
+          <FormattedMessage {...m.cancel} />
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function HiddenLists({ api, adminKey, onKey, spots, onSpotRenamed, now }: Props & { adminKey: string }) {
   const intl = useIntl();
   const [entries, setEntries] = useState<KingEventView[] | null>(null);
   const [devices, setDevices] = useState<HiddenDevice[] | null>(null);
+  const [places, setPlaces] = useState<AdminSpot[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
 
   // A key the server no longer accepts (rotated) is forgotten, which brings back the key form.
   useEffect(() => {
-    Promise.all([api.hiddenEntries(adminKey), api.hiddenDevices(adminKey)]).then(
-      ([hiddenEntries, hiddenDevices]) => {
+    Promise.all([api.hiddenEntries(adminKey), api.hiddenDevices(adminKey), api.listSpots(adminKey)]).then(
+      ([hiddenEntries, hiddenDevices, allPlaces]) => {
         setEntries(hiddenEntries);
         setDevices(hiddenDevices);
+        setPlaces(allPlaces);
       },
       (error: unknown) => (isKeyRejected(error) ? onKey(null) : setLoadFailed(true)),
     );
@@ -174,8 +366,17 @@ function HiddenLists({ api, adminKey, onKey, spots, now }: Props & { adminKey: s
 
   const showAgain = (id: string) =>
     act(() => api.unhideEntry(adminKey, id), () => setEntries((shown) => shown?.filter((e) => e.id !== id) ?? null));
+  // A restored poster's places lose their mark; which ones they are only the server knows.
   const restore = (id: string) =>
-    act(() => api.restoreDevice(adminKey, id), () => setDevices((shown) => shown?.filter((d) => d.id !== id) ?? null));
+    act(
+      async () => {
+        await api.restoreDevice(adminKey, id);
+        setPlaces(await api.listSpots(adminKey));
+      },
+      () => setDevices((shown) => shown?.filter((d) => d.id !== id) ?? null),
+    );
+  const renamed = (id: string, name: string) =>
+    setPlaces((shown) => shown?.map((p) => (p.id === id ? { ...p, name } : p)) ?? null);
   const timeOf = (e: KingEventView) => intl.formatDate(new Date(e.occurredAt), { month: 'short', day: 'numeric' });
   const sameYear = (iso: string) => new Date(iso).getFullYear() === now.getFullYear();
   const dateOf = (iso: string) =>
@@ -188,7 +389,7 @@ function HiddenLists({ api, adminKey, onKey, spots, now }: Props & { adminKey: s
         <FormattedMessage {...m.loadFailed} />
       </div>
     );
-  } else if (!entries || !devices) {
+  } else if (!entries || !devices || !places) {
     lists = (
       <p role="status">
         <FormattedMessage {...m.loading} />
@@ -197,6 +398,14 @@ function HiddenLists({ api, adminKey, onKey, spots, now }: Props & { adminKey: s
   } else {
     lists = (
       <>
+        <Places
+          api={api}
+          adminKey={adminKey}
+          onKey={onKey}
+          places={places}
+          onRenamed={renamed}
+          onSpotRenamed={onSpotRenamed}
+        />
         {actionFailed && (
           <div role="alert" className="alert alert-error">
             <FormattedMessage {...m.actionFailed} />

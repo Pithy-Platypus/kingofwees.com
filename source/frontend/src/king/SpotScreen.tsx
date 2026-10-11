@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
+import { SPOT_NAME_MAX_LENGTH } from './api';
 import { BackIcon, CheckIcon } from './icons';
 import { currentPosition, type GeoPoint, type Geolocator } from './location';
 import { MapView } from './MapView';
@@ -29,7 +30,6 @@ const m = defineMessages({
 });
 
 // Matches the server's spot name limit.
-const MAX_NAME_LENGTH = 40;
 
 type Props = {
   mapCenter: GeoPoint | null;
@@ -92,7 +92,7 @@ export function SpotScreen({ mapCenter, geolocation, busy, onAdd, onBack }: Prop
           aria-describedby={hintId}
           className="field-input"
           value={name}
-          maxLength={MAX_NAME_LENGTH}
+          maxLength={SPOT_NAME_MAX_LENGTH}
           onChange={(e) => setName(e.target.value)}
         />
         {locationFailed && (

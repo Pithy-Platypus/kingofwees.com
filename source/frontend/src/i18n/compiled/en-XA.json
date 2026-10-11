@@ -349,6 +349,20 @@
       "value": "]"
     }
   ],
+  "admin.fromHiddenPoster": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "ƒřǿǿḿ ȧȧ ħīḓḓḗḗƞ ƥǿǿşŧḗḗř"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.hashPasted": [
     {
       "type": 0,
@@ -489,6 +503,48 @@
       "value": "]"
     }
   ],
+  "admin.nameRequired": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḗƞŧḗḗř ȧȧ ƞȧȧḿḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.nameTaken": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧƞǿǿŧħḗḗř ƥŀȧȧƈḗḗ ȧȧŀřḗḗȧȧḓẏ ħȧȧş ŧħȧȧŧ ƞȧȧḿḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.newName": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞḗḗẇ ƞȧȧḿḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.noEntries": [
     {
       "type": 0,
@@ -503,6 +559,20 @@
       "value": "]"
     }
   ],
+  "admin.noPlaces": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿ ƥŀȧȧƈḗḗş ẏḗḗŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.noPosters": [
     {
       "type": 0,
@@ -511,6 +581,20 @@
     {
       "type": 0,
       "value": "Ƞǿǿ ħīḓḓḗḗƞ ƥǿǿşŧḗḗřş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.placesHeading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥŀȧȧƈḗḗş"
     },
     {
       "type": 0,
@@ -613,6 +697,38 @@
       "value": "]"
     }
   ],
+  "admin.rename": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Řḗḗƞȧȧḿḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.renamePlace": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Řḗḗƞȧȧḿḗḗ "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.restore": [
     {
       "type": 0,
@@ -621,6 +737,20 @@
     {
       "type": 0,
       "value": "Řḗḗşŧǿǿřḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.save": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şȧȧṽḗḗ"
     },
     {
       "type": 0,

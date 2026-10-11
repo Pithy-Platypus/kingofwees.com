@@ -1,6 +1,8 @@
 import { roundToBlock, type GeoPoint } from './location';
 
 export type SpotView = { id: string; name: string; location: GeoPoint };
+/** The server's limit for a place's name (AddSpotRequestValidator.MaxNameLength), new or renamed. */
+export const SPOT_NAME_MAX_LENGTH = 40;
 
 export type Food = 'wet' | 'dry' | 'treats';
 export type KingEventView = {
@@ -25,15 +27,27 @@ export type Reporter = { reporterKey: string; reporterName?: string | null };
 
 export class ApiError extends Error {
   readonly status: number;
-  constructor(status: number) {
+  readonly codes: string[];
+  constructor(status: number, codes: string[] = []) {
     super(`API request failed with ${status}`);
     this.status = status;
+    this.codes = codes;
+  }
+}
+
+// The server's validation 400s list error codes per field ({ errors: { name: ['name.taken'] } }); other failures have none.
+async function validationCodes(response: Response): Promise<string[]> {
+  try {
+    const body = (await response.json()) as { errors?: Record<string, string[]> };
+    return Object.values(body.errors ?? {}).flat();
+  } catch {
+    return [];
   }
 }
 
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
-  if (!response.ok) throw new ApiError(response.status);
+  if (!response.ok) throw new ApiError(response.status, await validationCodes(response));
   return (response.status === 204 ? undefined : await response.json()) as T;
 }
 

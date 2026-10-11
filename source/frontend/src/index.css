@@ -241,6 +241,10 @@
     @apply btn btn-secondary min-h-12 rounded-field text-base;
   }
 
+  .place-form {
+    @apply basis-full;
+  }
+
   .admin-question {
     @apply font-bold;
   }

@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, SpotView } from '../king/api';
-import type { AdminApi, DeviceView, HiddenDevice } from '../king/admin';
+import type { AdminApi, AdminSpot, DeviceView, HiddenDevice } from '../king/admin';
 import type { GeoPoint } from '../king/location';
 
 export const at = (iso: string) => new Date(iso);
@@ -54,10 +54,11 @@ export const device = (overrides: Partial<DeviceView> = {}): DeviceView => ({
   ...overrides,
 });
 
-type AdminWorld = { hiddenEntries?: KingEventView[]; hiddenDevices?: HiddenDevice[]; device?: DeviceView };
+type AdminWorld = { hiddenEntries?: KingEventView[]; hiddenDevices?: HiddenDevice[]; device?: DeviceView; spots?: AdminSpot[] };
+export const adminSpot = (id: string, name: string, hiddenPoster = false): AdminSpot => ({ id, name, hiddenPoster });
 
 // Every admin call succeeds with an empty moderation list unless a test says otherwise.
-export function fakeAdminApi({ hiddenEntries = [], hiddenDevices = [], device: described = device() }: AdminWorld = {}) {
+export function fakeAdminApi({ hiddenEntries = [], hiddenDevices = [], device: described = device(), spots = [] }: AdminWorld = {}) {
   return {
     check: vi.fn<AdminApi['check']>().mockResolvedValue(undefined),
     hideEntry: vi.fn<AdminApi['hideEntry']>().mockResolvedValue(undefined),
@@ -67,5 +68,7 @@ export function fakeAdminApi({ hiddenEntries = [], hiddenDevices = [], device: d
     hiddenEntries: vi.fn<AdminApi['hiddenEntries']>().mockResolvedValue(hiddenEntries),
     hiddenDevices: vi.fn<AdminApi['hiddenDevices']>().mockResolvedValue(hiddenDevices),
     restoreDevice: vi.fn<AdminApi['restoreDevice']>().mockResolvedValue(undefined),
+    listSpots: vi.fn<AdminApi['listSpots']>().mockResolvedValue(spots),
+    renameSpot: vi.fn<AdminApi['renameSpot']>().mockResolvedValue(undefined),
   };
 }

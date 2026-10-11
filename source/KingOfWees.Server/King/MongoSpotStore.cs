@@ -17,6 +17,20 @@ public sealed class MongoSpotStore(IMongoDatabase database, IHiddenReporterStore
         return document?.ToSpot();
     }
 
+    public async Task<bool> RenameAsync(string id, string name, CancellationToken cancellationToken)
+    {
+        var result = await _spots.UpdateOneAsync(
+            s => s.Id == id, Builders<SpotDocument>.Update.Set(s => s.Name, name), cancellationToken: cancellationToken);
+        return result.MatchedCount > 0;
+    }
+
+    // A street has a handful of spots: compare in memory rather than rely on collation or regex support in DocumentDB.
+    public async Task<bool> NameTakenAsync(string name, string exceptId, CancellationToken cancellationToken)
+    {
+        var names = await _spots.Find(s => s.Id != exceptId).Project(s => s.Name).ToListAsync(cancellationToken);
+        return names.Exists(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
+    }
+
     public async Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) =>
         (int)await _spots.CountDocumentsAsync(s => s.ReporterKey == reporterKey, cancellationToken: cancellationToken);
 
@@ -28,6 +42,10 @@ public sealed class MongoSpotStore(IMongoDatabase database, IHiddenReporterStore
             .ToListAsync(cancellationToken);
         return documents.ConvertAll(d => d.ToSpot());
     }
+
+    public async Task<IReadOnlyList<Spot>> ListEveryAsync(CancellationToken cancellationToken) =>
+        (await _spots.Find(Builders<SpotDocument>.Filter.Empty).SortBy(s => s.CreatedAtUtc).ToListAsync(cancellationToken))
+            .ConvertAll(d => d.ToSpot());
 
     // Coordinates are copied from a GeoPoint and rebuilt into one on read, so they stay rounded.
     [BsonIgnoreExtraElements]

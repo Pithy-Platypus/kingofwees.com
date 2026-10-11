@@ -38,6 +38,50 @@ public abstract class SpotStoreContract
     }
 
     [Fact]
+    public async Task Renaming_changes_only_that_spot_s_name()
+    {
+        var store = CreateStore();
+        var porch = NewSpot("Porch", 0);
+        var corner = NewSpot("Corner", 1);
+        await store.AddAsync(porch, Ct);
+        await store.AddAsync(corner, Ct);
+
+        Assert.True(await store.RenameAsync(porch.Id, "Front porch", Ct));
+
+        Assert.Equal(porch with { Name = "Front porch" }, await store.FindAsync(porch.Id, Ct));
+        Assert.Equal(corner, await store.FindAsync(corner.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Renaming_a_hidden_device_s_spot_works_and_an_unknown_id_is_refused()
+    {
+        var (store, hidden) = CreateStores();
+        var spam = NewSpot("Spam spot", 0, device: "spammer");
+        await store.AddAsync(spam, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.True(await store.RenameAsync(spam.Id, "Renamed", Ct));
+        Assert.Equal("Renamed", (await store.FindAsync(spam.Id, Ct))!.Name);
+        Assert.False(await store.RenameAsync(Guid.CreateVersion7().ToString(), "Nowhere", Ct));
+    }
+
+    [Fact]
+    public async Task A_name_is_taken_by_another_spot_ignoring_case_hidden_or_not_but_not_by_the_spot_itself()
+    {
+        var (store, hidden) = CreateStores();
+        var porch = NewSpot("Porch", 0);
+        var spam = NewSpot("Spam spot", 1, device: "spammer");
+        await store.AddAsync(porch, Ct);
+        await store.AddAsync(spam, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.True(await store.NameTakenAsync("PORCH", spam.Id, Ct));
+        Assert.True(await store.NameTakenAsync("spam SPOT", porch.Id, Ct));
+        Assert.False(await store.NameTakenAsync("porch", porch.Id, Ct));
+        Assert.False(await store.NameTakenAsync("Corner", porch.Id, Ct));
+    }
+
+    [Fact]
     public async Task List_returns_every_spot_oldest_first()
     {
         var store = CreateStore();
@@ -64,6 +108,19 @@ public abstract class SpotStoreContract
 
         Assert.Equal([porch], await store.ListAsync(Ct));
         Assert.Equal(spam, await store.FindAsync(spam.Id, Ct));
+    }
+
+    [Fact]
+    public async Task The_full_list_has_every_spot_hidden_or_not_oldest_first()
+    {
+        var (store, hidden) = CreateStores();
+        var spam = NewSpot("Spam spot", 2, device: "spammer");
+        var porch = NewSpot("Porch", 1);
+        await store.AddAsync(spam, Ct);
+        await store.AddAsync(porch, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.Equal([porch, spam], await store.ListEveryAsync(Ct));
     }
 
     [Fact]

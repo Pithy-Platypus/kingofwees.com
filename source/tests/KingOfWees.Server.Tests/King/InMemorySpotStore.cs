@@ -17,6 +17,18 @@ public sealed class InMemorySpotStore(IHiddenReporterStore hiddenReporters) : IS
     public Task<Spot?> FindAsync(string id, CancellationToken cancellationToken) =>
         Task.FromResult(_spots.GetValueOrDefault(id));
 
+    public Task<bool> RenameAsync(string id, string name, CancellationToken cancellationToken)
+    {
+        while (_spots.TryGetValue(id, out var spot))
+        {
+            if (_spots.TryUpdate(id, spot with { Name = name }, spot)) return Task.FromResult(true);
+        }
+        return Task.FromResult(false);
+    }
+
+    public Task<bool> NameTakenAsync(string name, string exceptId, CancellationToken cancellationToken) =>
+        Task.FromResult(_spots.Values.Any(s => s.Id != exceptId && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)));
+
     public Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) =>
         Task.FromResult(_spots.Values.Count(s => s.ReporterKey == reporterKey));
 
@@ -25,4 +37,7 @@ public sealed class InMemorySpotStore(IHiddenReporterStore hiddenReporters) : IS
         var hiddenKeys = (await hiddenReporters.ListAsync(cancellationToken)).Select(h => h.ReporterKey).ToHashSet();
         return [.. _spots.Values.Where(s => !hiddenKeys.Contains(s.ReporterKey)).OrderBy(s => s.CreatedAt)];
     }
+
+    public Task<IReadOnlyList<Spot>> ListEveryAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Spot>>([.. _spots.Values.OrderBy(s => s.CreatedAt)]);
 }

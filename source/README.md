@@ -43,7 +43,7 @@ dotnet run tools/new-admin-key.cs                  # prints the key (keep it) an
 dotnet user-secrets set "King:Admin:KeyHash" "<hash>" --project KingOfWees.Server
 ```
 
-Enter the key at `/admin` (the browser keeps it on that device; **Sign out on this device** forgets it); the history page then shows hide buttons under each entry. The API takes it as `Authorization: Bearer <key>`. A hash that isn't 64 hex characters stops the server starting. Rotating at go-live: `infra/README.md`.
+Enter the key at `/admin` (the browser keeps it on that device; **Sign out on this device** forgets it); the history page then shows hide buttons under each entry. `/admin` itself lists every place with **Rename** and what's hidden, with **Show again** / **Restore**. The API takes it as `Authorization: Bearer <key>`. A hash that isn't 64 hex characters stops the server starting. Rotating at go-live: `infra/README.md`.
 
 ## Test
 
@@ -65,7 +65,7 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | Path | What it is |
 |---|---|
 | `KingOfWees.AppHost/` | Aspire orchestration: Mongo (+ `king` database), server, Vite frontend (`WithBun`) |
-| `KingOfWees.Server/` | Minimal API. `King/` holds the domain, Mongo stores (`events`, `spots`, `hiddenReporters`), endpoints, validators, metrics, `GeoPoint` (rounds coordinates); `Admin/` the admin key (hasher, options, authentication handler) and the `/api/admin` endpoints (hide, describe, list, restore); `Validation/` the FluentValidation endpoint filter |
+| `KingOfWees.Server/` | Minimal API. `King/` holds the domain, Mongo stores (`events`, `spots`, `hiddenReporters`), endpoints, validators, metrics, `GeoPoint` (rounds coordinates); `Admin/` the admin key (hasher, options, authentication handler) and the `/api/admin` endpoints (hide, describe, list, restore, rename a place); `Validation/` the FluentValidation endpoint filter |
 | `tools/` | Command-line helpers (`new-admin-key.cs`: a new admin key and its hash) — see `tools/README.md` |
 | `frontend/` | React + Vite + TypeScript, Tailwind v4 + daisyUI 5 custom `king` theme |
 | `tests/KingOfWees.Server.Tests/` | Store contract tests for events, spots and hidden devices (Mongo and in-memory doubles), API tests (`WebApplicationFactory`), validator and `GeoPoint` unit tests |
@@ -92,6 +92,7 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | GET | `/api/admin/hidden-entries` | Entries hidden one by one, newest first, same shape as history events |
 | GET | `/api/admin/hidden` | Hidden devices, newest hidden first: `[{ id, hiddenAt, entries, spots, reporterName, newestAt }]` — `id` is the record's own, never the device key |
 | DELETE | `/api/admin/hidden/{id}` | Restore a device: everything comes back, including posts made while hidden. 204; unknown id 404 |
+| POST | `/api/admin/spots/rename` | `{ spotId, name }` — rename a place; feedings hold only its id, so the new name shows everywhere at once. Name trimmed, 1–40 characters (`name.required`, `name.tooLong`), not another place's name ignoring case, hidden posters' places included (`name.taken`; its own name in other capitals is fine); unknown place `spotId.unknown`. 204 |
 
 `GET /health` (every check, the database included; `Healthy` 200 / `Unhealthy` 503) and `GET /alive` (the app only) exist in every environment — the readiness and liveness probes. The server won't start if `ConnectionStrings:king` names no database (`…/king?…`).
 

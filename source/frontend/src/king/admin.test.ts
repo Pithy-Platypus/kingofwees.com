@@ -108,3 +108,27 @@ describe('adminApi', () => {
     expect(fetchMock).toHaveBeenCalledWith(url, bearer);
   });
 });
+
+describe('adminApi.listSpots', () => {
+  it('gets every place with the key only in the header', async () => {
+    respond(200, [{ id: 's1', name: 'Porch', hiddenPoster: true }]);
+
+    expect(await adminApi.listSpots(KEY)).toEqual([{ id: 's1', name: 'Porch', hiddenPoster: true }]);
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/spots', bearer);
+  });
+});
+
+describe('adminApi.renameSpot', () => {
+  it('posts the place and its new name, with the key only in the header', async () => {
+    respond(204);
+
+    await adminApi.renameSpot(KEY, 's/1', 'Front porch');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/spots/rename', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spotId: 's/1', name: 'Front porch' }),
+    });
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain(KEY);
+  });
+});

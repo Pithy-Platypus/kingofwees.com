@@ -133,6 +133,54 @@ public sealed partial class KingFlowTests
     }
 
     [Fact]
+    public async Task An_admin_renames_a_place_with_only_a_keyboard_and_history_shows_the_new_name()
+    {
+        var page = await app.NewPageAsync();
+        var oldName = UniqueSpotName("Rename me");
+        var otherName = UniqueSpotName("Taken");
+        var newName = UniqueSpotName("Renamed");
+        // A block of its own, well away from the other tests' places.
+        var place = new { latitude = 45.547, longitude = -122.709 };
+        var spot = await PostJson(page, "/api/king/spots", new { reporterKey = "e2e-rename", name = oldName, location = place });
+        await PostJson(page, "/api/king/spots", new { reporterKey = "e2e-rename", name = otherName, location = place });
+        await PostJson(page, "/api/king/feedings", new
+        {
+            reporterKey = "e2e-rename", foods = new[] { "dry" }, sawKing = false, spotId = spot.GetProperty("id").GetString(),
+        });
+        // A hidden poster's place: only admins see it, marked.
+        var hiddenName = UniqueSpotName("Hidden place");
+        var hiddenKey = Guid.NewGuid().ToString();
+        await PostJson(page, "/api/king/spots", new { reporterKey = hiddenKey, name = hiddenName, location = place });
+        var hiddenPost = await PostSighting(page, hiddenKey, UniqueName("Hidden poster"));
+        Assert.True((await AsAdmin(page, "POST", $"/api/admin/events/{hiddenPost}/hide-device")).Ok);
+        await SignInAsAdmin(page);
+        var field = page.GetByRole(AriaRole.Textbox, new() { Name = "New name" });
+        await Assertions.Expect(page.GetByRole(AriaRole.List, new() { Name = "Places" }).GetByRole(AriaRole.Listitem)
+            .Filter(new() { HasText = hiddenName })).ToContainTextAsync("from a hidden poster");
+
+        await Button(page, $"Rename {oldName}").FocusAsync();
+        await page.Keyboard.PressAsync("Enter");
+        await Assertions.Expect(field).ToBeFocusedAsync();
+        await Assertions.Expect(field).ToHaveValueAsync(oldName);
+        await AssertNoAxeViolations(page);
+
+        // Another place's name, in other capitals: refused, and said next to the field.
+        await field.FillAsync(otherName.ToUpperInvariant());
+        await page.Keyboard.PressAsync("Enter");
+        await Assertions.Expect(page.GetByRole(AriaRole.Alert)).ToHaveTextAsync("Another place already has that name.");
+        await AssertNoAxeViolations(page);
+
+        await field.FillAsync(newName);
+        await page.Keyboard.PressAsync("Enter");
+        await Assertions.Expect(Button(page, $"Rename {newName}")).ToBeFocusedAsync();
+        await Assertions.Expect(Button(page, $"Rename {oldName}")).ToHaveCountAsync(0);
+
+        await page.GotoAsync("/history");
+        await Assertions.Expect(page.GetByText($"at {newName}").First).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByText(oldName)).ToHaveCountAsync(0);
+    }
+
+    [Fact]
     public async Task The_admin_page_is_translated_in_the_pseudo_locale()
     {
         var page = await app.NewPageAsync();

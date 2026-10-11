@@ -204,7 +204,16 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   if (route === 'history') {
     content = <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} />;
   } else if (route === 'admin') {
-    content = <AdminPage api={adminApi} adminKey={adminKey} onKey={changeAdminKey} spots={spots} now={now()} />;
+    content = (
+      <AdminPage
+        api={adminApi}
+        adminKey={adminKey}
+        onKey={changeAdminKey}
+        spots={spots}
+        onSpotRenamed={(id, name) => setSpots((current) => current.map((s) => (s.id === id ? { ...s, name } : s)))}
+        now={now()}
+      />
+    );
   } else if (route === 'about') {
     content = <AboutPage />;
   } else if (route === 'privacy') {

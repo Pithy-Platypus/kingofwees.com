@@ -28,6 +28,8 @@ public static class AdminEndpoints
         admin.MapGet("/hidden-entries", ListHiddenEntries);
         admin.MapGet("/hidden", ListHiddenDevices);
         admin.MapDelete("/hidden/{id}", RestoreDevice);
+        admin.MapGet("/spots", ListSpots);
+        admin.MapPost("/spots/rename", RenameSpot);
 
         return routes;
     }
@@ -68,6 +70,23 @@ public static class AdminEndpoints
         var record = await hidden.HideAsync(kingEvent.ReporterKey, clock.GetUtcNow(), cancellationToken);
         metrics.Hidden("device");
         return TypedResults.Ok(await View(record, store, spots, cancellationToken));
+    }
+
+    private static async Task<Ok<AdminSpotView[]>> ListSpots(
+        ISpotStore spots, IHiddenReporterStore hidden, CancellationToken cancellationToken)
+    {
+        var hiddenKeys = (await hidden.ListAsync(cancellationToken)).Select(h => h.ReporterKey).ToHashSet();
+        return TypedResults.Ok((await spots.ListEveryAsync(cancellationToken))
+            .Select(s => new AdminSpotView(s.Id, s.Name, hiddenKeys.Contains(s.ReporterKey)))
+            .ToArray());
+    }
+
+    private static async Task<Results<NoContent, NotFound>> RenameSpot(
+        RenameSpotRequest request, ISpotStore spots, KingMetrics metrics, CancellationToken cancellationToken)
+    {
+        if (!await spots.RenameAsync(request.SpotId, request.Name.Trim(), cancellationToken)) return TypedResults.NotFound();
+        metrics.Renamed("spot");
+        return TypedResults.NoContent();
     }
 
     private static async Task<Ok<EventView[]>> ListHiddenEntries(

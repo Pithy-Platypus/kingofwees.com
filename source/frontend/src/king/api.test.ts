@@ -137,6 +137,26 @@ describe('kingApi', () => {
     });
   });
 
+  it('a 400 carries the server’s validation codes; other failures carry none', async () => {
+    respond(400, { errors: { name: ['name.taken'], spotId: ['spotId.unknown'] } });
+    respond(500, { title: 'boom' });
+
+    const invalid = await kingApi.getStatus().catch((e: unknown) => e);
+    const failed = await kingApi.getStatus().catch((e: unknown) => e);
+
+    expect((invalid as ApiError).codes).toEqual(['name.taken', 'spotId.unknown']);
+    expect((failed as ApiError).codes).toEqual([]);
+  });
+
+  it('a 400 that isn’t a validation answer carries no codes', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('not json', { status: 400 }));
+
+    const error = await kingApi.getStatus().catch((e: unknown) => e);
+
+    expect((error as ApiError).status).toBe(400);
+    expect((error as ApiError).codes).toEqual([]);
+  });
+
   it.each([
     ['getStatus', () => kingApi.getStatus()],
     ['logFeeding', () => kingApi.logFeeding({ reporterKey: 'k', foods: [], sawKing: true })],

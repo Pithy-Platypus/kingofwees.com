@@ -49,7 +49,7 @@
   },
   "admin.cancel": {
     "defaultMessage": "Cancel",
-    "description": "Closes the hide question without hiding"
+    "description": "Closes the rename field without saving"
   },
   "admin.check": {
     "defaultMessage": "Check key",
@@ -70,6 +70,10 @@
   "admin.entriesHeading": {
     "defaultMessage": "Hidden entries",
     "description": "Heading over entries hidden one by one"
+  },
+  "admin.fromHiddenPoster": {
+    "defaultMessage": "from a hidden poster",
+    "description": "Under a place added by a hidden poster: only admins see it"
   },
   "admin.hashPasted": {
     "defaultMessage": "That looks like the key’s hash. Enter the key itself — the shorter line from the key tool.",
@@ -107,13 +111,33 @@
     "defaultMessage": "Loading what’s hidden…",
     "description": "Shown while the hidden lists load"
   },
+  "admin.nameRequired": {
+    "defaultMessage": "Enter a name.",
+    "description": "The new name was empty"
+  },
+  "admin.nameTaken": {
+    "defaultMessage": "Another place already has that name.",
+    "description": "The new name matches another place’s name (ignoring capitals)"
+  },
+  "admin.newName": {
+    "defaultMessage": "New name",
+    "description": "Label of the field for a place’s new name"
+  },
   "admin.noEntries": {
     "defaultMessage": "No hidden entries.",
     "description": "No entry is hidden on its own"
   },
+  "admin.noPlaces": {
+    "defaultMessage": "No places yet.",
+    "description": "Nobody has added a feeding place"
+  },
   "admin.noPosters": {
     "defaultMessage": "No hidden posters.",
     "description": "No poster is hidden"
+  },
+  "admin.placesHeading": {
+    "defaultMessage": "Places",
+    "description": "Heading over the list of feeding places (spots)"
   },
   "admin.poster": {
     "defaultMessage": "{entries, plural, one {# entry} other {# entries}} · {spots, plural, one {# spot} other {# spots}} · hidden {when}",
@@ -123,9 +147,21 @@
     "defaultMessage": "Hidden posters",
     "description": "Heading over hidden posters (devices)"
   },
+  "admin.rename": {
+    "defaultMessage": "Rename",
+    "description": "Opens a field to change a place’s name"
+  },
+  "admin.renamePlace": {
+    "defaultMessage": "Rename {name}",
+    "description": "Accessible name of a Rename button; {name} is the place’s current name"
+  },
   "admin.restore": {
     "defaultMessage": "Restore",
     "description": "Shows everything from a hidden poster again"
+  },
+  "admin.save": {
+    "defaultMessage": "Save",
+    "description": "Saves a place’s new name"
   },
   "admin.showAgain": {
     "defaultMessage": "Show again",
