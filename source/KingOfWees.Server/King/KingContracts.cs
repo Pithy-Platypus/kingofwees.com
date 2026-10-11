@@ -124,10 +124,11 @@ public sealed class HeatQueryValidator : AbstractValidator<HeatQuery>
 internal static class ReporterRules
 {
     public const int MaxNameLength = 40;
+    public const int MaxKeyLength = 64;
 
     public static IRuleBuilderOptions<T, string> ValidReporterKey<T>(this IRuleBuilder<T, string> rule) =>
         rule.NotEmpty().WithErrorCode("reporterKey.required")
-            .MaximumLength(64).WithErrorCode("reporterKey.tooLong");
+            .MaximumLength(MaxKeyLength).WithErrorCode("reporterKey.tooLong");
 
     public static IRuleBuilderOptions<T, string?> ValidReporterName<T>(this IRuleBuilder<T, string?> rule) =>
         rule.MaximumLength(MaxNameLength).WithErrorCode("reporterName.tooLong");

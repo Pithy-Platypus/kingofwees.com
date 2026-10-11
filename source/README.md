@@ -84,7 +84,10 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | GET | `/api/king/map` | `{ center: { latitude, longitude } }` from `King:Map:Center`; 404 when not configured |
 | GET | `/api/king/posting` | `{ allowed }` — false only for an address known to be outside the US, when `King:Posting:CountryDatabase` is set; Home then shows a message instead of the two buttons |
 | POST | `/api/king/spots` | `{ reporterKey, name, location: { latitude, longitude } }` — anyone can add; name ≤ 40, trimmed; location rounded to 3 decimals |
-| DELETE | `/api/king/events/{id}` | `X-Reporter-Key` header; same device, within 10 minutes |
+| DELETE | `/api/king/events/{id}` | `X-Reporter-Key` header; same device, within 10 minutes; takes the entry's photo with it |
+| POST | `/api/king/events/{id}/photo` | Multipart `photo` (JPEG ≤ 1 MB) and `thumbnail` (JPEG ≤ 100 KB); `X-Reporter-Key` header, same device and 10-minute window as DELETE (404 / 409 `undo.expired`). Sightings and feedings where King was seen only (400 `photo.leftOut`); one per entry (409 `photo.exists`). Stored without metadata (EXIF, XMP…). Codes `photo.required`, `photo.tooLarge`, `photo.notJpeg` (same for `thumbnail`); a body over 1.16 MB is a 413. 201 `{ id, postedAt, reporterName, event }` |
+| POST | `/api/king/photos` | A shared photo, on no entry (never a sighting): multipart `reporterKey`, `reporterName?`, `photo`, `thumbnail` as above. 201 with `event: null` |
+| DELETE | `/api/king/photos/{id}` | `X-Reporter-Key` header; one's own photo, within 10 minutes of posting; its files go too |
 | PATCH | `/api/king/events/{id}` | `{ reporterName }` (null = no name) — renames an entry; same device and 10-minute window as DELETE (404 / 409 `undo.expired`) |
 | GET | `/api/admin/check` | 204 with the right `Authorization: Bearer <admin key>`, else 401. Every `/api/admin` route: 404 when no key hash is configured; requests with the right key are never limited; no key or a wrong one: per-IP limit `RateLimiting:AdminPerMinute` (default 10) |
 | POST / DELETE | `/api/admin/events/{id}/hide` | Hide one entry from every public read / show it again. 204; unknown id 404 |

@@ -1,0 +1,77 @@
+using FluentValidation;
+using KingOfWees.Server.King;
+
+namespace KingOfWees.Server.Photos;
+
+// Multipart forms: the browser sends a resized photo and its thumbnail, both JPEG. The device key of a photo on an
+// entry travels in X-Reporter-Key, as for undo; a shared photo carries it in the form, as entries do in their body.
+// Properties, not constructor parameters: form binding treats every constructor parameter as required (a missing one
+// is a 400 with no error codes, before the US check runs), while a missing property binds as null for the validator.
+public sealed record AddPhotoForm
+{
+    public IFormFile? Photo { get; init; }
+    public IFormFile? Thumbnail { get; init; }
+}
+
+public sealed record SharePhotoForm
+{
+    public string? ReporterKey { get; init; }
+    public string? ReporterName { get; init; }
+    public IFormFile? Photo { get; init; }
+    public IFormFile? Thumbnail { get; init; }
+}
+
+// Event is the entry the photo belongs to, or null for a shared photo. Never the device key.
+public sealed record PhotoView(string Id, DateTimeOffset PostedAt, string? ReporterName, EventView? Event);
+
+public static class PhotoFiles
+{
+    public static string Full(string id) => $"{id}.jpg";
+
+    public static string Thumbnail(string id) => $"{id}-thumb.jpg";
+}
+
+public static class PhotoRules
+{
+    public const int MaxPhotoBytes = 1024 * 1024;
+    public const int MaxThumbnailBytes = 100 * 1024;
+
+    // Both files plus room for the form's boundaries, headers and fields.
+    public const int MaxRequestBytes = MaxPhotoBytes + MaxThumbnailBytes + 64 * 1024;
+
+    public static async Task<byte[]> ReadAllAsync(IFormFile file, CancellationToken cancellationToken)
+    {
+        await using var stream = file.OpenReadStream();
+        using var copy = new MemoryStream((int)file.Length);
+        await stream.CopyToAsync(copy, cancellationToken);
+        return copy.ToArray();
+    }
+
+    // Codes "<field>.required", "<field>.tooLarge", "<field>.notJpeg"; the first that fails is the only one reported.
+    public static void ValidJpeg<T>(this IRuleBuilderInitial<T, IFormFile?> rule, string field, int maxBytes) =>
+        rule.Cascade(CascadeMode.Stop)
+            .NotNull().WithErrorCode($"{field}.required")
+            .Must(f => f!.Length <= maxBytes).WithErrorCode($"{field}.tooLarge")
+            .MustAsync(async (f, ct) => JpegMetadata.Strip(await ReadAllAsync(f!, ct)) is not null).WithErrorCode($"{field}.notJpeg");
+}
+
+public sealed class AddPhotoFormValidator : AbstractValidator<AddPhotoForm>
+{
+    public AddPhotoFormValidator()
+    {
+        RuleFor(f => f.Photo).ValidJpeg("photo", PhotoRules.MaxPhotoBytes);
+        RuleFor(f => f.Thumbnail).ValidJpeg("thumbnail", PhotoRules.MaxThumbnailBytes);
+    }
+}
+
+public sealed class SharePhotoFormValidator : AbstractValidator<SharePhotoForm>
+{
+    public SharePhotoFormValidator()
+    {
+        RuleFor(f => f.ReporterKey).NotEmpty().WithErrorCode("reporterKey.required")
+            .MaximumLength(ReporterRules.MaxKeyLength).WithErrorCode("reporterKey.tooLong");
+        RuleFor(f => f.ReporterName).ValidReporterName();
+        RuleFor(f => f.Photo).ValidJpeg("photo", PhotoRules.MaxPhotoBytes);
+        RuleFor(f => f.Thumbnail).ValidJpeg("thumbnail", PhotoRules.MaxThumbnailBytes);
+    }
+}

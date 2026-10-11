@@ -1,6 +1,8 @@
 using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 using KingOfWees.Server.Tests.King;
+using KingOfWees.Server.Tests.Photos;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -26,6 +28,10 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
 
     public InMemoryAdminLogStore AdminLog { get; } = new();
 
+    public InMemoryPhotoStore Photos => field ??= new(Store, Hidden);
+
+    public InMemoryPhotoBlobStore PhotoFiles { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Development loads the developer's user-secrets (e.g. their real map center); tests must not depend on them.
@@ -38,6 +44,8 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
         });
         // The Mongo client is never contacted here; it only needs a well-formed connection string.
         builder.UseSetting("ConnectionStrings:king", "mongodb://localhost:1/king");
+        // Never contacted either: the in-memory photo stores replace it.
+        builder.UseSetting("ConnectionStrings:photos", "UseDevelopmentStorage=true;ContainerName=photos");
         builder.UseSetting("RateLimiting:WritesPerMinute", writesPerMinute.ToString());
         foreach (var (key, value) in settings)
         {
@@ -53,6 +61,10 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
             services.AddSingleton<IHiddenReporterStore>(Hidden);
             services.RemoveAll<IAdminLogStore>();
             services.AddSingleton<IAdminLogStore>(AdminLog);
+            services.RemoveAll<IPhotoStore>();
+            services.AddSingleton<IPhotoStore>(Photos);
+            services.RemoveAll<IPhotoBlobStore>();
+            services.AddSingleton<IPhotoBlobStore>(PhotoFiles);
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
         });

@@ -13,6 +13,7 @@ public sealed class KingMetrics
     private readonly Counter<long> _renames;
     private readonly Counter<long> _merges;
     private readonly Counter<long> _postingRefused;
+    private readonly Counter<long> _photos;
 
     public KingMetrics(IMeterFactory meterFactory)
     {
@@ -24,11 +25,15 @@ public sealed class KingMetrics
         _renames = meter.CreateCounter<long>("king.admin.renames", "{rename}", "Places renamed by an admin");
         _merges = meter.CreateCounter<long>("king.admin.merges", "{merge}", "Places merged by an admin");
         _postingRefused = meter.CreateCounter<long>("king.posting.refused", "{request}", "Writes refused from outside the US");
+        _photos = meter.CreateCounter<long>("king.photos", "{photo}", "Photos posted");
     }
 
     public void FeedingLogged() => _feedings.Add(1);
 
     public void SightingLogged() => _sightings.Add(1);
+
+    /// <param name="kind">"sighting", "feeding" or "shared" — never anything identifying.</param>
+    public void PhotoPosted(string kind) => _photos.Add(1, new KeyValuePair<string, object?>("kind", kind));
 
     /// <param name="target">"entry" or "device" — never anything identifying.</param>
     public void Hidden(string target) => _hides.Add(1, new KeyValuePair<string, object?>("target", target));

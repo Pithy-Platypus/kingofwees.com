@@ -17,6 +17,12 @@ if (builder.Configuration.GetConnectionString("king") is { } kingConnection
         "ConnectionStrings:king must name the database: put /king before the '?' (mongodb+srv://host/king?tls=true…).");
 }
 builder.AddMongoDBClient("king");
+// The Blob client reads its connection string only on first use, so a missing one would show only at the first upload.
+if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("photos")))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:photos is missing: the photo container (Endpoint=https://<account>.blob.core.windows.net;ContainerName=photos).");
+}
 // No health check: /health is the readiness probe, and a photo-storage outage must not take the whole site offline.
 builder.AddAzureBlobContainerClient("photos", settings => settings.DisableHealthChecks = true);
 
@@ -30,6 +36,7 @@ builder.Services.Configure<ExceptionHandlerOptions>(options =>
 builder.Services.AddKing();
 builder.Services.AddAdmin();
 builder.Services.AddSingleton<IPhotoBlobStore, AzurePhotoBlobStore>();
+builder.Services.AddSingleton<IPhotoStore, MongoPhotoStore>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

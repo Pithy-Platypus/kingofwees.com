@@ -2,6 +2,7 @@ using System.Diagnostics.Metrics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using KingOfWees.Server.Tests.Photos;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,9 +24,12 @@ public sealed class PostingCountryTests
     private static KingApiFactory WithCountryDatabase(string path = "") =>
         new(settings: [("King:Proxy:TrustForwardedFor", "true"), ("King:Posting:CountryDatabase", path == "" ? TestDatabase : path)]);
 
-    private static HttpRequestMessage Request(HttpMethod method, string path, string address, object? body = null)
+    private static HttpRequestMessage Request(HttpMethod method, string path, string address, object? body = null) =>
+        Request(method, path, address, body is null ? null : JsonContent.Create(body));
+
+    private static HttpRequestMessage Request(HttpMethod method, string path, string address, HttpContent? content)
     {
-        var request = new HttpRequestMessage(method, path) { Content = body is null ? null : JsonContent.Create(body) };
+        var request = new HttpRequestMessage(method, path) { Content = content };
         request.Headers.Add("X-Forwarded-For", address);
         request.Headers.Add("X-Reporter-Key", "k");
         return request;
@@ -39,7 +43,21 @@ public sealed class PostingCountryTests
         Request(HttpMethod.Post, "/api/king/spots", address, new { reporterKey = "k", name = "Porch", location = new { latitude = 45.523, longitude = -122.677 } }),
         Request(HttpMethod.Delete, "/api/king/events/some-id", address),
         Request(HttpMethod.Patch, "/api/king/events/some-id", address, new { reporterName = "Kit" }),
+        Request(HttpMethod.Post, "/api/king/events/some-id/photo", address, PhotoForm()),
+        Request(HttpMethod.Post, "/api/king/photos", address, PhotoForm(("reporterKey", "k"))),
+        Request(HttpMethod.Delete, "/api/king/photos/some-id", address),
     ];
+
+    private static MultipartFormDataContent PhotoForm(params (string Name, string Value)[] fields)
+    {
+        var form = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(TestJpeg.Make()), "photo", "photo.jpg" },
+            { new ByteArrayContent(TestJpeg.Make()), "thumbnail", "thumbnail.jpg" },
+        };
+        foreach (var (name, value) in fields) form.Add(new StringContent(value), name);
+        return form;
+    }
 
     private static async Task<bool> Allowed(HttpClient client, string address)
     {
@@ -65,6 +83,7 @@ public sealed class PostingCountryTests
         var status = await client.GetFromJsonAsync<JsonElement>("/api/king/status", Ct);
         Assert.Empty(status.GetProperty("recent").EnumerateArray());
         Assert.Empty((await client.GetFromJsonAsync<JsonElement>("/api/king/spots", Ct)).EnumerateArray());
+        Assert.Empty(await factory.Photos.GetPageAsync(null, 50, Ct));
     }
 
     [Theory]

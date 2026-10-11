@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using KingOfWees.Server.Photos;
 using KingOfWees.Server.Validation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -31,6 +32,7 @@ public static class KingEndpoints
         writes.MapPost("/spots", AddSpot);
         writes.MapDelete("/events/{id}", Undo);
         writes.MapPatch("/events/{id}", Rename);
+        writes.MapPhotoWrites();
 
         return routes;
     }
@@ -143,10 +145,18 @@ public static class KingEndpoints
         return TypedResults.Created($"/api/king/events/{kingEvent.Id}", EventView.From(kingEvent, spot));
     }
 
+    // An undone entry takes its photo with it.
     private static Task<Results<NoContent, NotFound, ProblemHttpResult>> Undo(
         string id, [FromHeader(Name = ReporterKeyHeader)] string reporterKey,
-        IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken) =>
-        ChangeOwnRecent(id, reporterKey, store, clock, () => store.DeleteAsync(id, cancellationToken), cancellationToken);
+        IKingEventStore store, IPhotoStore photos, IPhotoBlobStore photoFiles, TimeProvider clock, CancellationToken cancellationToken) =>
+        ChangeOwnRecent(id, reporterKey, store, clock, async () =>
+        {
+            await store.DeleteAsync(id, cancellationToken);
+            if (await photos.FindByEventAsync(id, cancellationToken) is { } photo)
+            {
+                await PhotoEndpoints.DeleteWithFilesAsync(photo, photos, photoFiles, cancellationToken);
+            }
+        }, cancellationToken);
 
     private static Task<Results<NoContent, NotFound, ProblemHttpResult>> Rename(
         string id, RenameEventRequest request, [FromHeader(Name = ReporterKeyHeader)] string reporterKey,
@@ -154,24 +164,30 @@ public static class KingEndpoints
         ChangeOwnRecent(
             id, reporterKey, store, clock, () => store.RenameAsync(id, request.ReporterName, cancellationToken), cancellationToken);
 
-    // Only the device that logged an entry may change it, and only within the undo window.
-    // Wrong device and unknown id both answer 404, so a guessed id reveals nothing.
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> ChangeOwnRecent(
         string id, string reporterKey, IKingEventStore store, TimeProvider clock, Func<Task> change,
         CancellationToken cancellationToken)
     {
         var kingEvent = await store.FindAsync(id, cancellationToken);
-        if (kingEvent is null || kingEvent.ReporterKey != reporterKey)
+        switch (CheckOwnRecent(kingEvent?.ReporterKey, kingEvent?.OccurredAt, reporterKey, clock))
         {
-            return TypedResults.NotFound();
-        }
-
-        if (clock.GetUtcNow() - kingEvent.OccurredAt > UndoWindow)
-        {
-            return TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, type: "undo.expired");
+            case OwnRecent.NotFound: return TypedResults.NotFound();
+            case OwnRecent.Expired: return UndoExpired();
         }
 
         await change();
         return TypedResults.NoContent();
     }
+
+    internal enum OwnRecent { Yes, NotFound, Expired }
+
+    // Only the device that posted something may change it, and only within the undo window.
+    // Wrong device and unknown id are both NotFound (a 404), so a guessed id reveals nothing.
+    internal static OwnRecent CheckOwnRecent(string? ownerKey, DateTimeOffset? postedAt, string reporterKey, TimeProvider clock) =>
+        ownerKey is null || ownerKey != reporterKey ? OwnRecent.NotFound
+        : clock.GetUtcNow() - postedAt > UndoWindow ? OwnRecent.Expired
+        : OwnRecent.Yes;
+
+    internal static ProblemHttpResult UndoExpired() =>
+        TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, type: "undo.expired");
 }
