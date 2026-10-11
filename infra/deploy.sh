@@ -37,11 +37,13 @@ fi
 echo "== Rolling $APP onto $TAG"
 az containerapp update -g "$GROUP" -n "$APP" --image "$IMAGE" -o none
 REVISION=$(az containerapp show -g "$GROUP" -n "$APP" --query properties.latestRevisionName -o tsv)
+# latestReadyRevisionName names a revision whose readiness probe still fails; only the container's ready flag reflects it.
+ready() { [[ "$(az containerapp replica list -g "$GROUP" -n "$APP" --revision "$REVISION" \
+  --query "length([].properties.containers[?ready==\`true\`][]) > \`0\` && length([].properties.containers[?ready!=\`true\`][]) == \`0\`" -o tsv)" == "true" ]]; }
 for _ in $(seq 60); do # up to 5 minutes for the readiness probe (/health, database included)
-  [[ "$(az containerapp show -g "$GROUP" -n "$APP" --query properties.latestReadyRevisionName -o tsv)" == "$REVISION" ]] && break
+  ready && break
   sleep 5
 done
-[[ "$(az containerapp show -g "$GROUP" -n "$APP" --query properties.latestReadyRevisionName -o tsv)" == "$REVISION" ]] \
-  || { echo "$REVISION never became ready; the previous revision keeps serving if it was healthy." >&2; exit 1; }
+ready || { echo "$REVISION never became ready (/health failing?); the previous revision keeps serving if it was healthy." >&2; exit 1; }
 
 "$ROOT/infra/smoke.sh" "https://$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv)"

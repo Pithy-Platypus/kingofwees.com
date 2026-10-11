@@ -32,10 +32,36 @@ ADMIN_KEY_HASH=$([[ -r "$SECRETS/admin-key.hash" ]] && tr -d '[:space:]' <"$SECR
 MAP_CENTER=$([[ -r "$SECRETS/map-center" ]] && tr -d '[:space:]' <"$SECRETS/map-center" || true)
 export KING_CONN ADMIN_KEY_HASH MAP_CENTER
 
+EXISTING_IMAGE=$(az containerapp show -g "$GROUP" -n "$APP" --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)
+IMAGE=${1:-${EXISTING_IMAGE:-$REPOSITORY:$(git -C "$(dirname "$0")" rev-parse --short=12 HEAD)}}
+# Container Apps pulls without credentials, so the package must be public before the app can start.
+# Checked before anything is created; GHCR refuses even the anonymous token while the package is private.
+anonymous_pull() {
+  local token
+  token=$(curl -fsS "https://ghcr.io/token?scope=repository:${REPOSITORY#ghcr.io/}:pull") || return 1
+  token=$(python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])' <<<"$token") || return 1
+  curl -fsS -o /dev/null -H "Authorization: Bearer $token" \
+    -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+    "https://ghcr.io/v2/${REPOSITORY#ghcr.io/}/manifests/${IMAGE##*:}"
+}
+anonymous_pull 2>/dev/null \
+  || { echo "$IMAGE can't be pulled anonymously: push it with infra/deploy.sh and make the package public first." >&2; exit 1; }
+
 echo "== Container Apps environment $ENVIRONMENT (no Log Analytics workspace)"
 if ! az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" -o none 2>/dev/null; then
   az containerapp env create -g "$GROUP" -n "$ENVIRONMENT" -l "$LOCATION" --logs-destination none -o none
 fi
+# The containerapp extension can return before the environment is provisioned; the app can't be created until it is.
+for _ in $(seq 90); do # up to 15 minutes
+  STATE=$(az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" --query properties.provisioningState -o tsv)
+  [[ "$STATE" == "Succeeded" || "$STATE" == "Failed" ]] && break
+  sleep 10
+done
+[[ "$STATE" == "Succeeded" ]] || {
+  echo "Environment $ENVIRONMENT is $STATE: $(az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" --query properties.deploymentErrors -o tsv)" >&2
+  echo "A failed environment isn't retried: delete it (az containerapp env delete -g $GROUP -n $ENVIRONMENT --yes) and rerun." >&2
+  exit 1
+}
 ENVIRONMENT_ID=$(az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" --query id -o tsv)
 
 echo "== Storage account $STORAGE for backups (private, blobs deleted after 30 days)"
@@ -63,15 +89,13 @@ if ! az rest --method get --url "$BUDGET_URL" -o none 2>/dev/null; then
       "forecast100": { "enabled": true, "operator": "GreaterThan", "threshold": 100, "thresholdType": "Forecasted", "contactEmails": ["'"$EMAIL"'"] } } } }'
 fi
 
+echo "== DocumentDB firewall: allow Azure services (the app's outbound addresses are a shared pool of hundreds)"
+CLUSTER_ID=$(az resource list -g "$GROUP" --resource-type Microsoft.DocumentDB/mongoClusters --query "[0].id" -o tsv)
+az rest --method put -o none \
+  --url "https://management.azure.com$CLUSTER_ID/firewallRules/AllowAllAzureServicesAndResourcesWithinAzureIps?api-version=2024-07-01" \
+  --body '{ "properties": { "startIpAddress": "0.0.0.0", "endIpAddress": "0.0.0.0" } }'
+
 echo "== Container app $APP"
-EXISTING_IMAGE=$(az containerapp show -g "$GROUP" -n "$APP" --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)
-IMAGE=${1:-${EXISTING_IMAGE:-$REPOSITORY:$(git -C "$(dirname "$0")" rev-parse --short=12 HEAD)}}
-# Container Apps pulls without credentials, so the package must be public before the app can start.
-PULL_TOKEN=$(curl -fsS "https://ghcr.io/token?scope=repository:${REPOSITORY#ghcr.io/}:pull" | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])')
-curl -fsS -o /dev/null -H "Authorization: Bearer $PULL_TOKEN" \
-  -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
-  "https://ghcr.io/v2/${REPOSITORY#ghcr.io/}/manifests/${IMAGE##*:}" \
-  || { echo "$IMAGE can't be pulled anonymously: push it with infra/deploy.sh and make the package public first." >&2; exit 1; }
 
 # Secrets go to az in a file only this user can read, removed on exit — never on a command line.
 WORK=$(mktemp -d); chmod 700 "$WORK"; trap 'rm -rf "$WORK"' EXIT
