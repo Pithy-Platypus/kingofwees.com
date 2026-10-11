@@ -69,7 +69,7 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | `tools/` | Command-line helpers (`new-admin-key.cs`: a new admin key and its hash) — see `tools/README.md` |
 | `frontend/` | React + Vite + TypeScript, Tailwind v4 + daisyUI 5 custom `king` theme |
 | `tests/KingOfWees.Server.Tests/` | Store contract tests for events, spots, hidden devices and the audit log (Mongo and in-memory doubles; the log's expiry index on Mongo only), API tests (`WebApplicationFactory`), validator and `GeoPoint` unit tests |
-| `tests/KingOfWees.E2E/` | Playwright + axe (WCAG 2.2 AA) against the full AppHost. `AppFixture` sets a test map center, a test admin key's hash and high rate limits; `KingFlowTests` (admin flows in `KingFlowTests.Admin.cs`) is one class so its flows share the database one at a time |
+| `tests/KingOfWees.E2E/` | Playwright + axe (WCAG 2.2 AA) against the full AppHost. `AppFixture` sets a test map center, a test admin key's hash, high rate limits and MaxMind's test country database (with forwarded addresses trusted, so a page can pose as a GB visitor); `KingFlowTests` (admin flows in `KingFlowTests.Admin.cs`) is one class so its flows share the database one at a time |
 
 ## API
 
@@ -82,6 +82,7 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | POST | `/api/king/sightings` | `{ reporterKey, reporterName?, location?: { latitude, longitude } }` — location rounded to 3 decimals; a half-given location is a 400 |
 | GET | `/api/king/spots` | Feeding spots `{ id, name, location }`, oldest first (the client sorts by name) |
 | GET | `/api/king/map` | `{ center: { latitude, longitude } }` from `King:Map:Center`; 404 when not configured |
+| GET | `/api/king/posting` | `{ allowed }` — false only for an address known to be outside the US, when `King:Posting:CountryDatabase` is set; Home then shows a message instead of the two buttons |
 | POST | `/api/king/spots` | `{ reporterKey, name, location: { latitude, longitude } }` — anyone can add; name ≤ 40, trimmed; location rounded to 3 decimals |
 | DELETE | `/api/king/events/{id}` | `X-Reporter-Key` header; same device, within 10 minutes |
 | PATCH | `/api/king/events/{id}` | `{ reporterName }` (null = no name) — renames an entry; same device and 10-minute window as DELETE (404 / 409 `undo.expired`) |
@@ -103,7 +104,7 @@ Any other path serves the SPA (`index.html`) so links like `/about` work; unknow
 
 Entries an admin has hidden, and everything from a device an admin has hidden (including its later posts and its spots), are left out of every public read: status, history, heat and spots. A feeding at a hidden device's spot stays, without a place.
 
-Writes go through the `CanPost` policy (open today; the switch for invite-only posting) and a per-IP rate limit (`RateLimiting:WritesPerMinute`, default 20). Behind Container Apps' ingress, set `King:Proxy:TrustForwardedFor=true` so the limits see each visitor's address (the rightmost `X-Forwarded-For` entry) instead of the proxy's; leave it off anywhere the server is reachable directly. Validation errors return codes such as `reporterName.tooLong`, which the frontend translates.
+Writes go through the `CanPost` policy (open today; the switch for invite-only posting) and a per-IP rate limit (`RateLimiting:WritesPerMinute`, default 20). With `King:Posting:CountryDatabase` set to an MMDB country file (the image ships DB-IP Country Lite), every write from an address known to be outside the US is a 403 with code `posting.outsideUs`; unknown addresses are allowed; a path that can't be read stops the server starting. Unset (local dev, tests): no check. Behind Container Apps' ingress, set `King:Proxy:TrustForwardedFor=true` so the limits see each visitor's address (the rightmost `X-Forwarded-For` entry) instead of the proxy's; leave it off anywhere the server is reachable directly. Validation errors return codes such as `reporterName.tooLong`, which the frontend translates.
 
 ## Frontend layout
 

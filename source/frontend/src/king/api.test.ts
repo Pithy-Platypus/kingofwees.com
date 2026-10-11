@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, kingApi } from './api';
+import { ApiError, isPostingRefused, kingApi } from './api';
 
 const fetchMock = vi.fn();
 
@@ -104,6 +104,19 @@ describe('kingApi', () => {
     await expect(kingApi.getMap()).resolves.toEqual({ latitude: 45.523, longitude: -122.677 });
     await expect(kingApi.getMap()).resolves.toBeNull();
     expect(fetchMock).toHaveBeenCalledWith('/api/king/map', undefined);
+  });
+
+  it('asks whether this visitor may post', async () => {
+    respond(200, { allowed: false });
+
+    await expect(kingApi.getPosting()).resolves.toBe(false);
+    expect(fetchMock).toHaveBeenCalledWith('/api/king/posting', undefined);
+  });
+
+  it('tells a refusal to post (403) from other failures', () => {
+    expect(isPostingRefused(new ApiError(403))).toBe(true);
+    expect(isPostingRefused(new ApiError(401))).toBe(false);
+    expect(isPostingRefused(new Error('offline'))).toBe(false);
   });
 
   it('undoes with the reporter key header and an encoded id', async () => {

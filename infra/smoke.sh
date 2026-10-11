@@ -20,4 +20,5 @@ expect() { # expect <status> <path> [body]
 expect 200 /health Healthy        # the database is reachable (the SPA would answer 200 with HTML)
 expect 200 /api/king/status
 expect 401 /api/admin/check       # 404 here means no admin key hash is set
+expect 200 /api/king/posting '{"allowed":true}'  # run from the US: this Mac must still be allowed to post
 exit $FAILED

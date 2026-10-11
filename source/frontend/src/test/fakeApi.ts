@@ -24,12 +24,16 @@ export const CENTER: GeoPoint = { latitude: 45.523, longitude: -122.677 };
 
 export const spot = (id: string, name: string): SpotView => ({ id, name, location: CENTER });
 
-type World = { map?: GeoPoint | null; spots?: SpotView[]; heat?: HeatCell[]; history?: HistoryPage };
+type World = { map?: GeoPoint | null; spots?: SpotView[]; heat?: HeatCell[]; history?: HistoryPage; posting?: boolean };
 
-// By default the site has no map and no spots, as on a fresh install.
-export function fakeApi(status: KingStatus = emptyStatus, { map = null, spots = [], heat = [], history = { events: [], next: null } }: World = {}) {
+// By default the site has no map and no spots, as on a fresh install, and this visitor may post.
+export function fakeApi(
+  status: KingStatus = emptyStatus,
+  { map = null, spots = [], heat = [], history = { events: [], next: null }, posting = true }: World = {},
+) {
   return {
     getMap: vi.fn<typeof kingApi.getMap>().mockResolvedValue(map),
+    getPosting: vi.fn<typeof kingApi.getPosting>().mockResolvedValue(posting),
     listSpots: vi.fn<typeof kingApi.listSpots>().mockResolvedValue(spots),
     addSpot: vi.fn<typeof kingApi.addSpot>().mockImplementation(async (s) => ({ id: 'new-spot', name: s.name, location: s.location })),
     getStatus: vi.fn<typeof kingApi.getStatus>().mockResolvedValue(status),

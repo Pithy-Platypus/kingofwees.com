@@ -12,6 +12,7 @@ public sealed class KingMetrics
     private readonly Counter<long> _restores;
     private readonly Counter<long> _renames;
     private readonly Counter<long> _merges;
+    private readonly Counter<long> _postingRefused;
 
     public KingMetrics(IMeterFactory meterFactory)
     {
@@ -22,6 +23,7 @@ public sealed class KingMetrics
         _restores = meter.CreateCounter<long>("king.admin.restores", "{restore}", "Entries or devices shown again by an admin");
         _renames = meter.CreateCounter<long>("king.admin.renames", "{rename}", "Places renamed by an admin");
         _merges = meter.CreateCounter<long>("king.admin.merges", "{merge}", "Places merged by an admin");
+        _postingRefused = meter.CreateCounter<long>("king.posting.refused", "{request}", "Writes refused from outside the US");
     }
 
     public void FeedingLogged() => _feedings.Add(1);
@@ -39,4 +41,7 @@ public sealed class KingMetrics
 
     /// <param name="target">"spot" — never anything identifying.</param>
     public void Merged(string target) => _merges.Add(1, new KeyValuePair<string, object?>("target", target));
+
+    /// <summary>No tags: never the country or the address.</summary>
+    public void PostingRefused() => _postingRefused.Add(1);
 }

@@ -12,6 +12,11 @@ const m = defineMessages({
   history: { id: 'footer.history', defaultMessage: 'History', description: 'Footer link to King’s history page (heat map and every entry)' },
   about: { id: 'footer.about', defaultMessage: 'About', description: 'Footer link to the About page' },
   privacy: { id: 'footer.privacy', defaultMessage: 'Privacy', description: 'Footer link to the Privacy page' },
+  dbIp: {
+    id: 'footer.dbIp',
+    defaultMessage: 'IP Geolocation by DB-IP',
+    description: 'Credit DB-IP’s licence asks for: their free country data checks posts come from the US. Keep “DB-IP” as is',
+  },
 });
 
 export function Footer() {
@@ -42,6 +47,11 @@ export function Footer() {
           </li>
         </ul>
       </nav>
+      <p className="footer-credit">
+        <a href="https://db-ip.com" className="text-link">
+          <FormattedMessage {...m.dbIp} />
+        </a>
+      </p>
     </footer>
   );
 }

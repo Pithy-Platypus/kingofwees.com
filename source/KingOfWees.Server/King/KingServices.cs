@@ -25,6 +25,12 @@ public static class KingServices
         services.AddSingleton<IHiddenReporterStore, MongoHiddenReporterStore>();
         services.AddSingleton<KingMetrics>();
         services.AddOptions<MapOptions>().BindConfiguration(MapOptions.Section);
+        services.AddOptions<PostingOptions>()
+            .BindConfiguration(PostingOptions.Section)
+            .Validate(options => options.IsValid,
+                $"{PostingOptions.Section}:{nameof(PostingOptions.CountryDatabase)} names a file that can't be read as an MMDB country database.")
+            .ValidateOnStart();
+        services.AddSingleton<PostingCountry>();
         services.ConfigureOpenTelemetryMeterProvider(metrics => metrics.AddMeter(KingMetrics.MeterName));
 
         services.ConfigureHttpJsonOptions(options =>

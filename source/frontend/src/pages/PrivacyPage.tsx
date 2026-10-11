@@ -75,8 +75,8 @@ const m = defineMessages<Values>({
   notIp: {
     id: 'privacy.not.ip',
     defaultMessage:
-      'Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and isn’t stored — except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year. We remove it from our technical logs.',
-    description: 'IP addresses: used briefly for rate limiting, stripped from telemetry; kept a year only in the admin activity log',
+      'Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and to check that posts come from the United States, and isn’t stored — except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year. We remove it from our technical logs.',
+    description: 'IP addresses: used briefly for rate limiting and the US-only posting check, stripped from telemetry; kept a year only in the admin activity log',
   },
   parents: {
     id: 'privacy.parents',

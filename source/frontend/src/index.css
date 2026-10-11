@@ -98,6 +98,15 @@
     @apply flex gap-6;
   }
 
+  .footer-credit {
+    @apply text-sm;
+  }
+
+  /* Takes the buttons' place for a visitor outside the US: as prominent, never alarming. */
+  .posting-closed {
+    @apply rounded-box bg-white px-4 py-3 text-base leading-7;
+  }
+
   .footer-link {
     @apply inline-flex min-h-12 items-center font-bold text-base-content underline underline-offset-4;
   }

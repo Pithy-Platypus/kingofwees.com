@@ -34,6 +34,9 @@ public sealed record HistoryQuery(string? Before, int? Limit)
     public const int MaxLimit = 100;
 }
 
+// Whether this visitor may post: false only for a known address outside the US (when the check is on).
+public sealed record PostingView(bool Allowed);
+
 public sealed record HistoryPage(IReadOnlyList<EventView> Events, string? Next);
 
 // Layer is "seen" or "fed"; Days is 7 or 30, or omitted for all time.

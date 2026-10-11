@@ -95,6 +95,7 @@ describe('PrivacyPage', () => {
 
     const promise = screen.getByText(/to stop spam/);
     expect(promise).toHaveTextContent(/isn’t stored/);
+    expect(promise).toHaveTextContent('and to check that posts come from the United States');
     expect(promise).toHaveTextContent(
       'except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year.',
     );

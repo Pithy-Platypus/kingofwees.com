@@ -25,6 +25,7 @@ type Values = {
   notSeen: NoMessageValues;
   iSaw: NoMessageValues;
   iFed: NoMessageValues;
+  postingClosed: NoMessageValues;
   lately: NoMessageValues;
   seeHistory: NoMessageValues;
   nothingYet: NoMessageValues;
@@ -56,6 +57,12 @@ const m = defineMessages<Values>({
   notSeen: { id: 'home.notSeen', defaultMessage: 'Not seen yet', description: 'Chip when no sighting has been logged' },
   iSaw: { id: 'home.iSawKing', defaultMessage: 'I saw King', description: 'Big button to log a sighting' },
   iFed: { id: 'home.iFedKing', defaultMessage: 'I fed King', description: 'Big button to log a feeding' },
+  postingClosed: {
+    id: 'home.postingClosed',
+    defaultMessage:
+      'King of Wees is a neighborhood site, so feedings and sightings can only be logged from the United States. You can still see when King was last fed and seen.',
+    description: 'Shown instead of the I saw / I fed buttons to a visitor whose internet address is outside the US',
+  },
   lately: { id: 'home.lately', defaultMessage: 'Lately', description: 'Heading over the recent activity list' },
   seeHistory: {
     id: 'home.seeHistory',
@@ -77,6 +84,8 @@ type Props = {
   mapCenter?: GeoPoint | null;
   now: Date;
   busy?: boolean;
+  /** False for a visitor outside the US: the buttons give way to a message. */
+  postingAllowed?: boolean;
   onFed: () => void;
   onSeen: () => void;
 };
@@ -92,7 +101,7 @@ function placedFor({ lastFed, lastSeen }: KingStatus): Placed[] {
   return placed;
 }
 
-export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = false, onFed, onSeen }: Props) {
+export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = false, postingAllowed = true, onFed, onSeen }: Props) {
   const intl = useIntl();
   const hungry = kingMood(status.lastFed && new Date(status.lastFed.occurredAt), now) === 'hungry';
   const when = (e: KingEventView) => formatWhen(intl, new Date(e.occurredAt), now);
@@ -158,16 +167,22 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
         </div>
       </section>
 
-      <div className="big-actions">
-        <button type="button" className="big-action btn-primary" disabled={busy} onClick={onSeen}>
-          <EyeIcon />
-          <FormattedMessage {...m.iSaw} />
-        </button>
-        <button type="button" className="big-action btn-secondary" disabled={busy} onClick={onFed}>
-          <BowlIcon />
-          <FormattedMessage {...m.iFed} />
-        </button>
-      </div>
+      {postingAllowed ? (
+        <div className="big-actions">
+          <button type="button" className="big-action btn-primary" disabled={busy} onClick={onSeen}>
+            <EyeIcon />
+            <FormattedMessage {...m.iSaw} />
+          </button>
+          <button type="button" className="big-action btn-secondary" disabled={busy} onClick={onFed}>
+            <BowlIcon />
+            <FormattedMessage {...m.iFed} />
+          </button>
+        </div>
+      ) : (
+        <p className="posting-closed">
+          <FormattedMessage {...m.postingClosed} />
+        </p>
+      )}
 
       {mapCenter && markers.length > 0 && (
         <div className="home-map-section">

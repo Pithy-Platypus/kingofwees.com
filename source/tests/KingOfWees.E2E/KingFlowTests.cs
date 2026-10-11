@@ -490,6 +490,21 @@ public sealed partial class KingFlowTests(AppFixture app)
         return await page.GetByText("Seen by a neighbor").CountAsync();
     }
 
+    [Fact]
+    public async Task A_visitor_outside_the_US_sees_why_they_can_t_post_and_the_page_meets_WCAG_2_2_AA()
+    {
+        var page = await app.NewPageAsync();
+        await page.SetExtraHTTPHeadersAsync(new Dictionary<string, string> { ["X-Forwarded-For"] = "81.2.69.160" }); // GB in the test database
+
+        await page.GotoAsync("/");
+
+        await Assertions.Expect(page.GetByText("feedings and sightings can only be logged from the United States")).ToBeVisibleAsync();
+        await Assertions.Expect(Button(page, "I fed King")).ToHaveCountAsync(0);
+        await Assertions.Expect(Button(page, "I saw King")).ToHaveCountAsync(0);
+        await Assertions.Expect(page.GetByRole(AriaRole.Link, new() { Name = "IP Geolocation by DB-IP" })).ToBeVisibleAsync();
+        await AssertNoAxeViolations(page);
+    }
+
     private static async Task TabUntilFocused(IPage page, string buttonName, int maxTabs = 20)
     {
         for (var i = 0; i < maxTabs; i++)

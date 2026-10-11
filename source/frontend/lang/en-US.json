@@ -387,6 +387,10 @@
     "defaultMessage": "Brought to you by King’s neighbors on Guy St.",
     "description": "Footer credit; Guy St. is the street name and stays as is"
   },
+  "footer.dbIp": {
+    "defaultMessage": "IP Geolocation by DB-IP",
+    "description": "Credit DB-IP’s licence asks for: their free country data checks posts come from the US. Keep “DB-IP” as is"
+  },
   "footer.history": {
     "defaultMessage": "History",
     "description": "Footer link to King’s history page (heat map and every entry)"
@@ -559,6 +563,10 @@
     "defaultMessage": "King, a fluffy grey long-haired cat",
     "description": "Alt text for King’s photo"
   },
+  "home.postingClosed": {
+    "defaultMessage": "King of Wees is a neighborhood site, so feedings and sightings can only be logged from the United States. You can still see when King was last fed and seen.",
+    "description": "Shown instead of the I saw / I fed buttons to a visitor whose internet address is outside the US"
+  },
   "home.seeHistory": {
     "defaultMessage": "See King’s history",
     "description": "Link under the recent activity list to the history page (heat map and every entry)"
@@ -716,8 +724,8 @@
     "description": "Fonts are self-hosted"
   },
   "privacy.not.ip": {
-    "defaultMessage": "Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and isn’t stored — except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year. We remove it from our technical logs.",
-    "description": "IP addresses: used briefly for rate limiting, stripped from telemetry; kept a year only in the admin activity log"
+    "defaultMessage": "Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and to check that posts come from the United States, and isn’t stored — except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year. We remove it from our technical logs.",
+    "description": "IP addresses: used briefly for rate limiting and the US-only posting check, stripped from telemetry; kept a year only in the admin activity log"
   },
   "privacy.not.maps": {
     "defaultMessage": "Maps are the exception: the map pictures load from OpenStreetMap, which sees your internet address and which part of the map you’re looking at. See <policy>OpenStreetMap’s privacy policy</policy>.",

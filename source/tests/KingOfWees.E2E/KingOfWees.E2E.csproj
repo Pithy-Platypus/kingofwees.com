@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\KingOfWees.Server.Tests\TestData\GeoIP2-Country-Test.mmdb" Link="TestData\GeoIP2-Country-Test.mmdb" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

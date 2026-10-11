@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactEl
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { Footer } from './Footer';
 import { adminApi as liveAdminApi, loadAdminSignIn, saveAdminSignIn, type AdminApi, type AdminSession, type AdminSignIn } from './king/admin';
-import { kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
+import { isPostingRefused, kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
 import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
 import { LoggedScreen } from './king/LoggedScreen';
@@ -73,6 +73,7 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   const [spots, setSpots] = useState<SpotView[]>([]);
   const [spotId, setSpotId] = useState(() => loadLastSpotId(storage));
   const [feedDraft, setFeedDraft] = useState<FeedDraft>(noFeedDraft);
+  const [postingAllowed, setPostingAllowed] = useState(true);
   const [adminSignIn, setAdminSignIn] = useState(() => loadAdminSignIn(storage));
   const [, setTick] = useState(0);
   const route = useRoute();
@@ -99,6 +100,8 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   useEffect(() => {
     api.getMap().then(setMapCenter, () => setMapCenter(null));
     api.listSpots().then(setSpots, () => setSpots([]));
+    // If the check fails, the buttons stay: the server still refuses a post from outside the US.
+    api.getPosting().then(setPostingAllowed, () => setPostingAllowed(true));
   }, [api]);
 
   // Re-render so "5 minutes ago" keeps moving while the page is open.
@@ -124,6 +127,10 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
     setBusy(true);
     try {
       await action();
+    } catch (error) {
+      if (!isPostingRefused(error)) throw error;
+      setPostingAllowed(false);
+      setScreen({ name: 'home' });
     } finally {
       setBusy(false);
     }
@@ -304,6 +311,7 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
         mapCenter={mapCenter}
         now={now()}
         busy={busy}
+        postingAllowed={postingAllowed}
         onFed={startFeeding}
         onSeen={startSighting}
       />

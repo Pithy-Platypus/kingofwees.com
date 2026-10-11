@@ -14,8 +14,8 @@ Option B (every container on Container Apps, billed per second) was ruled out: a
 | Script | Does |
 |---|---|
 | `azure/provision.sh [image]` | Into resource group `kingofwees.com` (subscription "Playground", East US): Container Apps environment `kingofwees-env` (no Log Analytics workspace), container app `kingofwees` (one replica, 0.25 vCPU / 0.5 GiB, external HTTPS ingress, probes, settings as secrets), storage account `kingofweesbackups` with a private `backups` container (blobs deleted after 30 days, no shared keys), budget `kingofwees-monthly` ($25; email to the signed-in account at 80% actual and 100% forecast), and the DocumentDB firewall rule "Allow Azure services" — the app's outbound addresses are a shared pool of hundreds, so they can't be listed one by one; connections still need the cluster's credentials over TLS. Safe to rerun: re-applies the app's settings and restarts it. Refuses an image GHCR won't serve anonymously. |
-| `deploy.sh` | Refuses a dirty tree; builds the image tagged with the commit; pushes it to GHCR; rolls the app onto it, waits until the new revision is ready, then runs `smoke.sh`. |
-| `smoke.sh https://host` | `/health` answers `Healthy`, `/api/king/status` 200, `/api/admin/check` 401 without a key — over HTTPS with a valid certificate. |
+| `deploy.sh` | Refuses a dirty tree; builds the image tagged with the commit — the SPA plus this month's DB-IP Country Lite file (US-only posting; `King__Posting__CountryDatabase` set in the image, so no Azure setting) downloaded at each deploy; pushes it to GHCR; rolls the app onto it, waits until the new revision is ready, then runs `smoke.sh`. |
+| `smoke.sh https://host` | `/health` answers `Healthy`, `/api/king/status` 200, `/api/admin/check` 401 without a key, `/api/king/posting` allows this machine (run it from the US) — over HTTPS with a valid certificate. |
 
 Settings come from files in `~/.kingofwees/` (outside the repo, `chmod 600`), read by `provision.sh`, never printed: `documentdb.conn` (required, with `/king`), `admin-key.hash` (optional), `map-center` as `latitude,longitude` (optional). Change one, rerun `provision.sh`.
 

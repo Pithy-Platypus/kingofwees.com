@@ -54,7 +54,11 @@ public sealed class AppFixture : IAsyncLifetime
             // Every flow posts from one address, faster than any neighbor would; the limit itself is covered by RateLimitTests.
             .WithEnvironment("RateLimiting__WritesPerMinute", "1000")
             .WithEnvironment("King__Admin__KeyHash", Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(AdminKey))))
-            .WithEnvironment("RateLimiting__AdminPerMinute", "1000");
+            .WithEnvironment("RateLimiting__AdminPerMinute", "1000")
+            // MaxMind's test database: the browser's own loopback address isn't in it, so every flow may post; a page
+            // that sends a GB X-Forwarded-For sees posting closed.
+            .WithEnvironment("King__Posting__CountryDatabase", Path.Combine(AppContext.BaseDirectory, "TestData", "GeoIP2-Country-Test.mmdb"))
+            .WithEnvironment("King__Proxy__TrustForwardedFor", "true");
         _app = await builder.BuildAsync(cts.Token);
         await _app.StartAsync(cts.Token);
         await _app.ResourceNotifications.WaitForResourceHealthyAsync("server", cts.Token);

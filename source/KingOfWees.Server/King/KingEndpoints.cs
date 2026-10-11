@@ -19,10 +19,13 @@ public static class KingEndpoints
         king.MapGet("/heat", GetHeat);
         king.MapGet("/spots", ListSpots);
         king.MapGet("/map", GetMap);
+        king.MapGet("/posting", (PostingCountry posting, HttpContext context) =>
+            TypedResults.Ok(new PostingView(posting.Allows(context.Connection.RemoteIpAddress))));
 
         var writes = king.MapGroup("")
             .RequireAuthorization(KingPolicies.CanPost)
-            .RequireRateLimiting(KingPolicies.Writes);
+            .RequireRateLimiting(KingPolicies.Writes)
+            .AddEndpointFilter<PostingCountryFilter>();
         writes.MapPost("/feedings", LogFeeding);
         writes.MapPost("/sightings", LogSighting);
         writes.MapPost("/spots", AddSpot);

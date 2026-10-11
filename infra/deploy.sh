@@ -17,12 +17,25 @@ echo "== Building $IMAGE (linux/amd64)"
 (cd "$ROOT/source/frontend" && bun run build)
 dotnet publish "$ROOT/source/KingOfWees.Server" -c Release -r linux-x64 -t:PublishContainer \
   -p:ContainerRepository=kingofwees-server -p:ContainerImageTag="$TAG"
-# The SPA layered into the server image; the label connects the GHCR package to the repository.
+# The country database behind US-only posting: DB-IP Country Lite (CC BY 4.0, credited in the site footer), this month's,
+# or last month's early in a month before the new one is out. Downloaded at each deploy, never kept in the repo.
+STAGE=$(mktemp -d)
+trap 'rm -rf "$STAGE"' EXIT
+cp -R "$ROOT/source/frontend/dist" "$STAGE/wwwroot"
+for MONTH in "$(date -u +%Y-%m)" "$(date -u -v-1m +%Y-%m)"; do # -v is macOS date: the script runs on Wallie's Mac
+  curl -fsSL "https://download.db-ip.com/free/dbip-country-lite-$MONTH.mmdb.gz" | gunzip > "$STAGE/dbip-country-lite.mmdb" && break
+done
+[[ -s "$STAGE/dbip-country-lite.mmdb" ]] || { echo "Couldn't download the DB-IP country database." >&2; exit 1; }
+
+# The SPA and the country database layered into the server image; the label connects the GHCR package to the repository.
+# The server refuses to start if the setting names a file it can't read, so a bad layer shows at deploy.
 docker build --platform linux/amd64 -t "$IMAGE" \
   --label org.opencontainers.image.source=https://github.com/Pithy-Platypus/kingofwees.com \
-  -f - "$ROOT/source/frontend/dist" <<EOF
+  -f - "$STAGE" <<EOF
 FROM kingofwees-server:$TAG
-COPY . /app/wwwroot/
+COPY wwwroot /app/wwwroot/
+COPY dbip-country-lite.mmdb /app/geo/
+ENV King__Posting__CountryDatabase=/app/geo/dbip-country-lite.mmdb
 EOF
 
 echo "== Pushing $IMAGE"

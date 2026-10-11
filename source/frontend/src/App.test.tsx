@@ -649,4 +649,44 @@ describe('App — feeding spots', () => {
 
     expect(screen.getByRole('button', { name: 'Wet food' })).toHaveAttribute('aria-pressed', 'false');
   });
+
+  describe('posting from outside the US', () => {
+    const closed = 'King of Wees is a neighborhood site, so feedings and sightings can only be logged from the United States. You can still see when King was last fed and seen.';
+
+    it('says so instead of offering the two buttons, while still showing King', async () => {
+      renderApp(fakeApi(emptyStatus, { posting: false }));
+
+      expect(await screen.findByText(closed)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'I fed King' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'I saw King' })).not.toBeInTheDocument();
+      expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+    });
+
+    it('keeps the buttons when the check itself fails (the site still refuses a post from outside the US)', async () => {
+      const api = fakeApi();
+      api.getPosting.mockRejectedValue(new ApiError(503));
+      renderApp(api);
+
+      expect(await screen.findByRole('button', { name: 'I fed King' })).toBeInTheDocument();
+      expect(screen.queryByText(closed)).not.toBeInTheDocument();
+    });
+
+    it('goes back home and says so when a post is refused part-way', async () => {
+      const api = fakeApi();
+      api.logFeeding.mockRejectedValue(new ApiError(403));
+      renderApp(api);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+
+      expect(await screen.findByText(closed)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'I fed King' })).not.toBeInTheDocument();
+    });
+
+    it('credits DB-IP for the location data in the footer, as its licence asks', async () => {
+      renderApp();
+
+      expect(await screen.findByRole('link', { name: 'IP Geolocation by DB-IP' })).toHaveAttribute('href', 'https://db-ip.com');
+    });
+  });
 });

@@ -66,6 +66,8 @@ export const kingApi = {
   listSpots: () => request<SpotView[]>('/api/king/spots', undefined),
   addSpot: ({ location, ...body }: { reporterKey: string; name: string; location: GeoPoint }) =>
     postJson<SpotView>('/api/king/spots', { ...body, location: roundToBlock(location) }),
+  // False only for a known address outside the US, when the site checks (the server refuses those posts anyway).
+  getPosting: async () => (await request<{ allowed: boolean }>('/api/king/posting', undefined)).allowed,
   // No configured center (404) means the site runs without maps.
   getMap: async (): Promise<GeoPoint | null> => {
     try {
@@ -92,3 +94,6 @@ export const kingApi = {
       headers: { 'X-Reporter-Key': reporterKey },
     }),
 };
+
+/** A write refused because it came from outside the US (the server's 403, code `posting.outsideUs`). */
+export const isPostingRefused = (error: unknown) => error instanceof ApiError && error.status === 403;
