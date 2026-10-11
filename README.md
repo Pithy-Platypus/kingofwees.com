@@ -7,7 +7,7 @@ A whimsical neighborhood site for keeping track of King — an 11-year-old grey 
 | [PLAN.md](PLAN.md) | What's done, in progress and next — plus the handoff prompt for the next session |
 | [source/](source/README.md) | The app: ASP.NET Core minimal API + React frontend, run locally with Aspire |
 | [docs/](docs/README.md) | Why the project's rules exist |
-| [infra/](infra/README.md) | Hosting notes (deployment not chosen yet) |
+| [infra/](infra/README.md) | Hosting on Azure Container Apps: provision, deploy and smoke scripts, settings, rotating the admin key |
 
 ## License
 

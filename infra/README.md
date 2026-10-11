@@ -1,6 +1,6 @@
 # infra
 
-Nothing deployed yet. Chosen (2026-10-09): Azure Container Apps with the Azure DocumentDB free tier, Cloudflare DNS only — the steps are Slice 5 in `PLAN.md`; this page is rewritten for it at go-live. The table below is the original comparison.
+Live on Azure Container Apps since 2026-10-11 (at its Container Apps address until the domain moves over), with the Azure DocumentDB free tier; Cloudflare stays DNS only. The steps are Slice 5 in `PLAN.md`; this page gets its full rewrite in Slice 5 step 9. The table below is the original comparison.
 
 | Option | Shape | Monthly cost (est.) |
 |---|---|---|
