@@ -11,7 +11,16 @@ Option B (every container on Container Apps, billed per second) was ruled out: a
 
 ## Check before the first deploy
 
-- **Frontend build image.** `WithBun()` builds the SPA in an `oven/bun` image during publish; confirm Vite builds there (that image may lack Node), or pin an image with both.
+- **Image.** Not built by `aspire publish`/`aspire deploy` (their Container Apps deploy adds a paid Azure Container Registry and a Log Analytics workspace): the deploy script builds the SPA with `bun run build`, the server with `dotnet publish /t:PublishContainer` for `linux-x64`, and layers the SPA into `/app/wwwroot` — measured this way in Slice 5 step 1.
+- **GitHub Container Registry (GHCR), once.** The image is `ghcr.io/pithy-platypus/kingofwees` (`Pithy-Platypus` is an organization).
+  1. Organization settings → Packages → Package creation: **Public** allowed (an owner does this).
+  2. github.com/settings/tokens → **Generate new token (classic)** with `write:packages` only (fine-grained tokens can't push to GHCR); if the organization uses SSO, authorize the token for it. An expired token only stops deploys.
+  3. In your own terminal: `docker login ghcr.io -u <github-username>` and paste the token at the prompt (Docker Desktop keeps it in the macOS Keychain).
+  4. After the first push: the package → Package settings → **Change visibility → Public** (GHCR creates every package private; no API changes it) and **Connect repository** → `kingofwees.com`. Public is safe: the image holds no secrets.
+- **Region.** East US, resource group `kingofwees.com` — where the DocumentDB cluster is; the app goes beside it.
+- **Database connection string.** The DocumentDB portal string with `/king` added before the `?` — the server refuses to start without a database name.
+- **Probes.** Readiness `GET /health` (checks the database), liveness `GET /alive` (the app only), port 8080.
+- **Visitor address.** Set `King__Proxy__TrustForwardedFor=true` on the container app — without it every visitor shares one rate limit. Never set it where the server is reachable without the ingress in front.
 - **Free-tier terms.** Re-verify the Container Apps grant, DocumentDB free tier (regions, inactivity pause, no backups) and Grafana Cloud limits.
 - **Map center.** Set `King__Map__Center__Latitude` and `King__Map__Center__Longitude` as environment variables (or the host's secret store) on the server. Without them the app runs with no map.
 - **Uptime pings.** Don't add an external pinger under option A: it keeps the app awake and exhausts the free grant.

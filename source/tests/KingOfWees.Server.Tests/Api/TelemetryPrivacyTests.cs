@@ -39,6 +39,28 @@ public sealed class TelemetryPrivacyTests
     }
 
     [Fact]
+    public async Task Request_traces_carry_no_forwarded_visitor_address()
+    {
+        var spans = new List<Activity>();
+        await using var factory = new KingApiFactory(settings: [("King:Proxy:TrustForwardedFor", "true")])
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddInMemoryExporter(spans))));
+        var traceId = ActivityTraceId.CreateRandom();
+
+        await factory.Server.SendAsync(context =>
+        {
+            context.Request.Method = "GET";
+            context.Request.Path = "/api/king/status";
+            context.Request.Headers["X-Forwarded-For"] = "198.51.100.23";
+            context.Request.Headers.TraceParent = $"00-{traceId}-{ActivitySpanId.CreateRandom()}-01";
+        }, TestContext.Current.CancellationToken);
+        var span = await ServerSpan(spans, traceId);
+
+        Assert.DoesNotContain(span.TagObjects, t => t.Key is "client.address" or "network.peer.address");
+        Assert.DoesNotContain(span.TagObjects, t => t.Value?.ToString()?.Contains("198.51.100.23") == true);
+    }
+
+    [Fact]
     public async Task Request_traces_never_carry_the_admin_key()
     {
         const string key = "telemetry-admin-key";

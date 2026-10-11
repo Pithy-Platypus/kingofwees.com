@@ -50,6 +50,8 @@ Enter the key at `/admin` (the browser keeps it on that device; **Sign out on th
 ```sh
 cd source
 dotnet test                       # store contract (real Mongo), API, validators, Playwright e2e
+KING_TEST_MONGO="<connection string>" dotnet test --project tests/KingOfWees.Server.Tests -- --filter-class "KingOfWees.Server.Tests.King.Mongo*"
+                                  # the Mongo store contracts against another server (e.g. DocumentDB); test databases are dropped afterwards
 cd frontend
 bun run lint                      # zero warnings allowed
 bun run test                      # Vitest
@@ -91,11 +93,13 @@ The first e2e run downloads Chromium via Playwright's own installer (no PowerShe
 | GET | `/api/admin/hidden` | Hidden devices, newest hidden first: `[{ id, hiddenAt, entries, spots, reporterName, newestAt }]` — `id` is the record's own, never the device key |
 | DELETE | `/api/admin/hidden/{id}` | Restore a device: everything comes back, including posts made while hidden. 204; unknown id 404 |
 
+`GET /health` (every check, the database included; `Healthy` 200 / `Unhealthy` 503) and `GET /alive` (the app only) exist in every environment — the readiness and liveness probes. The server won't start if `ConnectionStrings:king` names no database (`…/king?…`).
+
 Any other path serves the SPA (`index.html`) so links like `/about` work; unknown `/api/...` routes stay 404.
 
 Entries an admin has hidden, and everything from a device an admin has hidden (including its later posts and its spots), are left out of every public read: status, history, heat and spots. A feeding at a hidden device's spot stays, without a place.
 
-Writes go through the `CanPost` policy (open today; the switch for invite-only posting) and a per-IP rate limit (`RateLimiting:WritesPerMinute`, default 20). Validation errors return codes such as `reporterName.tooLong`, which the frontend translates.
+Writes go through the `CanPost` policy (open today; the switch for invite-only posting) and a per-IP rate limit (`RateLimiting:WritesPerMinute`, default 20). Behind Container Apps' ingress, set `King:Proxy:TrustForwardedFor=true` so the limits see each visitor's address (the rightmost `X-Forwarded-For` entry) instead of the proxy's; leave it off anywhere the server is reachable directly. Validation errors return codes such as `reporterName.tooLong`, which the frontend translates.
 
 ## Frontend layout
 
