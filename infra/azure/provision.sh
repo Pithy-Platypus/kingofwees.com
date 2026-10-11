@@ -21,12 +21,18 @@ BACKUP_IMAGE="docker.io/library/mongo:8.0@sha256:d0d926f94df099bff534b7ee5b59864
 BACKUP_CRON="0 8 * * *" # UTC: 3–4 a.m. in Boston
 BUDGET="kingofwees-monthly"
 BUDGET_AMOUNT=25
+WORKSPACE="kingofwees-logs"
+WORKSPACE_DAILY_GB=0.05 # ~1.5 GB a month at most, inside the 5 GB a month free per billing account
+INSIGHTS="kingofwees-insights"
+ALERTS="kingofwees-alerts"
+BACKUP_ALERT="kingofwees-backup-failed"
 REPOSITORY="ghcr.io/pithy-platypus/kingofwees"
 SECRETS="$HOME/.kingofwees"
 
 az account set --subscription "$SUBSCRIPTION"
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 az group show -n "$GROUP" -o none # the group is Wallie's; this script never creates it
+EMAIL=$(az account show --query user.name -o tsv) # the signed-in account gets budget and backup alerts; kept out of the repo
 
 [[ -r "$SECRETS/documentdb.conn" ]] || { echo "Missing $SECRETS/documentdb.conn" >&2; exit 1; }
 KING_CONN=$(<"$SECRETS/documentdb.conn")
@@ -51,7 +57,7 @@ anonymous_pull() {
 anonymous_pull 2>/dev/null \
   || { echo "$IMAGE can't be pulled anonymously: push it with infra/deploy.sh and make the package public first." >&2; exit 1; }
 
-echo "== Container Apps environment $ENVIRONMENT (no Log Analytics workspace)"
+echo "== Container Apps environment $ENVIRONMENT (console logs not kept; telemetry goes to Application Insights below)"
 if ! az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" -o none 2>/dev/null; then
   az containerapp env create -g "$GROUP" -n "$ENVIRONMENT" -l "$LOCATION" --logs-destination none -o none
 fi
@@ -67,6 +73,19 @@ done
   exit 1
 }
 ENVIRONMENT_ID=$(az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" --query id -o tsv)
+
+echo "== Telemetry: traces and logs through the environment's OpenTelemetry agent to $INSIGHTS (workspace $WORKSPACE, ${WORKSPACE_DAILY_GB} GB a day cap)"
+# The agent injects OTEL_EXPORTER_OTLP_ENDPOINT into the app, which turns its OTLP exporter on. It can't send metrics to
+# Application Insights: memory, CPU and restarts are the container app's platform metrics (portal → Metrics).
+az monitor log-analytics workspace create -g "$GROUP" -n "$WORKSPACE" -l "$LOCATION" --sku PerGB2018 \
+  --retention-time 31 --quota "$WORKSPACE_DAILY_GB" -o none
+if ! az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" -o none 2>/dev/null; then
+  az monitor app-insights component create -g "$GROUP" --app "$INSIGHTS" -l "$LOCATION" --kind web --application-type web \
+    --workspace "$(az monitor log-analytics workspace show -g "$GROUP" -n "$WORKSPACE" --query id -o tsv)" -o none
+fi
+az containerapp env telemetry app-insights set -g "$GROUP" -n "$ENVIRONMENT" -o none \
+  --connection-string "$(az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" --query connectionString -o tsv)" \
+  --enable-open-telemetry-traces true --enable-open-telemetry-logs true
 
 echo "== Storage account $STORAGE for backups (private, blobs deleted after 30 days)"
 if ! az storage account show -g "$GROUP" -n "$STORAGE" -o none 2>/dev/null; then
@@ -84,7 +103,6 @@ az storage account management-policy create -g "$GROUP" --account-name "$STORAGE
 echo "== Budget $BUDGET: \$$BUDGET_AMOUNT a month on the resource group, emails at 80% actual and 100% forecast"
 BUDGET_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$GROUP/providers/Microsoft.Consumption/budgets/$BUDGET?api-version=2023-05-01"
 if ! az rest --method get --url "$BUDGET_URL" -o none 2>/dev/null; then
-  EMAIL=$(az account show --query user.name -o tsv) # the signed-in account; kept out of the repo
   az rest --method put --url "$BUDGET_URL" -o none --body '{ "properties": {
     "category": "Cost", "amount": '"$BUDGET_AMOUNT"', "timeGrain": "Monthly",
     "timePeriod": { "startDate": "'"$(date -u +%Y-%m-01)"'" },
@@ -142,6 +160,15 @@ grant() { # principal-id principal-type role
 }
 grant "$(az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" --query identity.principalId -o tsv)" ServicePrincipal "Storage Blob Data Contributor"
 grant "$(az ad signed-in-user show --query id -o tsv)" User "Storage Blob Data Reader"
+
+echo "== Alert $BACKUP_ALERT: email when a backup run fails"
+az monitor action-group create -g "$GROUP" -n "$ALERTS" --short-name kingofwees --action email owner "$EMAIL" -o none
+if ! az monitor metrics alert show -g "$GROUP" -n "$BACKUP_ALERT" -o none 2>/dev/null; then
+  az monitor metrics alert create -g "$GROUP" -n "$BACKUP_ALERT" -o none \
+    --scopes "$(az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" --query id -o tsv)" \
+    --condition "total Executions > 0 where state includes Failed" --window-size 1h --evaluation-frequency 15m \
+    --severity 2 --action "$ALERTS" --description "A nightly backup run failed: see the job's execution history and its log in $STORAGE/$BACKUPS."
+fi
 
 echo "== Container app $APP"
 APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAGE="$IMAGE" APP_LOCATION="$LOCATION" python3 -I - >"$WORK/app.json" <<'PY'
