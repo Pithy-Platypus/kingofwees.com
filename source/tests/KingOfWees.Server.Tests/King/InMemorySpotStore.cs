@@ -26,8 +26,8 @@ public sealed class InMemorySpotStore(IHiddenReporterStore hiddenReporters) : IS
         return Task.FromResult(false);
     }
 
-    public Task<bool> NameTakenAsync(string name, string exceptId, CancellationToken cancellationToken) =>
-        Task.FromResult(_spots.Values.Any(s => s.Id != exceptId && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)));
+    public Task<bool> NameTakenAsync(string name, IReadOnlyCollection<string> exceptIds, CancellationToken cancellationToken) =>
+        Task.FromResult(_spots.Values.Any(s => !exceptIds.Contains(s.Id) && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)));
 
     public Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) =>
         Task.FromResult(_spots.Values.Count(s => s.ReporterKey == reporterKey));
@@ -40,4 +40,7 @@ public sealed class InMemorySpotStore(IHiddenReporterStore hiddenReporters) : IS
 
     public Task<IReadOnlyList<Spot>> ListEveryAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Spot>>([.. _spots.Values.OrderBy(s => s.CreatedAt)]);
+
+    public Task<int> DeleteAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken) =>
+        Task.FromResult(ids.Count(id => _spots.TryRemove(id, out _)));
 }

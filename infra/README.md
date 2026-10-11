@@ -19,6 +19,8 @@ Option B (every container on Container Apps, billed per second) was ruled out: a
 
 Settings come from files in `~/.kingofwees/` (outside the repo, `chmod 600`), read by `provision.sh`, never printed: `documentdb.conn` (required, with `/king`), `admin-key.hash` (optional), `map-center` as `latitude,longitude` (optional). Change one, rerun `provision.sh`.
 
+The app creates one index itself: the audit log's 1-year expiry on the `adminLog` collection, on the first admin sign-in or change. A restore must bring it back, or records stop expiring — the restore drill (Slice 5 step 6) checks it.
+
 First deploy: `deploy.sh` (pushes; no app yet) → make the package public → `azure/provision.sh ghcr.io/pithy-platypus/kingofwees:<tag>` → `smoke.sh`. After that, `deploy.sh` alone.
 
 ## Check before the first deploy

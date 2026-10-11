@@ -41,3 +41,26 @@ A missing setting must not leave admin open, and shouldn't advertise it either. 
 - **A pasted hash is caught before any request** (64 hex characters; a key is 43 URL-safe Base64 ones). That exact mix-up happened in the first manual test, and the server's answer — a 401 — can't say why. Checking first also saves one of the ten tries a minute.
 - **The tool prints KEY then HASH under plain labels**, with nothing between them, for the same reason.
 - **Hiding is asked in place** ("Hide 14 entries and 2 spots from Sarah, including anything they post later?"), never with a browser dialog, and the counts come from the server before anything is hidden.
+
+## The audit log (Slice 4 step 8)
+
+**Decided:** 2026-10-11, with Wallie.
+
+- **One shared key plus a typed name**, not a key per admin. The name is typed at sign-in, kept with the key on the device, and sent on every admin request as `X-Admin-Name` (URL-encoded: header values must be ASCII). Anyone with the key can type any name, so a recorded name is a **claim, not proof**; the Activity section on `/admin` says so. One key per admin (or Google sign-in) is what would make names trustworthy; the `Admin` policy is still the one place that would change.
+- **What's recorded:** every successful sign-in (`/api/admin/check`, which the page calls only from the sign-in form), every change (hide/show an entry, hide/restore a poster, rename a place), and every **wrong key** on an admin route — each with the time, the visitor address the rate limits use, and the typed name ("no name" when there was none). Reads aren't recorded, nor are refused actions (404, validation). No key at all isn't an attempt. Requests the admin limit refuses (429) aren't checked, so they aren't recorded either — that also bounds how fast wrong keys can fill the log (10 a minute per address).
+- **What a record says:** what was touched **in words** — poster name and counts, entry kind and date, place names — never a device key or an entry id. Records hold fields, not sentences, so the page translates them.
+- **Where:** recorded in each endpoint after it succeeds (`AdminAudit.RecordAsync`); wrong keys in `AdminSignInAudit`, an authorization result handler, because authorization answers 401 before any endpoint or filter runs.
+- **Append-only:** `IAdminLogStore` has no update or delete.
+- **Kept a year, then deleted by the database:** a TTL index on `AtUtc` (`expireAfterSeconds` = 365 days). It's created on the first append, not at startup, so the app still starts with the database down. A TTL index silently skips documents whose field isn't a BSON date, so the store keeps `AtUtc` a `DateTime` and a Mongo test checks the stored type. DocumentDB lists TTL as supported (learn.microsoft.com, "MQL compatibility", updated 2026-06-13); the index is tested on local Mongo only — tests never run against the production cluster, and deletion runs on the server's own schedule anyway. A restore must bring the index back (Slice 5 step 6).
+- **Addresses are stored here, and only here.** The Privacy page used to say addresses are never stored; it now says they are kept with admin sign-ins and attempts, and what's changed there, for a year (Wallie's choice over dropping the address or keeping it only for the right key). The typed name and the address still never reach logs or telemetry (`TelemetryPrivacyTests`).
+
+## Merging places (Slice 4 step 9)
+
+**Decided:** 2026-10-11, with Wallie.
+
+- **Deleted, not hidden — no undo** (Wallie's choice over restorable): a merge is for duplicates ("Porch" and "porch"), and the kept place carries every feeding, so nothing is lost but the duplicate's pin.
+- **Every feeding moves, hidden ones too.** Feedings store only a `SpotId`; one left behind would point at a place that no longer exists. So `MoveFeedingsAsync`, the per-place counts the confirmation shows (`CountEveryFeedingBySpotAsync`) and `ISpotStore.DeleteAsync` skip the hidden filter on purpose.
+- **Feedings move before the places are deleted**, so a failure part-way never leaves a feeding pointing at a deleted place. Not atomic (no multi-document transaction): a feeding logged at a merged place in the instant between the move and the delete would show without a place. Accepted for a street's traffic.
+- **The merged places' own names don't count as taken**, so "Porch" + "porch" can become "Porch"; any other place's name, hidden posters' included, still does.
+- **A device that remembered a merged-away place** opens the feed screen on "No spot" once (the app offers only places that exist, `App.tsx`); the neighbor taps the kept place and it's remembered again.
+- **The admin page loads on demand** (`React.lazy`): step 9 pushed the visitor bundle to 502 kB, past Vite's warning; the admin page is now its own 23 kB file and the visitor bundle 480 kB.

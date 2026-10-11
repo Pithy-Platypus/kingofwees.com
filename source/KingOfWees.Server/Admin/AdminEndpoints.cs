@@ -20,7 +20,7 @@ public static class AdminEndpoints
             .AddEndpointFilter<ValidationFilter>()
             .RequireAuthorization(AdminPolicies.Admin)
             .RequireRateLimiting(AdminPolicies.Requests);
-        admin.MapGet("/check", () => TypedResults.NoContent());
+        admin.MapGet("/check", SignIn);
         admin.MapPost("/events/{id}/hide", HideEntry);
         admin.MapDelete("/events/{id}/hide", UnhideEntry);
         admin.MapGet("/events/{id}/device", DescribeDevice);
@@ -30,23 +30,40 @@ public static class AdminEndpoints
         admin.MapDelete("/hidden/{id}", RestoreDevice);
         admin.MapGet("/spots", ListSpots);
         admin.MapPost("/spots/rename", RenameSpot);
+        admin.MapPost("/spots/merge", MergeSpots);
+        admin.MapGet("/activity", GetActivity);
 
         return routes;
     }
 
-    private static async Task<Results<NoContent, NotFound>> HideEntry(
-        string id, IKingEventStore store, KingMetrics metrics, CancellationToken cancellationToken)
+    // The page checks the key only when someone signs in, so a good check is the sign-in.
+    private static async Task<NoContent> SignIn(HttpContext context, AdminAudit audit, CancellationToken cancellationToken)
     {
-        if (!await store.SetHiddenAsync(id, hidden: true, cancellationToken)) return TypedResults.NotFound();
-        metrics.Hidden("entry");
+        await audit.RecordAsync(context, AdminAction.SignIn, new(), cancellationToken);
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<NoContent, NotFound>> UnhideEntry(
-        string id, IKingEventStore store, KingMetrics metrics, CancellationToken cancellationToken)
+    private static Task<Results<NoContent, NotFound>> HideEntry(
+        string id, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics, HttpContext context,
+        CancellationToken cancellationToken) =>
+        SetEntryHidden(id, hidden: true, store, spots, audit, metrics, context, cancellationToken);
+
+    private static Task<Results<NoContent, NotFound>> UnhideEntry(
+        string id, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics, HttpContext context,
+        CancellationToken cancellationToken) =>
+        SetEntryHidden(id, hidden: false, store, spots, audit, metrics, context, cancellationToken);
+
+    private static async Task<Results<NoContent, NotFound>> SetEntryHidden(
+        string id, bool hidden, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
+        HttpContext context, CancellationToken cancellationToken)
     {
-        if (!await store.SetHiddenAsync(id, hidden: false, cancellationToken)) return TypedResults.NotFound();
-        metrics.Restored("entry");
+        var entry = await store.FindAsync(id, cancellationToken);
+        if (entry is null || !await store.SetHiddenAsync(id, hidden, cancellationToken)) return TypedResults.NotFound();
+        if (hidden) metrics.Hidden("entry");
+        else metrics.Restored("entry");
+        var spot = entry.SpotId is null ? null : await spots.FindAsync(entry.SpotId, cancellationToken);
+        await audit.RecordAsync(
+            context, hidden ? AdminAction.HideEntry : AdminAction.ShowEntry, AdminAudit.Entry(entry, spot), cancellationToken);
         return TypedResults.NoContent();
     }
 
@@ -63,30 +80,72 @@ public static class AdminEndpoints
 
     private static async Task<Results<Ok<HiddenDeviceView>, NotFound>> HideDevice(
         string id, IKingEventStore store, ISpotStore spots, IHiddenReporterStore hidden, TimeProvider clock, KingMetrics metrics,
-        CancellationToken cancellationToken)
+        AdminAudit audit, HttpContext context, CancellationToken cancellationToken)
     {
         var kingEvent = await store.FindAsync(id, cancellationToken);
         if (kingEvent is null) return TypedResults.NotFound();
         var record = await hidden.HideAsync(kingEvent.ReporterKey, clock.GetUtcNow(), cancellationToken);
         metrics.Hidden("device");
-        return TypedResults.Ok(await View(record, store, spots, cancellationToken));
+        var view = await View(record, store, spots, cancellationToken);
+        await audit.RecordAsync(context, AdminAction.HidePoster, Poster(view), cancellationToken);
+        return TypedResults.Ok(view);
     }
 
     private static async Task<Ok<AdminSpotView[]>> ListSpots(
-        ISpotStore spots, IHiddenReporterStore hidden, CancellationToken cancellationToken)
+        ISpotStore spots, IKingEventStore store, IHiddenReporterStore hidden, CancellationToken cancellationToken)
     {
         var hiddenKeys = (await hidden.ListAsync(cancellationToken)).Select(h => h.ReporterKey).ToHashSet();
+        var feedings = (await store.CountEveryFeedingBySpotAsync(cancellationToken)).ToDictionary(c => c.SpotId, c => c.Count);
         return TypedResults.Ok((await spots.ListEveryAsync(cancellationToken))
-            .Select(s => new AdminSpotView(s.Id, s.Name, hiddenKeys.Contains(s.ReporterKey)))
+            .Select(s => new AdminSpotView(s.Id, s.Name, hiddenKeys.Contains(s.ReporterKey), feedings.GetValueOrDefault(s.Id)))
             .ToArray());
     }
 
     private static async Task<Results<NoContent, NotFound>> RenameSpot(
-        RenameSpotRequest request, ISpotStore spots, KingMetrics metrics, CancellationToken cancellationToken)
+        RenameSpotRequest request, ISpotStore spots, KingMetrics metrics, AdminAudit audit, HttpContext context,
+        CancellationToken cancellationToken)
     {
-        if (!await spots.RenameAsync(request.SpotId, request.Name.Trim(), cancellationToken)) return TypedResults.NotFound();
+        var spot = await spots.FindAsync(request.SpotId, cancellationToken);
+        var name = request.Name.Trim();
+        if (spot is null || !await spots.RenameAsync(request.SpotId, name, cancellationToken)) return TypedResults.NotFound();
         metrics.Renamed("spot");
+        await audit.RecordAsync(context, AdminAction.RenamePlace, new(PlaceName: spot.Name, NewName: name), cancellationToken);
         return TypedResults.NoContent();
+    }
+
+    // The validator has checked every id. Feedings move before the places are deleted, so none is left pointing at a
+    // place that no longer exists. No undo (Wallie's choice): the merged places are gone for good.
+    private static async Task<NoContent> MergeSpots(
+        MergeSpotsRequest request, ISpotStore spots, IKingEventStore store, KingMetrics metrics, AdminAudit audit,
+        HttpContext context, CancellationToken cancellationToken)
+    {
+        var kept = (await spots.FindAsync(request.KeepId, cancellationToken))!;
+        var mergedNames = new List<string>();
+        foreach (var id in request.MergeIds)
+        {
+            mergedNames.Add((await spots.FindAsync(id, cancellationToken))!.Name);
+        }
+        var moved = await store.MoveFeedingsAsync(request.MergeIds, kept.Id, cancellationToken);
+        await spots.DeleteAsync(request.MergeIds, cancellationToken);
+        var name = request.Name?.Trim();
+        if (name is not null) await spots.RenameAsync(kept.Id, name, cancellationToken);
+        metrics.Merged("spot");
+        await audit.RecordAsync(
+            context, AdminAction.MergePlaces,
+            new(PlaceName: kept.Name, NewName: name, MergedNames: mergedNames, Feedings: moved), cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<Ok<ActivityPage>> GetActivity(
+        [AsParameters] ActivityQuery query, IAdminLogStore log, CancellationToken cancellationToken)
+    {
+        var limit = query.Limit ?? HistoryQuery.DefaultLimit;
+        // The validator has already checked that the cursor names a record.
+        var before = query.Before is null ? null : await log.FindAsync(query.Before, cancellationToken);
+        // One extra tells whether an older page exists without a second query.
+        var records = await log.GetPageAsync(before, limit + 1, cancellationToken);
+        var page = records.Take(limit).ToList();
+        return TypedResults.Ok(new ActivityPage(page, records.Count > limit ? page[^1].Id : null));
     }
 
     private static async Task<Ok<EventView[]>> ListHiddenEntries(
@@ -108,13 +167,22 @@ public static class AdminEndpoints
         return TypedResults.Ok(views.ToArray());
     }
 
+    // Described before restoring: the record (and with it what the poster posted) is gone afterwards.
     private static async Task<Results<NoContent, NotFound>> RestoreDevice(
-        string id, IHiddenReporterStore hidden, KingMetrics metrics, CancellationToken cancellationToken)
+        string id, IKingEventStore store, ISpotStore spots, IHiddenReporterStore hidden, KingMetrics metrics, AdminAudit audit,
+        HttpContext context, CancellationToken cancellationToken)
     {
+        var record = (await hidden.ListAsync(cancellationToken)).FirstOrDefault(h => h.Id == id);
+        if (record is null) return TypedResults.NotFound();
+        var view = await View(record, store, spots, cancellationToken);
         if (!await hidden.RestoreAsync(id, cancellationToken)) return TypedResults.NotFound();
         metrics.Restored("device");
+        await audit.RecordAsync(context, AdminAction.RestorePoster, Poster(view), cancellationToken);
         return TypedResults.NoContent();
     }
+
+    private static AdminTouched Poster(HiddenDeviceView view) =>
+        new(PosterName: view.ReporterName, Entries: view.Entries, Spots: view.Spots);
 
     private static async Task<HiddenDeviceView> View(
         HiddenReporter record, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)

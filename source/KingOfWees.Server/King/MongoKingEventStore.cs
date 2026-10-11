@@ -122,6 +122,25 @@ public sealed class MongoKingEventStore(IMongoDatabase database, IHiddenReporter
         return result.DeletedCount == 1;
     }
 
+    // Unfiltered on purpose: a hidden feeding at a merged place must still point at a place that exists.
+    public async Task<int> MoveFeedingsAsync(IReadOnlyCollection<string> fromSpotIds, string toSpotId, CancellationToken cancellationToken)
+    {
+        var result = await _events.UpdateManyAsync(
+            Builders<KingEventDocument>.Filter.In(e => e.SpotId, fromSpotIds),
+            Builders<KingEventDocument>.Update.Set(e => e.SpotId, toSpotId),
+            cancellationToken: cancellationToken);
+        return (int)result.ModifiedCount;
+    }
+
+    public async Task<IReadOnlyList<SpotCount>> CountEveryFeedingBySpotAsync(CancellationToken cancellationToken)
+    {
+        var groups = await _events.Aggregate()
+            .Match(Builders<KingEventDocument>.Filter.Ne(e => e.SpotId, null))
+            .Group(e => e.SpotId, g => new { SpotId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        return groups.ConvertAll(g => new SpotCount(g.SpotId!, g.Count));
+    }
+
     // Storage shape, kept separate from the domain record: enums as strings, time as a BSON UTC date.
     // Extra elements are ignored so slice-1 documents (single "Food" field) still read, with no foods;
     // documents from before SawKing read as seen. Coordinates are copied from a GeoPoint and rebuilt into one on read.

@@ -3,6 +3,8 @@ import { roundToBlock, type GeoPoint } from './location';
 export type SpotView = { id: string; name: string; location: GeoPoint };
 /** The server's limit for a place's name (AddSpotRequestValidator.MaxNameLength), new or renamed. */
 export const SPOT_NAME_MAX_LENGTH = 40;
+/** The server's limit for a nickname (ReporterRules.MaxNameLength); it cuts an admin's typed name to it too. */
+export const NICKNAME_MAX_LENGTH = 40;
 
 export type Food = 'wet' | 'dry' | 'treats';
 export type KingEventView = {

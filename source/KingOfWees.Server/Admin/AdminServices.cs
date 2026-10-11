@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
 namespace KingOfWees.Server.Admin;
@@ -21,6 +22,9 @@ public static class AdminServices
             .Validate(options => options.IsValid,
                 $"{AdminOptions.Section}:{nameof(AdminOptions.KeyHash)} must be the 64-character hex hash printed by source/tools/new-admin-key.cs, not the key itself.")
             .ValidateOnStart();
+        services.AddSingleton<IAdminLogStore, MongoAdminLogStore>();
+        services.AddSingleton<AdminAudit>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, AdminSignInAudit>();
 
         services.AddAuthentication()
             .AddScheme<AuthenticationSchemeOptions, AdminKeyHandler>(AdminKeyHandler.SchemeName, configureOptions: null);

@@ -84,6 +84,31 @@ public sealed class TelemetryPrivacyTests
         Assert.DoesNotContain(span.TagObjects, t => t.Value?.ToString()?.Contains(key) == true);
     }
 
+    [Fact]
+    public async Task Request_traces_never_carry_the_name_an_admin_typed()
+    {
+        const string key = "telemetry-admin-key";
+        const string name = "Telemetry-Admin-Name";
+        var spans = new List<Activity>();
+        await using var factory = new KingApiFactory(settings: [("King:Admin:KeyHash", AdminKeyHasher.Hash(key))])
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddInMemoryExporter(spans))));
+        var traceId = ActivityTraceId.CreateRandom();
+
+        var response = await factory.Server.SendAsync(context =>
+        {
+            context.Request.Method = "GET";
+            context.Request.Path = "/api/admin/check";
+            context.Request.Headers.Authorization = $"Bearer {key}";
+            context.Request.Headers[AdminAudit.NameHeader] = name;
+            context.Request.Headers.TraceParent = $"00-{traceId}-{ActivitySpanId.CreateRandom()}-01";
+        }, TestContext.Current.CancellationToken);
+        var span = await ServerSpan(spans, traceId);
+
+        Assert.Equal(StatusCodes.Status204NoContent, response.Response.StatusCode);
+        Assert.DoesNotContain(span.TagObjects, t => t.Value?.ToString()?.Contains(name) == true);
+    }
+
     // The request's activity stops (and is exported) just after the response completes, so wait for it.
     private static async Task<Activity> ServerSpan(List<Activity> spans, ActivityTraceId traceId)
     {

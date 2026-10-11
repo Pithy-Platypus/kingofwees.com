@@ -75,7 +75,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
     setFailed(false);
     setStep({ name: 'counting' });
     try {
-      setStep({ name: 'device', device: await admin.api.describeDevice(admin.key, event.id) });
+      setStep({ name: 'device', device: await admin.api.describeDevice(admin.signIn, event.id) });
     } catch (error) {
       fail(error);
     }
@@ -84,8 +84,8 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
   const hide = async () => {
     setBusy(true);
     try {
-      if (step.name === 'device') await admin.api.hideDevice(admin.key, event.id);
-      else await admin.api.hideEntry(admin.key, event.id);
+      if (step.name === 'device') await admin.api.hideDevice(admin.signIn, event.id);
+      else await admin.api.hideEntry(admin.signIn, event.id);
       onHidden();
     } catch (error) {
       fail(error);

@@ -1,9 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { HiddenDevice } from '../king/admin';
+import type { ActivityRecord, AdminSignIn, AdminTouched, HiddenDevice } from '../king/admin';
 import { ApiError } from '../king/api';
-import { ADMIN_KEY, adminSpot, device, event, fakeAdminApi, NOW } from '../test/fakeApi';
+import { ADMIN_KEY, adminSpot, device, event, fakeAdminApi, NOW, SIGN_IN } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 import { AdminPage } from './AdminPage';
 
@@ -16,15 +16,27 @@ const hiddenDevice = (overrides: Partial<HiddenDevice> = {}): HiddenDevice => ({
   ...overrides,
 });
 
-const renderPage = (api = fakeAdminApi(), adminKey: string | null = null) => {
-  const onKey = vi.fn<(key: string | null) => void>();
+const renderPage = (api = fakeAdminApi(), signIn: AdminSignIn | null = null) => {
+  const onKey = vi.fn<(signIn: AdminSignIn | null) => void>();
   const onSpotRenamed = vi.fn<(id: string, name: string) => void>();
-  renderInEnglish(<AdminPage api={api} adminKey={adminKey} onKey={onKey} spots={[]} onSpotRenamed={onSpotRenamed} now={NOW} />);
-  return { api, onKey, onSpotRenamed };
+  const onSpotsMerged = vi.fn<(keptId: string, name: string, mergedIds: string[]) => void>();
+  renderInEnglish(
+    <AdminPage
+      api={api}
+      signIn={signIn}
+      onSignIn={onKey}
+      spots={[]}
+      onSpotRenamed={onSpotRenamed}
+      onSpotsMerged={onSpotsMerged}
+      now={NOW}
+    />,
+  );
+  return { api, onKey, onSpotRenamed, onSpotsMerged };
 };
 
-const enterKey = async (key: string) => {
+const enterKey = async (key: string, name = SIGN_IN.name) => {
   await userEvent.type(screen.getByLabelText('Admin key'), key);
+  await userEvent.type(screen.getByLabelText('Your name'), name);
   await userEvent.click(screen.getByRole('button', { name: 'Check key' }));
 };
 
@@ -36,13 +48,21 @@ describe('AdminPage — without a key', () => {
     expect(screen.getByLabelText('Admin key')).toHaveAttribute('type', 'password');
   });
 
-  it('checks the key with the server and keeps it when it works', async () => {
+  it('checks the key with the server and keeps it, with the name typed, when it works', async () => {
     const { api, onKey } = renderPage();
 
-    await enterKey(`  ${ADMIN_KEY} `);
+    await enterKey(`  ${ADMIN_KEY} `, '  Wallie ');
 
-    expect(api.check).toHaveBeenCalledWith(ADMIN_KEY);
-    expect(onKey).toHaveBeenCalledWith(ADMIN_KEY);
+    expect(api.check).toHaveBeenCalledWith({ key: ADMIN_KEY, name: 'Wallie' });
+    expect(onKey).toHaveBeenCalledWith({ key: ADMIN_KEY, name: 'Wallie' });
+  });
+
+  it('asks for a name, saying it is kept with what the admin does', () => {
+    renderPage();
+
+    const name = screen.getByLabelText('Your name');
+    expect(name).toBeRequired();
+    expect(name).toHaveAccessibleDescription('Saved with everything you do here, so the other caretakers can see who did what.');
   });
 
   it('says so when the key is wrong, and keeps nothing', async () => {
@@ -93,7 +113,7 @@ describe('AdminPage — with a key', () => {
       hiddenEntries: [event({ id: 'e1', reporterName: 'Kael' })],
       hiddenDevices: [hiddenDevice(), hiddenDevice({ id: 'hidden-2', reporterName: null, entries: 1, spots: 0 })],
     });
-    renderPage(api, ADMIN_KEY);
+    renderPage(api, SIGN_IN);
 
     const entries = within(await screen.findByRole('list', { name: 'Hidden entries' }));
     expect(entries.getByText('Fed by Kael')).toBeInTheDocument();
@@ -102,39 +122,39 @@ describe('AdminPage — with a key', () => {
       expect.stringContaining('Spammy14 entries · 2 spots'),
       expect.stringContaining('a neighbor1 entry · 0 spots'),
     ]);
-    expect(api.hiddenEntries).toHaveBeenCalledWith(ADMIN_KEY);
-    expect(api.hiddenDevices).toHaveBeenCalledWith(ADMIN_KEY);
+    expect(api.hiddenEntries).toHaveBeenCalledWith(SIGN_IN);
+    expect(api.hiddenDevices).toHaveBeenCalledWith(SIGN_IN);
   });
 
   it('shows a hidden entry again', async () => {
     const api = fakeAdminApi({ hiddenEntries: [event({ id: 'e1', reporterName: 'Kael' })] });
-    renderPage(api, ADMIN_KEY);
+    renderPage(api, SIGN_IN);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Show again' }));
 
-    expect(api.unhideEntry).toHaveBeenCalledWith(ADMIN_KEY, 'e1');
+    expect(api.unhideEntry).toHaveBeenCalledWith(SIGN_IN, 'e1');
     expect(await screen.findByText('No hidden entries.')).toBeInTheDocument();
   });
 
   it('restores a hidden poster', async () => {
     const api = fakeAdminApi({ hiddenDevices: [hiddenDevice()] });
-    renderPage(api, ADMIN_KEY);
+    renderPage(api, SIGN_IN);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Restore' }));
 
-    expect(api.restoreDevice).toHaveBeenCalledWith(ADMIN_KEY, 'hidden-1');
+    expect(api.restoreDevice).toHaveBeenCalledWith(SIGN_IN, 'hidden-1');
     expect(await screen.findByText('No hidden posters.')).toBeInTheDocument();
   });
 
   it('says when nothing is hidden', async () => {
-    renderPage(fakeAdminApi(), ADMIN_KEY);
+    renderPage(fakeAdminApi(), SIGN_IN);
 
     expect(await screen.findByText('No hidden entries.')).toBeInTheDocument();
     expect(screen.getByText('No hidden posters.')).toBeInTheDocument();
   });
 
   it('points to the history page for hiding', async () => {
-    renderPage(fakeAdminApi(), ADMIN_KEY);
+    renderPage(fakeAdminApi(), SIGN_IN);
 
     expect(await screen.findByRole('link', { name: 'King’s history' })).toHaveAttribute('href', '/history');
   });
@@ -142,7 +162,7 @@ describe('AdminPage — with a key', () => {
   it('forgets a key the server no longer accepts', async () => {
     const api = fakeAdminApi();
     api.hiddenEntries.mockRejectedValue(new ApiError(401));
-    const { onKey } = renderPage(api, ADMIN_KEY);
+    const { onKey } = renderPage(api, SIGN_IN);
 
     await waitFor(() => expect(onKey).toHaveBeenCalledWith(null));
   });
@@ -150,14 +170,14 @@ describe('AdminPage — with a key', () => {
   it('says so when the lists can’t load', async () => {
     const api = fakeAdminApi();
     api.hiddenDevices.mockRejectedValue(new TypeError('offline'));
-    const { onKey } = renderPage(api, ADMIN_KEY);
+    const { onKey } = renderPage(api, SIGN_IN);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t load what’s hidden.');
     expect(onKey).not.toHaveBeenCalled();
   });
 
   it('signs out on this device', async () => {
-    const { onKey } = renderPage(fakeAdminApi(), ADMIN_KEY);
+    const { onKey } = renderPage(fakeAdminApi(), SIGN_IN);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out on this device' }));
 
@@ -169,14 +189,18 @@ describe('AdminPage — renaming a place', () => {
   const places = [adminSpot('s1', 'Porch'), adminSpot('s2', 'back steps'), adminSpot('s3', 'Spam spot', true)];
   const renameButton = (name: string) => screen.getByRole('button', { name: `Rename ${name}` });
   const nameField = () => screen.getByRole('textbox', { name: 'New name' });
-  const renderPlaces = (api = fakeAdminApi({ spots: places })) => renderPage(api, ADMIN_KEY);
+  const renderPlaces = (api = fakeAdminApi({ spots: places })) => renderPage(api, SIGN_IN);
 
   it('lists every place by name, marking a hidden poster’s, each with its own Rename button', async () => {
     const { api } = renderPlaces();
 
     const items = within(await screen.findByRole('list', { name: 'Places' })).getAllByRole('listitem');
-    expect(items.map((li) => li.textContent)).toEqual(['back stepsRename', 'PorchRename', 'Spam spotfrom a hidden posterRename']);
-    expect(api.listSpots).toHaveBeenCalledWith(ADMIN_KEY);
+    expect(items.map((li) => li.textContent)).toEqual([
+      'back steps0 feedingsRename',
+      'Porch0 feedingsRename',
+      'Spam spot0 feedings · from a hidden posterRename',
+    ]);
+    expect(api.listSpots).toHaveBeenCalledWith(SIGN_IN);
   });
 
   it('says when there are no places yet', async () => {
@@ -204,8 +228,9 @@ describe('AdminPage — renaming a place', () => {
     await userEvent.type(nameField(), '  Front porch ');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(api.renameSpot).toHaveBeenCalledWith(ADMIN_KEY, 's1', 'Front porch');
+    expect(api.renameSpot).toHaveBeenCalledWith(SIGN_IN, 's1', 'Front porch');
     expect(onSpotRenamed).toHaveBeenCalledWith('s1', 'Front porch');
+    await waitFor(() => expect(api.activity).toHaveBeenCalledTimes(2)); // the activity log shows the rename
     expect(await screen.findByRole('button', { name: 'Rename Front porch' })).toHaveFocus();
     expect(screen.queryByRole('textbox', { name: 'New name' })).not.toBeInTheDocument();
     expect(screen.queryByText('Porch')).not.toBeInTheDocument();
@@ -219,7 +244,7 @@ describe('AdminPage — renaming a place', () => {
     await userEvent.type(nameField(), 'Old porch');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(api.renameSpot).toHaveBeenCalledWith(ADMIN_KEY, 's3', 'Old porch');
+    expect(api.renameSpot).toHaveBeenCalledWith(SIGN_IN, 's3', 'Old porch');
     const item = (await screen.findByRole('button', { name: 'Rename Old porch' })).closest('li')!;
     expect(item).toHaveTextContent('from a hidden poster');
   });
@@ -263,7 +288,7 @@ describe('AdminPage — renaming a place', () => {
     await userEvent.type(nameField(), '   ');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(api.renameSpot).toHaveBeenCalledWith(ADMIN_KEY, 's1', '');
+    expect(api.renameSpot).toHaveBeenCalledWith(SIGN_IN, 's1', '');
     expect(await screen.findByRole('alert')).toHaveTextContent('Enter a name.');
   });
 
@@ -309,5 +334,223 @@ describe('AdminPage — renaming a place', () => {
 
     await waitFor(() => expect(screen.queryByText('from a hidden poster')).not.toBeInTheDocument());
     expect(api.listSpots).toHaveBeenCalledTimes(2);
+  });
+});
+
+type RecordOverrides = Partial<Omit<ActivityRecord, 'touched'>> & Pick<ActivityRecord, 'action'> & { touched?: Partial<AdminTouched> };
+
+const record = (overrides: RecordOverrides): ActivityRecord => ({
+  id: `r-${overrides.action}`,
+  at: NOW.toISOString(),
+  adminName: 'Wallie',
+  address: '203.0.113.7',
+  ...overrides,
+  touched: {
+    posterName: null,
+    entries: null,
+    spots: null,
+    entryKind: null,
+    entryAt: null,
+    placeName: null,
+    newName: null,
+    mergedNames: null,
+    feedings: null,
+    ...overrides.touched,
+  },
+});
+
+describe('AdminPage — activity', () => {
+  const activityItems = async () =>
+    within(await screen.findByRole('list', { name: 'Activity' }))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+
+  it('says in words what each action touched, newest first', async () => {
+    const records = [
+      record({ action: 'mergePlaces', touched: { placeName: 'Porch', newName: null, mergedNames: ['Steps', 'Stoop'], feedings: 1 } }),
+      record({ action: 'mergePlaces', touched: { placeName: 'porch', newName: 'Porch', mergedNames: ['PORCH'], feedings: 3 } }),
+      record({ action: 'renamePlace', touched: { placeName: 'Porch', newName: 'Front porch' } }),
+      record({ action: 'restorePoster', touched: { posterName: null, entries: 1, spots: 0 } }),
+      record({ action: 'hidePoster', touched: { posterName: 'Spammy', entries: 14, spots: 2 } }),
+      record({ action: 'showEntry', touched: { posterName: null, entryKind: 'seen', entryAt: NOW.toISOString() } }),
+      record({ action: 'hideEntry', touched: { posterName: 'Sarah', entryKind: 'fed', entryAt: NOW.toISOString(), placeName: 'Porch' } }),
+      record({ action: 'signInFailed', adminName: null }),
+      record({ action: 'signIn' }),
+    ];
+    renderPage(fakeAdminApi({ activity: { records, next: null } }), SIGN_IN);
+
+    const items = await activityItems();
+
+    expect(items.map((text) => text?.split('Wallie')[0].split('no name')[0])).toEqual([
+      'Merged Steps and Stoop into Porch (1 feeding moved)',
+      'Merged PORCH into porch, now called Porch (3 feedings moved)',
+      'Renamed Porch to Front porch',
+      'Restored everything from a neighbor (1 entry, 0 spots)',
+      'Hid everything from Spammy (14 entries, 2 spots)',
+      'Showed a sighting by a neighbor again (Oct 8)',
+      'Hid a feeding by Sarah at Porch (Oct 8)',
+      'Tried a wrong key',
+      'Signed in',
+    ]);
+  });
+
+  it('says who, from where and when — "no name" when none was typed', async () => {
+    const records = [record({ action: 'signInFailed', adminName: null, address: '198.51.100.9' }), record({ action: 'signIn' })];
+    renderPage(fakeAdminApi({ activity: { records, next: null } }), SIGN_IN);
+
+    const [failed, signedIn] = await activityItems();
+
+    expect(failed).toContain('no name · 198.51.100.9 · Oct 8');
+    expect(signedIn).toContain('Wallie · 203.0.113.7 · Oct 8');
+    expect(screen.getByText(/a name is a claim, not proof/)).toBeInTheDocument();
+  });
+
+  it('says when there is nothing yet', async () => {
+    renderPage(fakeAdminApi(), SIGN_IN);
+
+    expect(await screen.findByText('Nothing yet.')).toBeInTheDocument();
+  });
+
+  it('shows older activity on request and moves focus to the first older line', async () => {
+    const api = fakeAdminApi({ activity: { records: [record({ action: 'signIn', id: 'new' })], next: 'new' } });
+    api.activity.mockResolvedValueOnce({ records: [record({ action: 'signIn', id: 'new' })], next: 'new' });
+    api.activity.mockResolvedValueOnce({ records: [record({ action: 'signInFailed', id: 'old' })], next: null });
+    renderPage(api, SIGN_IN);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Show older activity' }));
+
+    expect(api.activity).toHaveBeenLastCalledWith(SIGN_IN, 'new');
+    expect((await screen.findByText('Tried a wrong key')).closest('li')).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Show older activity' })).not.toBeInTheDocument();
+  });
+
+  it('reloads after a change made on this page', async () => {
+    const api = fakeAdminApi({ hiddenEntries: [event({ id: 'e1', reporterName: 'Kael' })] });
+    renderPage(api, SIGN_IN);
+    await screen.findByText('Nothing yet.');
+    api.activity.mockResolvedValue({ records: [record({ action: 'showEntry', touched: { posterName: 'Kael', entryKind: 'fed' } })], next: null });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Show again' }));
+
+    expect(await screen.findByText(/Showed a feeding by Kael again/)).toBeInTheDocument();
+  });
+
+  it('says so when it can’t load, and forgets a rejected key', async () => {
+    const api = fakeAdminApi();
+    api.activity.mockRejectedValueOnce(new TypeError('offline'));
+    renderPage(api, SIGN_IN);
+
+    expect(await screen.findByText('Couldn’t load the activity.')).toBeInTheDocument();
+
+    api.activity.mockRejectedValueOnce(new ApiError(401));
+    const { onKey } = renderPage(api, SIGN_IN);
+    await waitFor(() => expect(onKey).toHaveBeenCalledWith(null));
+  });
+});
+
+describe('AdminPage — merging places', () => {
+  const places = [adminSpot('s1', 'back steps', false, 3), adminSpot('s2', 'Porch', false, 5), adminSpot('s3', 'Spam spot', true, 1)];
+  const tick = (name: string) => userEvent.click(screen.getByRole('checkbox', { name: `Select ${name} for merging` }));
+  const renderPlaces = (api = fakeAdminApi({ spots: places })) => renderPage(api, SIGN_IN);
+  const confirmation = () => screen.getByText(/can’t be undone/);
+
+  it('shows how many feedings each place has, and offers Merge once two or more are ticked', async () => {
+    renderPlaces();
+    await screen.findByRole('list', { name: 'Places' });
+
+    expect(screen.getByText('Tick two or more places to merge them.')).toBeInTheDocument();
+    expect(screen.getByText('5 feedings')).toBeInTheDocument();
+    await tick('Porch');
+    expect(screen.queryByRole('button', { name: /^Merge/ })).not.toBeInTheDocument();
+    await tick('back steps');
+    expect(screen.getByRole('button', { name: 'Merge 2 places…' })).toBeInTheDocument();
+  });
+
+  it('keeps the busiest place by default and says what moves before merging, which can’t be undone', async () => {
+    const { api, onSpotsMerged } = renderPlaces();
+    await screen.findByRole('list', { name: 'Places' });
+    await tick('Porch');
+    await tick('Spam spot');
+    await tick('back steps');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Merge 3 places…' }));
+
+    expect(screen.getByRole('radio', { name: 'Porch' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Porch' })).toHaveFocus();
+    expect(confirmation()).toHaveTextContent(
+      'Merge back steps and Spam spot into Porch? 4 feedings move there. The other places are deleted for good — this can’t be undone.',
+    );
+    api.listSpots.mockResolvedValue([adminSpot('s2', 'Porch', false, 9)]);
+    await userEvent.click(screen.getByRole('button', { name: 'Merge' }));
+
+    expect(api.mergeSpots).toHaveBeenCalledWith(SIGN_IN, 's2', ['s1', 's3'], undefined);
+    expect(onSpotsMerged).toHaveBeenCalledWith('s2', 'Porch', ['s1', 's3']);
+    expect(await screen.findByText('9 feedings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename Porch' })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Rename back steps' })).not.toBeInTheDocument();
+    await waitFor(() => expect(api.activity).toHaveBeenCalledTimes(2));
+  });
+
+  it('keeps the place picked, under a new trimmed name', async () => {
+    const { api, onSpotsMerged } = renderPlaces();
+    await screen.findByRole('list', { name: 'Places' });
+    await tick('Porch');
+    await tick('back steps');
+    await userEvent.click(screen.getByRole('button', { name: 'Merge 2 places…' }));
+
+    await userEvent.click(screen.getByRole('radio', { name: 'back steps' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'New name (optional)' }), '  Front porch ');
+
+    expect(confirmation()).toHaveTextContent('Merge Porch into back steps? 5 feedings move there.');
+    expect(screen.getByText('back steps will then be called Front porch.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    expect(api.mergeSpots).toHaveBeenCalledWith(SIGN_IN, 's1', ['s2'], 'Front porch');
+    expect(onSpotsMerged).toHaveBeenCalledWith('s1', 'Front porch', ['s2']);
+  });
+
+  it('cancels without merging, back on the Merge button', async () => {
+    const { api } = renderPlaces();
+    await screen.findByRole('list', { name: 'Places' });
+    await tick('Porch');
+    await tick('back steps');
+    await userEvent.click(screen.getByRole('button', { name: 'Merge 2 places…' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel merging' }));
+
+    expect(api.mergeSpots).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Merge 2 places…' })).toHaveFocus();
+  });
+
+  it('says when the new name is taken, tied to the field', async () => {
+    const api = fakeAdminApi({ spots: places });
+    api.mergeSpots.mockRejectedValue(new ApiError(400, ['name.taken']));
+    renderPlaces(api);
+    await screen.findByRole('list', { name: 'Places' });
+    await tick('Porch');
+    await tick('back steps');
+    await userEvent.click(screen.getByRole('button', { name: 'Merge 2 places…' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'New name (optional)' }), 'Spam spot');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Merge' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Another place already has that name.');
+    expect(screen.getByRole('textbox', { name: 'New name (optional)' })).toHaveAccessibleDescription(
+      'Another place already has that name.',
+    );
+  });
+
+  it('says when merging fails, and forgets a rejected key', async () => {
+    const api = fakeAdminApi({ spots: places });
+    api.mergeSpots.mockRejectedValueOnce(new TypeError('offline')).mockRejectedValueOnce(new ApiError(401));
+    const { onKey } = renderPlaces(api);
+    await screen.findByRole('list', { name: 'Places' });
+    await tick('Porch');
+    await tick('back steps');
+    await userEvent.click(screen.getByRole('button', { name: 'Merge 2 places…' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('That didn’t work. Try again.');
+    await userEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    await waitFor(() => expect(onKey).toHaveBeenCalledWith(null));
   });
 });

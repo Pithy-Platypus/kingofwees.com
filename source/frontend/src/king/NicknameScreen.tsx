@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { defineMessages, FormattedMessage } from 'react-intl';
+import { NICKNAME_MAX_LENGTH } from './api';
 
 const m = defineMessages({
   title: { id: 'nickname.title', defaultMessage: 'What should neighbors call you?', description: 'Heading of the one-time name question' },
@@ -12,9 +13,6 @@ const m = defineMessages({
   save: { id: 'nickname.save', defaultMessage: 'Save', description: 'Keeps the typed name and carries on logging' },
   skip: { id: 'nickname.skip', defaultMessage: 'Skip', description: 'Carries on logging without a name' },
 });
-
-// Matches the server's reporterName limit.
-const MAX_NAME_LENGTH = 40;
 
 type Props = { initialName: string; onDone: (name: string) => void };
 
@@ -45,7 +43,7 @@ export function NicknameScreen({ initialName, onDone }: Props) {
           id={inputId}
           className="field-input"
           value={name}
-          maxLength={MAX_NAME_LENGTH}
+          maxLength={NICKNAME_MAX_LENGTH}
           autoComplete="nickname"
           onChange={(e) => setName(e.target.value)}
         />

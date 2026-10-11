@@ -1,3 +1,4 @@
+using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
 using KingOfWees.Server.Tests.King;
 using Microsoft.AspNetCore.Hosting;
@@ -22,6 +23,8 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
     public InMemoryKingEventStore Store => field ??= new(Hidden);
 
     public InMemorySpotStore Spots => field ??= new(Hidden);
+
+    public InMemoryAdminLogStore AdminLog { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -48,6 +51,8 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
             services.AddSingleton<ISpotStore>(Spots);
             services.RemoveAll<IHiddenReporterStore>();
             services.AddSingleton<IHiddenReporterStore>(Hidden);
+            services.RemoveAll<IAdminLogStore>();
+            services.AddSingleton<IAdminLogStore>(AdminLog);
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
         });

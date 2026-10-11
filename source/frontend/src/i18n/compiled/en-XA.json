@@ -181,7 +181,580 @@
       "value": "]"
     }
   ],
+  "admin.activity.hideEntry": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓ "
+    },
+    {
+      "type": 5,
+      "value": "kind",
+      "options": {
+        "fed": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ȧȧ ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ȧȧ şīɠħŧīƞɠ"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "poster"
+    },
+    {
+      "type": 5,
+      "value": "hasPlace",
+      "options": {
+        "yes": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ȧȧŧ "
+            },
+            {
+              "type": 1,
+              "value": "place"
+            }
+          ]
+        },
+        "other": {
+          "value": []
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ("
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activity.hidePoster": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓ ḗḗṽḗḗřẏŧħīƞɠ ƒřǿǿḿ "
+    },
+    {
+      "type": 1,
+      "value": "poster"
+    },
+    {
+      "type": 0,
+      "value": " ("
+    },
+    {
+      "type": 6,
+      "value": "entries",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḗḗƞŧřẏ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḗḗƞŧřīḗḗş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 6,
+      "value": "spots",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " şƥǿǿŧ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " şƥǿǿŧş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activity.mergePlaces": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḿḗḗřɠḗḗḓ "
+    },
+    {
+      "type": 1,
+      "value": "merged"
+    },
+    {
+      "type": 0,
+      "value": " īƞŧǿǿ "
+    },
+    {
+      "type": 1,
+      "value": "kept"
+    },
+    {
+      "type": 5,
+      "value": "renamed",
+      "options": {
+        "yes": {
+          "value": [
+            {
+              "type": 0,
+              "value": ", ƞǿǿẇ ƈȧȧŀŀḗḗḓ "
+            },
+            {
+              "type": 1,
+              "value": "newName"
+            }
+          ]
+        },
+        "other": {
+          "value": []
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ("
+    },
+    {
+      "type": 6,
+      "value": "feedings",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ ḿǿǿṽḗḗḓ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş ḿǿǿṽḗḗḓ"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activity.renamePlace": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Řḗḗƞȧȧḿḗḗḓ "
+    },
+    {
+      "type": 1,
+      "value": "from"
+    },
+    {
+      "type": 0,
+      "value": " ŧǿǿ "
+    },
+    {
+      "type": 1,
+      "value": "to"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activity.restorePoster": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Řḗḗşŧǿǿřḗḗḓ ḗḗṽḗḗřẏŧħīƞɠ ƒřǿǿḿ "
+    },
+    {
+      "type": 1,
+      "value": "poster"
+    },
+    {
+      "type": 0,
+      "value": " ("
+    },
+    {
+      "type": 6,
+      "value": "entries",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḗḗƞŧřẏ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḗḗƞŧřīḗḗş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 6,
+      "value": "spots",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " şƥǿǿŧ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " şƥǿǿŧş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activity.showEntry": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇḗḗḓ "
+    },
+    {
+      "type": 5,
+      "value": "kind",
+      "options": {
+        "fed": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ȧȧ ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ȧȧ şīɠħŧīƞɠ"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "poster"
+    },
+    {
+      "type": 5,
+      "value": "hasPlace",
+      "options": {
+        "yes": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ȧȧŧ "
+            },
+            {
+              "type": 1,
+              "value": "place"
+            }
+          ]
+        },
+        "other": {
+          "value": []
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ȧȧɠȧȧīƞ ("
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activity.signIn": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şīɠƞḗḗḓ īƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activity.signInFailed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧřīḗḗḓ ȧȧ ẇřǿǿƞɠ ķḗḗẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activityBy": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "address"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activityFailed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŀǿǿȧȧḓ ŧħḗḗ ȧȧƈŧīṽīŧẏ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activityHeading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧƈŧīṽīŧẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activityLoading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŀǿǿȧȧḓīƞɠ ȧȧƈŧīṽīŧẏ…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.activityNote": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḗṽḗḗřẏ şīɠƞ-īƞ, ẇřǿǿƞɠ ķḗḗẏ ȧȧƞḓ ƈħȧȧƞɠḗḗ ḿȧȧḓḗḗ ħḗḗřḗḗ, ƞḗḗẇḗḗşŧ ƒīřşŧ, ķḗḗƥŧ ƒǿǿř ȧȧ ẏḗḗȧȧř. Ƞȧȧḿḗḗş ȧȧřḗḗ ẇħȧȧŧ ḗḗȧȧƈħ ƥḗḗřşǿǿƞ ŧẏƥḗḗḓ ẇħḗḗƞ şīɠƞīƞɠ īƞ: ȧȧƞẏǿǿƞḗḗ ẇīŧħ ŧħḗḗ ķḗḗẏ ƈȧȧƞ ŧẏƥḗḗ ȧȧƞẏ ƞȧȧḿḗḗ, şǿǿ ȧȧ ƞȧȧḿḗḗ īş ȧȧ ƈŀȧȧīḿ, ƞǿǿŧ ƥřǿǿǿǿƒ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.cancel": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈȧȧƞƈḗḗŀ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.cancelRename": [
     {
       "type": 0,
       "value": "["
@@ -349,20 +922,6 @@
       "value": "]"
     }
   ],
-  "admin.fromHiddenPoster": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "ƒřǿǿḿ ȧȧ ħīḓḓḗḗƞ ƥǿǿşŧḗḗř"
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
   "admin.hashPasted": [
     {
       "type": 0,
@@ -503,6 +1062,224 @@
       "value": "]"
     }
   ],
+  "admin.merge": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḿḗḗřɠḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.mergeCancel": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈȧȧƞƈḗḗŀ ḿḗḗřɠīƞɠ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.mergeConfirm": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḿḗḗřɠḗḗ "
+    },
+    {
+      "type": 1,
+      "value": "others"
+    },
+    {
+      "type": 0,
+      "value": " īƞŧǿǿ "
+    },
+    {
+      "type": 1,
+      "value": "kept"
+    },
+    {
+      "type": 0,
+      "value": "? "
+    },
+    {
+      "type": 6,
+      "value": "feedings",
+      "options": {
+        "=0": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ƞǿǿ ƒḗḗḗḗḓīƞɠş ḿǿǿṽḗḗ."
+            }
+          ]
+        },
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ ḿǿǿṽḗḗş ŧħḗḗřḗḗ."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş ḿǿǿṽḗḗ ŧħḗḗřḗḗ."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " Ŧħḗḗ ǿǿŧħḗḗř ƥŀȧȧƈḗḗş ȧȧřḗḗ ḓḗḗŀḗḗŧḗḗḓ ƒǿǿř ɠǿǿǿǿḓ — ŧħīş ƈȧȧƞ’ŧ ƀḗḗ ŭŭƞḓǿǿƞḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.mergeHint": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧīƈķ ŧẇǿǿ ǿǿř ḿǿǿřḗḗ ƥŀȧȧƈḗḗş ŧǿǿ ḿḗḗřɠḗḗ ŧħḗḗḿ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.mergeKeep": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẇħīƈħ ƥŀȧȧƈḗḗ ķḗḗḗḗƥş īŧş ƥīƞ?"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.mergeNewName": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞḗḗẇ ƞȧȧḿḗḗ (ǿǿƥŧīǿǿƞȧȧŀ)"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.mergeRenamed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 1,
+      "value": "kept"
+    },
+    {
+      "type": 0,
+      "value": " ẇīŀŀ ŧħḗḗƞ ƀḗḗ ƈȧȧŀŀḗḗḓ "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.mergeStart": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ḿḗḗřɠḗḗ "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " ƥŀȧȧƈḗḗş…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.nameHint": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şȧȧṽḗḗḓ ẇīŧħ ḗḗṽḗḗřẏŧħīƞɠ ẏǿǿŭŭ ḓǿǿ ħḗḗřḗḗ, şǿǿ ŧħḗḗ ǿǿŧħḗḗř ƈȧȧřḗḗŧȧȧķḗḗřş ƈȧȧƞ şḗḗḗḗ ẇħǿǿ ḓīḓ ẇħȧȧŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.nameLabel": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẏǿǿŭŭř ƞȧȧḿḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.nameRequired": [
     {
       "type": 0,
@@ -545,6 +1322,20 @@
       "value": "]"
     }
   ],
+  "admin.noActivity": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿŧħīƞɠ ẏḗḗŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.noEntries": [
     {
       "type": 0,
@@ -553,6 +1344,20 @@
     {
       "type": 0,
       "value": "Ƞǿǿ ħīḓḓḗḗƞ ḗḗƞŧřīḗḗş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.noName": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "ƞǿǿ ƞȧȧḿḗḗ"
     },
     {
       "type": 0,
@@ -581,6 +1386,90 @@
     {
       "type": 0,
       "value": "Ƞǿǿ ħīḓḓḗḗƞ ƥǿǿşŧḗḗřş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.placeFeedings": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "feedings",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.placeFeedingsHidden": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "feedings",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": " · ƒřǿǿḿ ȧȧ ħīḓḓḗḗƞ ƥǿǿşŧḗḗř"
     },
     {
       "type": 0,
@@ -771,6 +1660,20 @@
       "value": "]"
     }
   ],
+  "admin.showOlderActivity": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇ ǿǿŀḓḗḗř ȧȧƈŧīṽīŧẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.signOut": [
     {
       "type": 0,
@@ -779,6 +1682,28 @@
     {
       "type": 0,
       "value": "Şīɠƞ ǿǿŭŭŧ ǿǿƞ ŧħīş ḓḗḗṽīƈḗḗ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.tickPlace": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şḗḗŀḗḗƈŧ "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": " ƒǿǿř ḿḗḗřɠīƞɠ"
     },
     {
       "type": 0,
@@ -807,6 +1732,20 @@
     {
       "type": 0,
       "value": "Ŧǿǿǿǿ ḿȧȧƞẏ ŧřīḗḗş. Ẇȧȧīŧ ȧȧ ḿīƞŭŭŧḗḗ, ŧħḗḗƞ ŧřẏ ȧȧɠȧȧīƞ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.unknownAddress": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "ŭŭƞķƞǿǿẇƞ ȧȧḓḓřḗḗşş"
     },
     {
       "type": 0,
@@ -2412,7 +3351,7 @@
     },
     {
       "type": 0,
-      "value": "Ẏǿǿŭŭř īƞŧḗḗřƞḗḗŧ ȧȧḓḓřḗḗşş īş ŭŭşḗḗḓ ƒǿǿř ȧȧƀǿǿŭŭŧ ȧȧ ḿīƞŭŭŧḗḗ ŧǿǿ şŧǿǿƥ şƥȧȧḿ (īŧ ŀīḿīŧş ħǿǿẇ ǿǿƒŧḗḗƞ ḗḗƞŧřīḗḗş ƈȧȧƞ ƀḗḗ ƥǿǿşŧḗḗḓ) ȧȧƞḓ īşƞ’ŧ şŧǿǿřḗḗḓ. Ẇḗḗ řḗḗḿǿǿṽḗḗ īŧ ƒřǿǿḿ ǿǿŭŭř ŧḗḗƈħƞīƈȧȧŀ ŀǿǿɠş."
+      "value": "Ẏǿǿŭŭř īƞŧḗḗřƞḗḗŧ ȧȧḓḓřḗḗşş īş ŭŭşḗḗḓ ƒǿǿř ȧȧƀǿǿŭŭŧ ȧȧ ḿīƞŭŭŧḗḗ ŧǿǿ şŧǿǿƥ şƥȧȧḿ (īŧ ŀīḿīŧş ħǿǿẇ ǿǿƒŧḗḗƞ ḗḗƞŧřīḗḗş ƈȧȧƞ ƀḗḗ ƥǿǿşŧḗḗḓ) ȧȧƞḓ īşƞ’ŧ şŧǿǿřḗḗḓ — ḗḗẋƈḗḗƥŧ ẇħḗḗƞ şǿǿḿḗḗǿǿƞḗḗ şīɠƞş īƞ ŧǿǿ ŧħḗḗ ƈȧȧřḗḗŧȧȧķḗḗřş’ ȧȧḓḿīƞ ƥȧȧɠḗḗ, ǿǿř ŧřīḗḗş ŧǿǿ: ŧħḗḗƞ īŧ’ş ķḗḗƥŧ ẇīŧħ ŧħȧȧŧ şīɠƞ-īƞ ȧȧƞḓ ẇħȧȧŧ ŧħḗḗẏ ƈħȧȧƞɠḗḗ ŧħḗḗřḗḗ, ƒǿǿř ȧȧ ẏḗḗȧȧř. Ẇḗḗ řḗḗḿǿǿṽḗḗ īŧ ƒřǿǿḿ ǿǿŭŭř ŧḗḗƈħƞīƈȧȧŀ ŀǿǿɠş."
     },
     {
       "type": 0,

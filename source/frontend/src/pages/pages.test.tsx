@@ -90,10 +90,14 @@ describe('PrivacyPage', () => {
     );
   });
 
-  it('says internet addresses are used briefly against spam and not stored', () => {
+  it('says internet addresses are used briefly against spam and not stored — except for admin sign-ins, kept a year', () => {
     renderInEnglish(<PrivacyPage />);
 
-    expect(screen.getByText(/to stop spam/)).toHaveTextContent(/isn’t stored/);
+    const promise = screen.getByText(/to stop spam/);
+    expect(promise).toHaveTextContent(/isn’t stored/);
+    expect(promise).toHaveTextContent(
+      'except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year.',
+    );
   });
 
   it('explains the random undo code kept in the browser', () => {

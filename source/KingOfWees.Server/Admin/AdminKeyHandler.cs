@@ -17,8 +17,8 @@ public sealed class AdminKeyHandler(
     public static bool CarriesTheKey(HttpRequest request, AdminOptions admin) =>
         PresentedKey(request, admin) is { } key && AdminKeyHasher.Matches(key, admin.KeyHash!);
 
-    // The Bearer value, or null when admin is off or no Bearer key was sent.
-    private static string? PresentedKey(HttpRequest request, AdminOptions admin) =>
+    /// <summary>The Bearer value, or null when admin is off or no Bearer key was sent.</summary>
+    public static string? PresentedKey(HttpRequest request, AdminOptions admin) =>
         admin.IsConfigured
         && AuthenticationHeaderValue.TryParse(request.Headers.Authorization.ToString(), out var header)
         && header.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase)

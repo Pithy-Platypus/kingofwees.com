@@ -448,4 +448,45 @@ public abstract class KingEventStoreContract
         Assert.Equal(new ReporterSummary(2, T0.AddMinutes(2), "Spammy"), await store.SummarizeReporterAsync("spammer", Ct));
         Assert.Equal(new ReporterSummary(0, null, null), await store.SummarizeReporterAsync("nobody", Ct));
     }
+
+    [Fact]
+    public async Task Moving_feedings_moves_every_one_at_those_spots_hidden_or_not_and_nothing_else()
+    {
+        var (store, hidden) = CreateStores();
+        var atPorch = Event(KingEventKind.Fed, 0, spotId: "porch");
+        var hiddenAtPorch = Event(KingEventKind.Fed, 1, spotId: "porch");
+        var spamAtSteps = Event(KingEventKind.Fed, 2, spotId: "steps", device: "spammer");
+        var atCorner = Event(KingEventKind.Fed, 3, spotId: "corner");
+        var sighting = Event(KingEventKind.Seen, 4, location: Block);
+        foreach (var e in new[] { atPorch, hiddenAtPorch, spamAtSteps, atCorner, sighting }) await store.AddAsync(e, Ct);
+        await store.SetHiddenAsync(hiddenAtPorch.Id, hidden: true, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.Equal(3, await store.MoveFeedingsAsync(["porch", "steps"], "kept", Ct));
+
+        foreach (var moved in new[] { atPorch, hiddenAtPorch, spamAtSteps })
+        {
+            AssertSameEvent(moved with { SpotId = "kept" }, await store.FindAsync(moved.Id, Ct));
+        }
+        AssertSameEvent(atCorner, await store.FindAsync(atCorner.Id, Ct));
+        AssertSameEvent(sighting, await store.FindAsync(sighting.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Every_feeding_is_counted_per_spot_hidden_or_not()
+    {
+        var (store, hidden) = CreateStores();
+        var hiddenOne = Event(KingEventKind.Fed, 0, spotId: "porch");
+        await store.AddAsync(hiddenOne, Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 1, spotId: "porch", sawKing: false), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 2, spotId: "steps", device: "spammer"), Ct);
+        await store.AddAsync(Event(KingEventKind.Fed, 3), Ct);
+        await store.AddAsync(Event(KingEventKind.Seen, 4, location: Block), Ct);
+        await store.SetHiddenAsync(hiddenOne.Id, hidden: true, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        var counts = await store.CountEveryFeedingBySpotAsync(Ct);
+
+        Assert.Equal([new SpotCount("porch", 2), new SpotCount("steps", 1)], counts.OrderBy(c => c.SpotId));
+    }
 }

@@ -47,7 +47,63 @@
     "defaultMessage": "That didn’t work. Try again.",
     "description": "Show again or Restore failed"
   },
+  "admin.activity.hideEntry": {
+    "defaultMessage": "Hid {kind, select, fed {a feeding} other {a sighting}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})",
+    "description": "Activity line: one entry was hidden; {poster} posted it, {place} is its feeding place, {when} the entry’s date"
+  },
+  "admin.activity.hidePoster": {
+    "defaultMessage": "Hid everything from {poster} ({entries, plural, one {# entry} other {# entries}}, {spots, plural, one {# spot} other {# spots}})",
+    "description": "Activity line: everything from one poster was hidden"
+  },
+  "admin.activity.mergePlaces": {
+    "defaultMessage": "Merged {merged} into {kept}{renamed, select, yes {, now called {newName}} other {}} ({feedings, plural, one {# feeding moved} other {# feedings moved}})",
+    "description": "Activity line: places were merged; {merged} is a list of the deleted places’ names"
+  },
+  "admin.activity.renamePlace": {
+    "defaultMessage": "Renamed {from} to {to}",
+    "description": "Activity line: a place was renamed"
+  },
+  "admin.activity.restorePoster": {
+    "defaultMessage": "Restored everything from {poster} ({entries, plural, one {# entry} other {# entries}}, {spots, plural, one {# spot} other {# spots}})",
+    "description": "Activity line: a hidden poster was restored"
+  },
+  "admin.activity.showEntry": {
+    "defaultMessage": "Showed {kind, select, fed {a feeding} other {a sighting}} by {poster}{hasPlace, select, yes { at {place}} other {}} again ({when})",
+    "description": "Activity line: a hidden entry was shown again; {poster} posted it, {when} is the entry’s date"
+  },
+  "admin.activity.signIn": {
+    "defaultMessage": "Signed in",
+    "description": "Activity line: someone signed in with the right key"
+  },
+  "admin.activity.signInFailed": {
+    "defaultMessage": "Tried a wrong key",
+    "description": "Activity line: someone tried a wrong admin key"
+  },
+  "admin.activityBy": {
+    "defaultMessage": "{name} · {address} · {when}",
+    "description": "Under an activity line: the name typed at sign-in, the internet address, and the date and time"
+  },
+  "admin.activityFailed": {
+    "defaultMessage": "Couldn’t load the activity.",
+    "description": "The activity log failed to load"
+  },
+  "admin.activityHeading": {
+    "defaultMessage": "Activity",
+    "description": "Heading over the log of admin sign-ins and changes"
+  },
+  "admin.activityLoading": {
+    "defaultMessage": "Loading activity…",
+    "description": "Shown while the activity log loads"
+  },
+  "admin.activityNote": {
+    "defaultMessage": "Every sign-in, wrong key and change made here, newest first, kept for a year. Names are what each person typed when signing in: anyone with the key can type any name, so a name is a claim, not proof.",
+    "description": "Explains the activity log; there is one shared key, so names are not verified"
+  },
   "admin.cancel": {
+    "defaultMessage": "Cancel",
+    "description": "Closes the hide question without hiding"
+  },
+  "admin.cancelRename": {
     "defaultMessage": "Cancel",
     "description": "Closes the rename field without saving"
   },
@@ -70,10 +126,6 @@
   "admin.entriesHeading": {
     "defaultMessage": "Hidden entries",
     "description": "Heading over entries hidden one by one"
-  },
-  "admin.fromHiddenPoster": {
-    "defaultMessage": "from a hidden poster",
-    "description": "Under a place added by a hidden poster: only admins see it"
   },
   "admin.hashPasted": {
     "defaultMessage": "That looks like the key’s hash. Enter the key itself — the shorter line from the key tool.",
@@ -111,6 +163,46 @@
     "defaultMessage": "Loading what’s hidden…",
     "description": "Shown while the hidden lists load"
   },
+  "admin.merge": {
+    "defaultMessage": "Merge",
+    "description": "Merges the ticked places for good"
+  },
+  "admin.mergeCancel": {
+    "defaultMessage": "Cancel merging",
+    "description": "Closes the merge choices without merging"
+  },
+  "admin.mergeConfirm": {
+    "defaultMessage": "Merge {others} into {kept}? {feedings, plural, =0 {No feedings move.} one {# feeding moves there.} other {# feedings move there.}} The other places are deleted for good — this can’t be undone.",
+    "description": "Says what merging will do before it happens; {others} is a list of place names"
+  },
+  "admin.mergeHint": {
+    "defaultMessage": "Tick two or more places to merge them.",
+    "description": "Under the Places heading: how to start merging duplicate places"
+  },
+  "admin.mergeKeep": {
+    "defaultMessage": "Which place keeps its pin?",
+    "description": "Question over the ticked places when merging: the kept place stays, the others are deleted"
+  },
+  "admin.mergeNewName": {
+    "defaultMessage": "New name (optional)",
+    "description": "Label of the field for a new name for the kept place"
+  },
+  "admin.mergeRenamed": {
+    "defaultMessage": "{kept} will then be called {name}.",
+    "description": "Shown when a new name was typed for the kept place"
+  },
+  "admin.mergeStart": {
+    "defaultMessage": "Merge {count} places…",
+    "description": "Opens the merge choices for the ticked places"
+  },
+  "admin.nameHint": {
+    "defaultMessage": "Saved with everything you do here, so the other caretakers can see who did what.",
+    "description": "Under the admin’s name field: the name goes into the activity log"
+  },
+  "admin.nameLabel": {
+    "defaultMessage": "Your name",
+    "description": "Label of the field for the admin’s own name, at sign-in"
+  },
   "admin.nameRequired": {
     "defaultMessage": "Enter a name.",
     "description": "The new name was empty"
@@ -123,9 +215,17 @@
     "defaultMessage": "New name",
     "description": "Label of the field for a place’s new name"
   },
+  "admin.noActivity": {
+    "defaultMessage": "Nothing yet.",
+    "description": "The activity log is empty"
+  },
   "admin.noEntries": {
     "defaultMessage": "No hidden entries.",
     "description": "No entry is hidden on its own"
+  },
+  "admin.noName": {
+    "defaultMessage": "no name",
+    "description": "In the activity log: no name was typed at sign-in"
   },
   "admin.noPlaces": {
     "defaultMessage": "No places yet.",
@@ -134,6 +234,14 @@
   "admin.noPosters": {
     "defaultMessage": "No hidden posters.",
     "description": "No poster is hidden"
+  },
+  "admin.placeFeedings": {
+    "defaultMessage": "{feedings, plural, one {# feeding} other {# feedings}}",
+    "description": "Under a place: how many feedings it has, hidden ones included"
+  },
+  "admin.placeFeedingsHidden": {
+    "defaultMessage": "{feedings, plural, one {# feeding} other {# feedings}} · from a hidden poster",
+    "description": "Under a place added by a hidden poster (only admins see it): how many feedings it has"
   },
   "admin.placesHeading": {
     "defaultMessage": "Places",
@@ -167,9 +275,17 @@
     "defaultMessage": "Show again",
     "description": "Un-hides one entry"
   },
+  "admin.showOlderActivity": {
+    "defaultMessage": "Show older activity",
+    "description": "Loads the next, older page of the activity log"
+  },
   "admin.signOut": {
     "defaultMessage": "Sign out on this device",
     "description": "Forgets the admin key on this device"
+  },
+  "admin.tickPlace": {
+    "defaultMessage": "Select {name} for merging",
+    "description": "Accessible name of the tick box beside a place"
   },
   "admin.title": {
     "defaultMessage": "Admin",
@@ -178,6 +294,10 @@
   "admin.tooMany": {
     "defaultMessage": "Too many tries. Wait a minute, then try again.",
     "description": "The site is limiting admin requests from this address"
+  },
+  "admin.unknownAddress": {
+    "defaultMessage": "unknown address",
+    "description": "In the activity log: no internet address was known"
   },
   "admin.unreachable": {
     "defaultMessage": "Couldn’t reach the site. Try again.",
@@ -596,8 +716,8 @@
     "description": "Fonts are self-hosted"
   },
   "privacy.not.ip": {
-    "defaultMessage": "Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and isn’t stored. We remove it from our technical logs.",
-    "description": "IP addresses: used briefly for rate limiting, stripped from telemetry"
+    "defaultMessage": "Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and isn’t stored — except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year. We remove it from our technical logs.",
+    "description": "IP addresses: used briefly for rate limiting, stripped from telemetry; kept a year only in the admin activity log"
   },
   "privacy.not.maps": {
     "defaultMessage": "Maps are the exception: the map pictures load from OpenStreetMap, which sees your internet address and which part of the map you’re looking at. See <policy>OpenStreetMap’s privacy policy</policy>.",

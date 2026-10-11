@@ -10,10 +10,14 @@ public interface ISpotStore
     Task<bool> RenameAsync(string id, string name, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Whether a spot other than <paramref name="exceptId"/> has this name, ignoring case (admin). Counts hidden devices'
+    /// Whether a spot not in <paramref name="exceptIds"/> has this name, ignoring case (admin). Counts hidden devices'
     /// spots too, so restoring a device can't bring back a second place with the same name.
     /// </summary>
-    Task<bool> NameTakenAsync(string name, string exceptId, CancellationToken cancellationToken);
+    Task<bool> NameTakenAsync(string name, IReadOnlyCollection<string> exceptIds, CancellationToken cancellationToken);
+
+    /// <summary>Deletes these spots for good, hidden or not (admin: merging places); unknown ids are skipped.</summary>
+    /// <returns>How many were deleted.</returns>
+    Task<int> DeleteAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken);
 
     /// <summary>Spots one device added, hidden or not (admin).</summary>
     Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken);

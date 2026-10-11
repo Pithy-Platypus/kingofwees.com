@@ -14,10 +14,11 @@ public sealed partial class KingFlowTests
 
     private static string UniqueName(string prefix) => $"{prefix} {Guid.NewGuid().ToString()[..8]}";
 
-    private static async Task SignInAsAdmin(IPage page)
+    private static async Task SignInAsAdmin(IPage page, string name = "E2E admin")
     {
         await page.GotoAsync("/admin");
         await page.GetByLabel("Admin key").FillAsync(AppFixture.AdminKey);
+        await page.GetByLabel("Your name").FillAsync(name);
         await Button(page, "Check key").ClickAsync();
         await Assertions.Expect(Button(page, "Sign out on this device")).ToBeVisibleAsync();
     }
@@ -34,11 +35,13 @@ public sealed partial class KingFlowTests
         await PostSighting(page, spamKey, spammer);
         await PostSighting(page, spamKey, spammer);
 
+        var admin = UniqueName("Admin");
         await page.GotoAsync("/admin");
         await page.GetByLabel("Admin key").FillAsync("wrong-key");
+        await page.GetByLabel("Your name").FillAsync(admin);
         await Button(page, "Check key").ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Alert)).ToHaveTextAsync("That key didn’t work.");
-        await SignInAsAdmin(page);
+        await SignInAsAdmin(page, admin);
 
         await page.GotoAsync("/history");
         await Entries(page, $"Seen by {spammer}").First.GetByRole(AriaRole.Button, new() { Name = "Hide everything from this poster" }).ClickAsync();
@@ -53,6 +56,13 @@ public sealed partial class KingFlowTests
         Assert.DoesNotContain(spammer, (await Status(page)).GetRawText());
 
         await page.GotoAsync("/admin");
+        // The activity log names the admin as typed, newest first: the hide, the sign-in, the wrong key before it.
+        var activity = page.GetByRole(AriaRole.List, new() { Name = "Activity" }).GetByRole(AriaRole.Listitem)
+            .Filter(new() { HasText = admin });
+        await Assertions.Expect(activity).ToHaveCountAsync(3);
+        await Assertions.Expect(activity.Nth(0)).ToContainTextAsync($"Hid everything from {spammer} (2 entries, 0 spots)");
+        await Assertions.Expect(activity.Nth(1)).ToContainTextAsync("Signed in");
+        await Assertions.Expect(activity.Nth(2)).ToContainTextAsync("Tried a wrong key");
         var poster = page.GetByRole(AriaRole.List, new() { Name = "Hidden posters" }).GetByRole(AriaRole.Listitem)
             .Filter(new() { HasText = spammer });
         await Assertions.Expect(poster).ToContainTextAsync("3 entries · 0 spots");
@@ -105,9 +115,11 @@ public sealed partial class KingFlowTests
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "Admin" })).ToBeFocusedAsync();
         await AssertNoAxeViolations(page);
 
-        // Keyboard only: from the focused heading, Tab reaches the key field, and Enter checks it.
+        // Keyboard only: from the focused heading, Tab reaches the key field, Tab again the name, and Enter checks it.
         await page.Keyboard.PressAsync("Tab");
         await page.Keyboard.TypeAsync("wrong-key");
+        await page.Keyboard.PressAsync("Tab");
+        await page.Keyboard.TypeAsync("Keyboard admin");
         await page.Keyboard.PressAsync("Enter");
         await Assertions.Expect(page.GetByRole(AriaRole.Alert)).ToBeVisibleAsync();
         await AssertNoAxeViolations(page);
@@ -116,6 +128,7 @@ public sealed partial class KingFlowTests
         await page.Keyboard.TypeAsync(AppFixture.AdminKey);
         await page.Keyboard.PressAsync("Enter");
         await Assertions.Expect(page.GetByRole(AriaRole.List, new() { Name = "Hidden posters" })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.List, new() { Name = "Activity" })).ToBeVisibleAsync();
         await AssertNoAxeViolations(page);
 
         await page.GotoAsync("/history");
@@ -178,6 +191,59 @@ public sealed partial class KingFlowTests
         await page.GotoAsync("/history");
         await Assertions.Expect(page.GetByText($"at {newName}").First).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByText(oldName)).ToHaveCountAsync(0);
+    }
+
+    [Fact]
+    public async Task An_admin_merges_two_places_with_only_a_keyboard_and_their_feedings_move_to_the_kept_one()
+    {
+        var page = await app.NewPageAsync();
+        var busy = UniqueSpotName("Busy porch");
+        var duplicate = UniqueSpotName("Dupe porch");
+        var merged = UniqueSpotName("Merged porch");
+        var admin = UniqueName("Merger");
+        // A block of its own, well away from the other tests' places.
+        var place = new { latitude = 45.551, longitude = -122.713 };
+        foreach (var (name, feedings) in new[] { (busy, 2), (duplicate, 1) })
+        {
+            var spot = await PostJson(page, "/api/king/spots", new { reporterKey = "e2e-merge", name, location = place });
+            for (var i = 0; i < feedings; i++)
+            {
+                await PostJson(page, "/api/king/feedings", new
+                {
+                    reporterKey = "e2e-merge", foods = new[] { "dry" }, sawKing = false, spotId = spot.GetProperty("id").GetString(),
+                });
+            }
+        }
+        await SignInAsAdmin(page, admin);
+
+        foreach (var name in new[] { duplicate, busy })
+        {
+            await page.GetByRole(AriaRole.Checkbox, new() { Name = $"Select {name} for merging" }).FocusAsync();
+            await page.Keyboard.PressAsync("Space");
+        }
+        await Button(page, "Merge 2 places…").FocusAsync();
+        await page.Keyboard.PressAsync("Enter");
+
+        // The busier place is kept unless another is picked; the question says what moves before anything does.
+        await Assertions.Expect(page.GetByRole(AriaRole.Radio, new() { Name = busy })).ToBeFocusedAsync();
+        await Assertions.Expect(page.GetByText($"Merge {duplicate} into {busy}? 1 feeding moves there.")).ToBeVisibleAsync();
+        await page.Keyboard.PressAsync("Tab"); // a radio group is one tab stop
+        await Assertions.Expect(page.GetByRole(AriaRole.Textbox, new() { Name = "New name (optional)" })).ToBeFocusedAsync();
+        await page.Keyboard.TypeAsync(merged);
+        await AssertNoAxeViolations(page);
+        await TabUntilFocused(page, "Merge");
+        await page.Keyboard.PressAsync("Enter");
+
+        await Assertions.Expect(Button(page, $"Rename {merged}")).ToBeFocusedAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.List, new() { Name = "Places" }).GetByRole(AriaRole.Listitem)
+            .Filter(new() { HasText = merged })).ToContainTextAsync("3 feedings");
+        await Assertions.Expect(Button(page, $"Rename {duplicate}")).ToHaveCountAsync(0);
+        await Assertions.Expect(page.GetByRole(AriaRole.List, new() { Name = "Activity" }).GetByRole(AriaRole.Listitem)
+            .Filter(new() { HasText = admin }).First).ToContainTextAsync($"Merged {duplicate} into {busy}, now called {merged} (1 feeding moved)");
+
+        await page.GotoAsync("/history");
+        await Assertions.Expect(page.GetByText($"at {merged}")).ToHaveCountAsync(3);
+        await Assertions.Expect(page.GetByText(duplicate)).ToHaveCountAsync(0);
     }
 
     [Fact]

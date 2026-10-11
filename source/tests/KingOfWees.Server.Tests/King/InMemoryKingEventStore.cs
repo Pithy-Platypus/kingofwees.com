@@ -96,4 +96,15 @@ public sealed class InMemoryKingEventStore(IHiddenReporterStore hiddenReporters)
 
     public Task<bool> DeleteAsync(string id, CancellationToken cancellationToken) =>
         Task.FromResult(_events.TryRemove(id, out _));
+
+    public Task<int> MoveFeedingsAsync(IReadOnlyCollection<string> fromSpotIds, string toSpotId, CancellationToken cancellationToken)
+    {
+        var moving = _events.Values.Where(e => e.SpotId is not null && fromSpotIds.Contains(e.SpotId)).ToList();
+        foreach (var e in moving) _events[e.Id] = e with { SpotId = toSpotId };
+        return Task.FromResult(moving.Count);
+    }
+
+    public Task<IReadOnlyList<SpotCount>> CountEveryFeedingBySpotAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<SpotCount>>(
+            [.. _events.Values.Where(e => e.SpotId is not null).GroupBy(e => e.SpotId!).Select(g => new SpotCount(g.Key, g.Count()))]);
 }

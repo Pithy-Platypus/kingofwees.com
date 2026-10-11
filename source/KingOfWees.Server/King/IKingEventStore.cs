@@ -37,6 +37,13 @@ public interface IKingEventStore
     /// <summary>Every entry from one device, hidden or not (admin).</summary>
     Task<ReporterSummary> SummarizeReporterAsync(string reporterKey, CancellationToken cancellationToken);
 
+    /// <summary>Points every feeding at <paramref name="fromSpotIds"/> at <paramref name="toSpotId"/> instead, hidden or not (admin: merging places).</summary>
+    /// <returns>How many feedings moved.</returns>
+    Task<int> MoveFeedingsAsync(IReadOnlyCollection<string> fromSpotIds, string toSpotId, CancellationToken cancellationToken);
+
+    /// <summary>Every feeding per spot, hidden entries and hidden devices' included (admin: what a merge would move).</summary>
+    Task<IReadOnlyList<SpotCount>> CountEveryFeedingBySpotAsync(CancellationToken cancellationToken);
+
     /// <returns>True when the event exists (and now carries <paramref name="reporterName"/>; null = no name).</returns>
     Task<bool> RenameAsync(string id, string? reporterName, CancellationToken cancellationToken);
 

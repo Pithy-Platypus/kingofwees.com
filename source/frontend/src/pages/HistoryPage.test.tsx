@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HeatCell, HistoryPage as HistoryPageData } from '../king/api';
-import { ADMIN_KEY, CENTER, device, event, fakeAdminApi, fakeApi, NOW, spot } from '../test/fakeApi';
+import { CENTER, device, event, fakeAdminApi, fakeApi, NOW, SIGN_IN, spot } from '../test/fakeApi';
 import { ApiError } from '../king/api';
 import { renderInEnglish } from '../test/render';
 import { HistoryPage } from './HistoryPage';
@@ -252,7 +252,7 @@ describe('HistoryPage — hiding, for admins', () => {
   const renderAsAdmin = (adminApi = fakeAdminApi(), api = fakeApi(undefined, { history })) => {
     const onRejected = vi.fn();
     renderInEnglish(
-      <HistoryPage api={api} spots={[]} mapCenter={null} now={NOW} admin={{ key: ADMIN_KEY, api: adminApi, onRejected }} />,
+      <HistoryPage api={api} spots={[]} mapCenter={null} now={NOW} admin={{ signIn: SIGN_IN, api: adminApi, onRejected }} />,
     );
     return { api, adminApi, onRejected };
   };
@@ -273,7 +273,7 @@ describe('HistoryPage — hiding, for admins', () => {
     expect(adminApi.hideEntry).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Hide it' }));
 
-    expect(adminApi.hideEntry).toHaveBeenCalledWith(ADMIN_KEY, 'e1');
+    expect(adminApi.hideEntry).toHaveBeenCalledWith(SIGN_IN, 'e1');
     await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/^Hidden\. You can restore it on the/)).toHaveFocus();
     expect(screen.getByRole('link', { name: 'admin page' })).toHaveAttribute('href', '/admin');
@@ -294,11 +294,11 @@ describe('HistoryPage — hiding, for admins', () => {
     const { api } = renderAsAdmin(adminApi);
     await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide everything from this poster' }));
 
-    expect(adminApi.describeDevice).toHaveBeenCalledWith(ADMIN_KEY, 'e1');
+    expect(adminApi.describeDevice).toHaveBeenCalledWith(SIGN_IN, 'e1');
     expect(await screen.findByText('Hide 14 entries and 2 spots from Sarah, including anything they post later?')).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Hide all' }));
 
-    expect(adminApi.hideDevice).toHaveBeenCalledWith(ADMIN_KEY, 'e1');
+    expect(adminApi.hideDevice).toHaveBeenCalledWith(SIGN_IN, 'e1');
     await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
   });
 

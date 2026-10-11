@@ -75,10 +75,40 @@ public abstract class SpotStoreContract
         await store.AddAsync(spam, Ct);
         await hidden.HideAsync("spammer", T0, Ct);
 
-        Assert.True(await store.NameTakenAsync("PORCH", spam.Id, Ct));
-        Assert.True(await store.NameTakenAsync("spam SPOT", porch.Id, Ct));
-        Assert.False(await store.NameTakenAsync("porch", porch.Id, Ct));
-        Assert.False(await store.NameTakenAsync("Corner", porch.Id, Ct));
+        Assert.True(await store.NameTakenAsync("PORCH", [spam.Id], Ct));
+        Assert.True(await store.NameTakenAsync("spam SPOT", [porch.Id], Ct));
+        Assert.False(await store.NameTakenAsync("porch", [porch.Id], Ct));
+        Assert.False(await store.NameTakenAsync("Corner", [porch.Id], Ct));
+    }
+
+    [Fact]
+    public async Task A_name_held_only_by_the_spots_left_out_is_not_taken()
+    {
+        var store = CreateStore();
+        var porch = NewSpot("Porch", 0);
+        var lowerPorch = NewSpot("porch", 1);
+        var corner = NewSpot("Corner", 2);
+        foreach (var spot in new[] { porch, lowerPorch, corner }) await store.AddAsync(spot, Ct);
+
+        Assert.False(await store.NameTakenAsync("PORCH", [porch.Id, lowerPorch.Id], Ct));
+        Assert.True(await store.NameTakenAsync("PORCH", [porch.Id], Ct));
+        Assert.True(await store.NameTakenAsync("corner", [porch.Id, lowerPorch.Id], Ct));
+    }
+
+    [Fact]
+    public async Task Deleting_spots_removes_only_those_hidden_or_not_and_counts_them()
+    {
+        var (store, hidden) = CreateStores();
+        var porch = NewSpot("Porch", 0);
+        var spam = NewSpot("Spam spot", 1, device: "spammer");
+        var corner = NewSpot("Corner", 2);
+        foreach (var spot in new[] { porch, spam, corner }) await store.AddAsync(spot, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.Equal(2, await store.DeleteAsync([porch.Id, spam.Id, "unknown"], Ct));
+
+        Assert.Equal([corner], await store.ListEveryAsync(Ct));
+        Assert.Null(await store.FindAsync(spam.Id, Ct));
     }
 
     [Fact]

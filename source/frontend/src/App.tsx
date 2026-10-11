@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { Footer } from './Footer';
-import { adminApi as liveAdminApi, loadAdminKey, saveAdminKey, type AdminApi, type AdminSession } from './king/admin';
+import { adminApi as liveAdminApi, loadAdminSignIn, saveAdminSignIn, type AdminApi, type AdminSession, type AdminSignIn } from './king/admin';
 import { kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
 import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
@@ -12,10 +12,12 @@ import { loadLastSpotId, loadNickname, saveLastSpotId, saveNickname, type KeyVal
 import { SeenScreen } from './king/SeenScreen';
 import { SpotScreen } from './king/SpotScreen';
 import { AboutPage } from './pages/AboutPage';
-import { AdminPage } from './pages/AdminPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { useRoute, type Route } from './routing/routes';
+
+// Only caretakers open /admin, so visitors never download it (it pushed the main bundle past Vite's 500 kB warning).
+const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 
 const m = defineMessages({
   loading: { id: 'app.loading', defaultMessage: 'Finding King…', description: 'Shown while the status loads' },
@@ -71,7 +73,7 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   const [spots, setSpots] = useState<SpotView[]>([]);
   const [spotId, setSpotId] = useState(() => loadLastSpotId(storage));
   const [feedDraft, setFeedDraft] = useState<FeedDraft>(noFeedDraft);
-  const [adminKey, setAdminKey] = useState(() => loadAdminKey(storage));
+  const [adminSignIn, setAdminSignIn] = useState(() => loadAdminSignIn(storage));
   const [, setTick] = useState(0);
   const route = useRoute();
   const intl = useIntl();
@@ -106,16 +108,16 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   }, []);
 
   // Stable, so the admin page's loading effect doesn't rerun on every render (the clock ticks every 30 s).
-  const changeAdminKey = useCallback(
-    (key: string | null) => {
-      saveAdminKey(storage, key);
-      setAdminKey(key);
+  const changeAdminSignIn = useCallback(
+    (signIn: AdminSignIn | null) => {
+      saveAdminSignIn(storage, signIn);
+      setAdminSignIn(signIn);
     },
     [storage],
   );
   const admin = useMemo<AdminSession | undefined>(
-    () => (adminKey ? { key: adminKey, api: adminApi, onRejected: () => changeAdminKey(null) } : undefined),
-    [adminKey, adminApi, changeAdminKey],
+    () => (adminSignIn ? { signIn: adminSignIn, api: adminApi, onRejected: () => changeAdminSignIn(null) } : undefined),
+    [adminSignIn, adminApi, changeAdminSignIn],
   );
 
   const run = async (action: () => Promise<void>) => {
@@ -205,14 +207,21 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
     content = <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} />;
   } else if (route === 'admin') {
     content = (
-      <AdminPage
-        api={adminApi}
-        adminKey={adminKey}
-        onKey={changeAdminKey}
-        spots={spots}
-        onSpotRenamed={(id, name) => setSpots((current) => current.map((s) => (s.id === id ? { ...s, name } : s)))}
-        now={now()}
-      />
+      <Suspense fallback={null}>
+        <AdminPage
+          api={adminApi}
+          signIn={adminSignIn}
+          onSignIn={changeAdminSignIn}
+          spots={spots}
+          onSpotRenamed={(id, name) => setSpots((current) => current.map((s) => (s.id === id ? { ...s, name } : s)))}
+          onSpotsMerged={(keptId, name, mergedIds) =>
+            setSpots((current) =>
+              current.filter((s) => !mergedIds.includes(s.id)).map((s) => (s.id === keptId ? { ...s, name } : s)),
+            )
+          }
+          now={now()}
+        />
+      </Suspense>
     );
   } else if (route === 'about') {
     content = <AboutPage />;

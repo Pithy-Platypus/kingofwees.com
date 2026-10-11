@@ -11,6 +11,7 @@ public sealed class KingMetrics
     private readonly Counter<long> _hides;
     private readonly Counter<long> _restores;
     private readonly Counter<long> _renames;
+    private readonly Counter<long> _merges;
 
     public KingMetrics(IMeterFactory meterFactory)
     {
@@ -20,6 +21,7 @@ public sealed class KingMetrics
         _hides = meter.CreateCounter<long>("king.admin.hides", "{hide}", "Entries or devices hidden by an admin");
         _restores = meter.CreateCounter<long>("king.admin.restores", "{restore}", "Entries or devices shown again by an admin");
         _renames = meter.CreateCounter<long>("king.admin.renames", "{rename}", "Places renamed by an admin");
+        _merges = meter.CreateCounter<long>("king.admin.merges", "{merge}", "Places merged by an admin");
     }
 
     public void FeedingLogged() => _feedings.Add(1);
@@ -34,4 +36,7 @@ public sealed class KingMetrics
 
     /// <param name="target">"spot" — never anything identifying.</param>
     public void Renamed(string target) => _renames.Add(1, new KeyValuePair<string, object?>("target", target));
+
+    /// <param name="target">"spot" — never anything identifying.</param>
+    public void Merged(string target) => _merges.Add(1, new KeyValuePair<string, object?>("target", target));
 }
