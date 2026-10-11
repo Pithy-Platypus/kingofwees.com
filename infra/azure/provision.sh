@@ -15,6 +15,10 @@ ENVIRONMENT="kingofwees-env"
 APP="kingofwees"
 STORAGE="kingofweesbackups"
 BACKUPS="backups"
+BACKUP_JOB="kingofwees-backup"
+# The stock image (mongodump, and mongosh for the upload), pinned so a new tag can't change what runs nightly.
+BACKUP_IMAGE="docker.io/library/mongo:8.0@sha256:d0d926f94df099bff534b7ee5b5986458131a22489dfff8664509af0c1e2ca9c"
+BACKUP_CRON="0 8 * * *" # UTC: 3–4 a.m. in Boston
 BUDGET="kingofwees-monthly"
 BUDGET_AMOUNT=25
 REPOSITORY="ghcr.io/pithy-platypus/kingofwees"
@@ -95,10 +99,51 @@ az rest --method put -o none \
   --url "https://management.azure.com$CLUSTER_ID/firewallRules/AllowAllAzureServicesAndResourcesWithinAzureIps?api-version=2024-07-01" \
   --body '{ "properties": { "startIpAddress": "0.0.0.0", "endIpAddress": "0.0.0.0" } }'
 
-echo "== Container app $APP"
-
 # Secrets go to az in a file only this user can read, removed on exit — never on a command line.
 WORK=$(mktemp -d); chmod 700 "$WORK"; trap 'rm -rf "$WORK"' EXIT
+
+echo "== Backup job $BACKUP_JOB: mongodump nightly into $STORAGE/$BACKUPS with its own identity (no storage key)"
+STORAGE_ID=$(az storage account show -g "$GROUP" -n "$STORAGE" --query id -o tsv)
+BACKUPS_SCOPE="$STORAGE_ID/blobServices/default/containers/$BACKUPS"
+JOB_ENVIRONMENT_ID="$ENVIRONMENT_ID" JOB_LOCATION="$LOCATION" JOB_IMAGE="$BACKUP_IMAGE" JOB_CRON="$BACKUP_CRON" \
+  JOB_SCRIPT="$(<"$(dirname "$0")/backup.sh")" JOB_BACKUP_URL="https://$STORAGE.blob.core.windows.net/$BACKUPS" \
+  python3 -I - >"$WORK/job.json" <<'PY'
+import json, os
+e = os.environ
+print(json.dumps({
+    "location": e["JOB_LOCATION"],
+    "identity": {"type": "SystemAssigned"},
+    "properties": {
+        "environmentId": e["JOB_ENVIRONMENT_ID"],
+        "configuration": {
+            "triggerType": "Schedule",
+            "scheduleTriggerConfig": {"cronExpression": e["JOB_CRON"], "parallelism": 1, "replicaCompletionCount": 1},
+            "replicaTimeout": 900, "replicaRetryLimit": 1,
+            "secrets": [{"name": "king-connection", "value": e["KING_CONN"]}],
+        },
+        "template": {"containers": [{
+            "name": "backup", "image": e["JOB_IMAGE"], "command": ["bash", "-c", e["JOB_SCRIPT"]],
+            "resources": {"cpu": 0.25, "memory": "0.5Gi"},
+            "env": [{"name": "KING_CONN", "secretRef": "king-connection"},
+                    {"name": "BACKUP_URL", "value": e["JOB_BACKUP_URL"]}],
+        }]},
+    },
+}))
+PY
+if az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" -o none 2>/dev/null; then
+  az containerapp job update -g "$GROUP" -n "$BACKUP_JOB" --yaml "$WORK/job.json" -o none
+else
+  az containerapp job create -g "$GROUP" -n "$BACKUP_JOB" --yaml "$WORK/job.json" -o none
+fi
+# Write access to the backups container only, for the job; read access for whoever runs the restore drill.
+grant() { # principal-id principal-type role
+  [[ -n "$(az role assignment list --assignee "$1" --role "$3" --scope "$BACKUPS_SCOPE" --query "[0].id" -o tsv)" ]] \
+    || az role assignment create --assignee-object-id "$1" --assignee-principal-type "$2" --role "$3" --scope "$BACKUPS_SCOPE" -o none
+}
+grant "$(az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" --query identity.principalId -o tsv)" ServicePrincipal "Storage Blob Data Contributor"
+grant "$(az ad signed-in-user show --query id -o tsv)" User "Storage Blob Data Reader"
+
+echo "== Container app $APP"
 APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAGE="$IMAGE" APP_LOCATION="$LOCATION" python3 -I - >"$WORK/app.json" <<'PY'
 import json, os
 e = os.environ

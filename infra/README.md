@@ -13,15 +13,49 @@ Option B (every container on Container Apps, billed per second) was ruled out: a
 
 | Script | Does |
 |---|---|
-| `azure/provision.sh [image]` | Into resource group `kingofwees.com` (subscription "Playground", East US): Container Apps environment `kingofwees-env` (no Log Analytics workspace), container app `kingofwees` (one replica, 0.25 vCPU / 0.5 GiB, external HTTPS ingress, probes, settings as secrets), storage account `kingofweesbackups` with a private `backups` container (blobs deleted after 30 days, no shared keys), budget `kingofwees-monthly` ($25; email to the signed-in account at 80% actual and 100% forecast), and the DocumentDB firewall rule "Allow Azure services" — the app's outbound addresses are a shared pool of hundreds, so they can't be listed one by one; connections still need the cluster's credentials over TLS. Safe to rerun: re-applies the app's settings and restarts it. Refuses an image GHCR won't serve anonymously. |
+| `azure/provision.sh [image]` | Into resource group `kingofwees.com` (subscription "Playground", East US): Container Apps environment `kingofwees-env` (no Log Analytics workspace), container app `kingofwees` (one replica, 0.25 vCPU / 0.5 GiB, external HTTPS ingress, probes, settings as secrets), storage account `kingofweesbackups` with a private `backups` container (blobs deleted after 30 days, no shared keys), backup job `kingofwees-backup` (nightly at 08:00 UTC: `azure/backup.sh` in the stock `mongo:8.0` image, pinned by digest; writes `king-<time>.archive.gz` and mongodump's `.log` with its own managed identity, allowed to write only to `backups`; the signed-in account may read it, for the drill), budget `kingofwees-monthly` ($25; email to the signed-in account at 80% actual and 100% forecast), and the DocumentDB firewall rule "Allow Azure services" — the app's outbound addresses are a shared pool of hundreds, so they can't be listed one by one; connections still need the cluster's credentials over TLS. Safe to rerun: re-applies the app's settings and restarts it. Refuses an image GHCR won't serve anonymously. |
 | `deploy.sh` | Refuses a dirty tree; builds the image tagged with the commit — the SPA plus this month's DB-IP Country Lite file (US-only posting; `King__Posting__CountryDatabase` set in the image, so no Azure setting) downloaded at each deploy; pushes it to GHCR; rolls the app onto it, waits until the new revision is ready, then runs `smoke.sh`. |
+| `restore-drill.sh [archive]` | Restores the newest backup (or a downloaded one, its `.log` beside it) into a throwaway local `mongo:8.0` container; fails unless every collection holds exactly what mongodump logged dumping and every `adminLog` time is a date. Restores data only: DocumentDB's index and collection options don't load into plain Mongo. Shows production's counts beside them (they drift as people post). Needs Docker and `az login`. |
 | `smoke.sh https://host` | `/health` answers `Healthy`, `/api/king/status` 200, `/api/admin/check` 401 without a key, `/api/king/posting` allows this machine (run it from the US) — over HTTPS with a valid certificate. |
 
 Settings come from files in `~/.kingofwees/` (outside the repo, `chmod 600`), read by `provision.sh`, never printed: `documentdb.conn` (required, with `/king`), `admin-key.hash` (optional), `map-center` as `latitude,longitude` (optional). Change one, rerun `provision.sh`.
 
-The app creates one index itself: the audit log's 1-year expiry on the `adminLog` collection, on the first admin sign-in or change. A restore must bring it back, or records stop expiring — the restore drill (Slice 5 step 6) checks it.
+The app creates one index itself: the audit log's 1-year expiry on the `adminLog` collection, on the first admin sign-in or change. A restore into plain Mongo can't bring it back (DocumentDB stores it with an option plain Mongo refuses); the app recreates it on its first admin sign-in or change after starting, and records that already exist then expire too.
 
 First deploy: `deploy.sh` (pushes; no app yet) → make the package public → `azure/provision.sh ghcr.io/pithy-platypus/kingofwees:<tag>` → `smoke.sh`. After that, `deploy.sh` alone.
+
+## Restoring a backup
+
+Backups: `kingofweesbackups` → `backups`, one `king-<UTC time>.archive.gz` and its `.log` a night, kept 30 days. A restore replaces the whole `king` database; entries posted after the backup are lost.
+
+1. **Back up what's there now**, if the cluster still answers — `--drop` deletes each collection before recreating it, so a restore that fails halfway leaves it empty (seen on local Mongo):
+   `az containerapp job start -g kingofwees.com -n kingofwees-backup`, then wait for `Succeeded` in
+   `az containerapp job execution list -g kingofwees.com -n kingofwees-backup --query "[0].properties.status" -o tsv`.
+2. **Pick a backup and download it with its log** (set `B` to the name of the one to restore):
+   ```sh
+   az storage blob list --auth-mode login --account-name kingofweesbackups -c backups --query "[].name" -o tsv
+   B=king-2026-10-11T200535Z
+   mkdir -p ~/kingofwees-restore && cd ~/kingofwees-restore
+   for f in $B.archive.gz $B.log; do
+     az storage blob download --auth-mode login --account-name kingofweesbackups -c backups -n $f -f $f -o none
+   done
+   ```
+3. **Drill it first:** `~/repos/kingofwees.com/infra/restore-drill.sh ~/kingofwees-restore/$B.archive.gz` must pass.
+4. **Restore into the cluster** (the connection string reaches mongorestore in a file, and its output is scrubbed — a failing mongo tool prints the password):
+   ```sh
+   (umask 077; printf 'uri: "%s"\n' "$(<~/.kingofwees/documentdb.conn)" >restore.yaml)
+   docker run --rm -v "$PWD:/r" -w /r mongo:8.0 mongorestore --config=restore.yaml --gzip --archive=$B.archive.gz \
+     --nsInclude='king.*' --drop 2>&1 | sed -E 's#//[^/@]*@#//***@#g'
+   rm restore.yaml
+   ```
+   If index creation fails, run it again with `--noIndexRestore` added. Into plain Mongo (the VM fallback) add `--noOptionsRestore --noIndexRestore`: DocumentDB's collection and index options don't load there.
+5. **Restart the app**, so its first admin sign-in recreates the audit log's expiry index if the restore didn't bring it:
+   `az containerapp revision restart -g kingofwees.com -n kingofwees --revision "$(az containerapp show -g kingofwees.com -n kingofwees --query properties.latestRevisionName -o tsv)"`
+   Then `infra/smoke.sh https://<host>`, sign in to `/admin` once, and check History.
+
+**A new cluster** (the old one is gone): create it in the portal, allow your address in its firewall, put its connection string with `/king` in `~/.kingofwees/documentdb.conn`, run `azure/provision.sh` (it re-applies the app's and the backup job's secret, adds the "Allow Azure services" rule and restarts the app), then steps 2–5.
+
+Tested: steps 2–3 against the real first backup; step 4's command against local Mongo (with the plain-Mongo flags). Not yet run against DocumentDB itself.
 
 ## Check before the first deploy
 
