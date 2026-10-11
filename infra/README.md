@@ -9,6 +9,18 @@ Nothing deployed yet. Chosen (2026-10-09): Azure Container Apps with the Azure D
 
 Option B (every container on Container Apps, billed per second) was ruled out: always-on databases and telemetry make it the most expensive choice.
 
+## Scripts (run from Wallie's Mac)
+
+| Script | Does |
+|---|---|
+| `azure/provision.sh [image]` | Into resource group `kingofwees.com` (subscription "Playground", East US): Container Apps environment `kingofwees-env` (no Log Analytics workspace), container app `kingofwees` (one replica, 0.25 vCPU / 0.5 GiB, external HTTPS ingress, probes, settings as secrets), storage account `kingofweesbackups` with a private `backups` container (blobs deleted after 30 days, no shared keys), budget `kingofwees-monthly` ($25; email to the signed-in account at 80% actual and 100% forecast). Safe to rerun: re-applies the app's settings and restarts it. Refuses an image GHCR won't serve anonymously. |
+| `deploy.sh` | Refuses a dirty tree; builds the image tagged with the commit; pushes it to GHCR; rolls the app onto it, waits until the new revision is ready, then runs `smoke.sh`. |
+| `smoke.sh https://host` | `/health` answers `Healthy`, `/api/king/status` 200, `/api/admin/check` 401 without a key — over HTTPS with a valid certificate. |
+
+Settings come from files in `~/.kingofwees/` (outside the repo, `chmod 600`), read by `provision.sh`, never printed: `documentdb.conn` (required, with `/king`), `admin-key.hash` (optional), `map-center` as `latitude,longitude` (optional). Change one, rerun `provision.sh`.
+
+First deploy: `deploy.sh` (pushes; no app yet) → make the package public → `azure/provision.sh ghcr.io/pithy-platypus/kingofwees:<tag>` → `smoke.sh`. After that, `deploy.sh` alone.
+
 ## Check before the first deploy
 
 - **Image.** Not built by `aspire publish`/`aspire deploy` (their Container Apps deploy adds a paid Azure Container Registry and a Log Analytics workspace): the deploy script builds the SPA with `bun run build`, the server with `dotnet publish /t:PublishContainer` for `linux-x64`, and layers the SPA into `/app/wwwroot` — measured this way in Slice 5 step 1.
@@ -16,7 +28,7 @@ Option B (every container on Container Apps, billed per second) was ruled out: a
   1. Organization settings → Packages → Package creation: **Public** allowed (an owner does this).
   2. github.com/settings/tokens → **Generate new token (classic)** with `write:packages` only (fine-grained tokens can't push to GHCR); if the organization uses SSO, authorize the token for it. An expired token only stops deploys.
   3. In your own terminal: `docker login ghcr.io -u <github-username>` and paste the token at the prompt (Docker Desktop keeps it in the macOS Keychain).
-  4. After the first push: the package → Package settings → **Change visibility → Public** (GHCR creates every package private; no API changes it) and **Connect repository** → `kingofwees.com`. Public is safe: the image holds no secrets.
+  4. After the first push: the package → Package settings → **Change visibility → Public** (GHCR creates every package private; no API changes it). Public is safe: the image holds no secrets. The image's `org.opencontainers.image.source` label should connect it to `kingofwees.com`; if the package page doesn't show the repository, **Connect repository** there.
 - **Region.** East US, resource group `kingofwees.com` — where the DocumentDB cluster is; the app goes beside it.
 - **Database connection string.** The DocumentDB portal string with `/king` added before the `?` — the server refuses to start without a database name.
 - **Probes.** Readiness `GET /health` (checks the database), liveness `GET /alive` (the app only), port 8080.
