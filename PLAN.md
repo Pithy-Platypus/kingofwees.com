@@ -122,6 +122,8 @@ Wallie's choices (2026-10-09): **Azure Container Apps** (ACA, Consumption plan),
 | 8 | **Domain + go-live.** ACA custom domain for `kingofwees.com` (apex: A record + TXT validation) and `www`, Cloudflare records DNS only; a CAA record, if any, must allow DigiCert. A **new production admin key** (not the dev one), hash as an ACA secret; map center secret. `infra/smoke.sh` against production; Wallie checks on a phone | ⏳ |
 | 9 | **Docs + Privacy page.** `infra/README.md` rewritten for ACA (provision, deploy, rotate the admin key under ACA, backup/restore, telemetry, costs, fallback); `source/README.md`; `docs/patterns/hosting.md` (why ACA, the rejected options and their costs). Privacy page, test-first like the OpenStreetMap line: entries are stored with Microsoft Azure in the US | ⏳ |
 
+Also done during step 5 (2026-10-11, Wallie's wording): the About story now reads "King is an 11-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together." Test-first (`pages.test.tsx` asserts the whole sentence; red, then green; a one-word perturbation caught); catalog regenerated. The root `README.md` intro uses the same wording.
+
 Phase end: StrykerJS only if `mutate` files changed (none expected — the Privacy page isn't mutated).
 
 Not now: deploys from GitHub Actions; a staging copy; Cloudflare's proxy; a paid DocumentDB tier; more than one replica (needs rate limits in a shared store).

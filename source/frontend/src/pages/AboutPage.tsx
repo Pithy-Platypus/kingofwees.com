@@ -21,7 +21,7 @@ const m = defineMessages<Values>({
   story: {
     id: 'about.story',
     defaultMessage:
-      'King is an 11-year-old grey long-haired cat. His owner left him behind two years ago, so the neighbors on his street decided to look after him together.',
+      'King is an 11-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together.',
     description: 'King’s story, first paragraph of the About page',
   },
   purpose: {

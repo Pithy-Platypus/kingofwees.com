@@ -11,8 +11,11 @@ describe('AboutPage', () => {
   it('tells King’s story and why the site exists', () => {
     renderInEnglish(<AboutPage />);
 
-    expect(screen.getByText(/11-year-old/)).toBeInTheDocument();
-    expect(screen.getByText(/left him behind two years ago/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'King is an 11-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('explains the honor system and what happens if spam appears', () => {
