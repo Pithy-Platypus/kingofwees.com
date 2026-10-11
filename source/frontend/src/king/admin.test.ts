@@ -42,6 +42,13 @@ describe('admin key on this device', () => {
     expect(loadAdminSignIn(storage)).toEqual(WHO);
   });
 
+  it('has no name on a device that signed in before names were asked', () => {
+    const storage = memoryStorage();
+    storage.setItem('kingofwees.adminKey', KEY);
+
+    expect(loadAdminSignIn(storage)).toEqual({ key: KEY, name: '' });
+  });
+
   it('is simply not remembered when storage is blocked', () => {
     expect(() => saveAdminSignIn(blockedStorage, WHO)).not.toThrow();
     expect(loadAdminSignIn(blockedStorage)).toBeNull();

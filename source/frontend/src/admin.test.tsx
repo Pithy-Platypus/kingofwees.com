@@ -12,9 +12,9 @@ import { memoryStorage } from './test/memoryStorage';
 import { renderInEnglish } from './test/render';
 
 // The whole admin loop through App: key checked and remembered, history unlocked, signed out or rejected.
-const renderAt = (path: string, storage = memoryStorage(), adminApi = fakeAdminApi()) => {
+const renderAt = (path: string, storage = memoryStorage(), adminApi = fakeAdminApi(), spots = [spot('s1', 'Porch'), spot('s2', 'Corner')]) => {
   window.history.replaceState(null, '', path);
-  const api = fakeApi(undefined, { history: { events: [event({ id: 'e1' })], next: null }, spots: [spot('s1', 'Porch'), spot('s2', 'Corner')] });
+  const api = fakeApi(undefined, { history: { events: [event({ id: 'e1' })], next: null }, spots });
   renderInEnglish(<App api={api} adminApi={adminApi} reporterKey="k" storage={storage} now={() => NOW} />);
   return { storage, adminApi };
 };
@@ -132,8 +132,8 @@ describe('admin, through the app', () => {
     const storage = memoryStorage();
     saveAdminSignIn(storage, SIGN_IN);
     saveNickname(storage, 'Kit');
-    const adminApi = fakeAdminApi({ spots: [adminSpot('s1', 'Porch', false, 2), adminSpot('s2', 'Corner')] });
-    renderAt('/admin', storage, adminApi);
+    const adminApi = fakeAdminApi({ spots: [adminSpot('s1', 'Porch', false, 2), adminSpot('s2', 'Corner'), adminSpot('s3', 'Steps')] });
+    renderAt('/admin', storage, adminApi, [spot('s1', 'Porch'), spot('s2', 'Corner'), spot('s3', 'Steps')]);
 
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Select Porch for merging' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select Corner for merging' }));
@@ -146,6 +146,7 @@ describe('admin, through the app', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
 
     expect(screen.getByRole('radio', { name: 'Front porch' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Steps' })).toBeInTheDocument(); // a place outside the merge keeps its name
     expect(screen.queryByRole('radio', { name: 'Corner' })).not.toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: 'Porch' })).not.toBeInTheDocument();
   });
