@@ -90,6 +90,14 @@ describe('PrivacyPage', () => {
     );
   });
 
+  it('says where everything is stored: Microsoft Azure in the United States, with nightly backups kept 30 days', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.getByText(/Microsoft Azure/, { selector: 'li' })).toHaveTextContent(
+      'Everything that reaches us is stored with Microsoft Azure in the United States, along with nightly backups that are kept for 30 days.',
+    );
+  });
+
   it('says internet addresses are used briefly against spam and not stored — except for admin sign-ins, kept a year', () => {
     renderInEnglish(<PrivacyPage />);
 

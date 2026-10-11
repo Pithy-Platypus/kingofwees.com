@@ -14,6 +14,7 @@ type Values = {
   storedLocation: NoMessageValues;
   storedSpots: NoMessageValues;
   storedCode: NoMessageValues;
+  storedWhere: NoMessageValues;
   notTitle: NoMessageValues;
   notTracking: NoMessageValues;
   notFonts: NoMessageValues;
@@ -54,6 +55,12 @@ const m = defineMessages<Values>({
     defaultMessage:
       'A random code saved in your browser, so you can undo your own entries. It isn’t linked to who you are.',
     description: 'Stored data: the per-device undo key',
+  },
+  storedWhere: {
+    id: 'privacy.stored.where',
+    defaultMessage:
+      'Everything that reaches us is stored with Microsoft Azure in the United States, along with nightly backups that are kept for 30 days.',
+    description: 'Where stored data lives: Azure (US), including the nightly backups and how long they are kept',
   },
   notTitle: { id: 'privacy.not.title', defaultMessage: 'What we don’t do', description: 'Heading over the list of things not collected' },
   notTracking: {
@@ -116,6 +123,9 @@ export function PrivacyPage() {
         </li>
         <li>
           <FormattedMessage {...m.storedCode} />
+        </li>
+        <li>
+          <FormattedMessage {...m.storedWhere} />
         </li>
       </ul>
       <h2 className="section-title">

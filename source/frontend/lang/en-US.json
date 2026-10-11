@@ -771,6 +771,10 @@
     "defaultMessage": "What we keep",
     "description": "Heading over the list of stored data"
   },
+  "privacy.stored.where": {
+    "defaultMessage": "Everything that reaches us is stored with Microsoft Azure in the United States, along with nightly backups that are kept for 30 days.",
+    "description": "Where stored data lives: Azure (US), including the nightly backups and how long they are kept"
+  },
   "privacy.title": {
     "defaultMessage": "Privacy",
     "description": "Privacy page heading"
