@@ -21,6 +21,7 @@
     "src/king/time.ts",
     "src/king/useSpotsByName.ts",
     "src/pages/AdminEntryActions.tsx",
+    "src/pages/HidePhotoForm.tsx",
     "src/pages/PhotosPage.tsx",
     "src/routing/routes.ts"
   ],
