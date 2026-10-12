@@ -31,8 +31,9 @@ Vite names every file under `/assets/` after its content, so a changed file is a
 | Scripts every visit loads | 493 kB (125 kB brotli) | 342 kB (90 kB brotli) |
 | Stylesheet | 295 kB (39 kB brotli) | 153 kB (31 kB brotli) |
 | Home's picture of King | 194 kB | 16 kB (176 px square, the same framing) |
+| The confirmation's picture (after logging) | 194 kB sighting / 114 kB feeding | 45 kB / 31 kB (352 px centre squares for the 176 px circle, quality 60 — checked by eye) |
 | Sent on the wire | uncompressed | brotli or gzip |
 
 ## Not done
 
-Trimming daisyUI to the components in use (`include:`) saves 41 kB but makes any daisyUI class used later silently unstyled. Stripping translator descriptions (13 kB) needs a build plugin. The `@font-face` rules for every language subset (29.5 kB of CSS; only Latin files download) and the 194 kB picture on the sighting confirmation remain.
+Trimming daisyUI to the components in use (`include:`) saves 41 kB but makes any daisyUI class used later silently unstyled. Stripping translator descriptions (13 kB) needs a build plugin. The `@font-face` rules for every language subset (29.5 kB of CSS; only Latin files download) remain.

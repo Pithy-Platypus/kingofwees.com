@@ -71,7 +71,8 @@ export function LoggedScreen({
 
   return (
     <main className="app-screen logged-screen">
-      <img src={fed ? '/king/king-licking.jpg' : '/king/king-sitting.jpg'} alt="" className="logged-photo" />
+      {/* Square copies sized for the 176 px circle (352 px for sharp screens); the originals stay as the source. */}
+      <img src={fed ? '/king/king-licking-small.jpg' : '/king/king-sitting-small.jpg'} alt="" className="logged-photo" />
       <h1 ref={heading} tabIndex={-1} className="screen-title">
         <FormattedMessage {...(fed ? m.fedTitle : m.seenTitle)} />
       </h1>
