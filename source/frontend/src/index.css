@@ -115,6 +115,18 @@
     @apply gap-5 leading-relaxed;
   }
 
+  .page-figure {
+    @apply flex flex-col items-center gap-2;
+  }
+
+  .page-photo {
+    @apply size-60 rounded-box bg-base-200 object-cover;
+  }
+
+  .page-caption {
+    @apply text-sm;
+  }
+
   .page-list {
     @apply flex list-disc flex-col gap-2 ps-6;
   }
@@ -350,7 +362,8 @@
     @apply flex flex-col gap-2;
   }
 
-  .photo-grid-link {
+  .photo-grid-link,
+  .page-photo-link {
     @apply block rounded-box focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content;
   }
 

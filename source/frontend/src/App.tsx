@@ -304,7 +304,7 @@ function App({
       </Suspense>
     );
   } else if (route === 'about') {
-    content = <AboutPage />;
+    content = <AboutPage now={now()} />;
   } else if (route === 'privacy') {
     content = <PrivacyPage />;
   } else if (screen.name === 'nickname') {

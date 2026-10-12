@@ -27,13 +27,21 @@
     "defaultMessage": "Made a mistake? You can undo for 10 minutes.",
     "description": "How-to step for undo"
   },
+  "about.kitten.alt": {
+    "defaultMessage": "King as a tiny grey kitten on an orange toy (full-size photo)",
+    "description": "Alt text for the photo of King as a kitten; the photo is a link to the full-size picture"
+  },
+  "about.kitten.caption": {
+    "defaultMessage": "King as a kitten — tap for the full-size photo.",
+    "description": "Caption under the photo of King as a kitten"
+  },
   "about.purpose": {
     "defaultMessage": "This site helps us share the job: when he last ate, what he had, and where he was last seen — so nobody has to guess.",
     "description": "Why the site exists"
   },
   "about.story": {
-    "defaultMessage": "King is an 11-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together.",
-    "description": "King’s story, first paragraph of the About page"
+    "defaultMessage": "King is {age, plural, =8 {an 8} =11 {an 11} =18 {an 18} other {a #}}-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together.",
+    "description": "King’s story, first paragraph of the About page; {age} is his age in years, worked out from his birth year; the plural only picks “a” or “an”"
   },
   "about.title": {
     "defaultMessage": "About King",
@@ -668,8 +676,8 @@
     "description": "Accessible name for the fed/seen chips"
   },
   "home.tagline": {
-    "defaultMessage": "A whimsical, neighborly way to keep track of King, the 11-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.",
-    "description": "One-line explanation of the site under the header on the home page"
+    "defaultMessage": "A whimsical, neighborly way to keep track of King, the {age}-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.",
+    "description": "One-line explanation of the site under the header on the home page; {age} is King’s age in years, worked out from his birth year"
   },
   "link.seePhotos": {
     "defaultMessage": "See every photo",

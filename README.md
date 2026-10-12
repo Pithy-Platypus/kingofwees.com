@@ -1,6 +1,6 @@
 # kingofwees.com
 
-A whimsical neighborhood site for keeping track of King — an 11-year-old grey long-haired cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together. Anyone can log when they fed King or saw him, so everyone knows when he last ate and where he was last seen. Live at [kingofwees.com](https://kingofwees.com).
+A whimsical neighborhood site for keeping track of King — a grey long-haired cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together. Anyone can log when they fed King or saw him, so everyone knows when he last ate and where he was last seen. Live at [kingofwees.com](https://kingofwees.com).
 
 | Folder | What's there |
 |---|---|

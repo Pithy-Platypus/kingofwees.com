@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsedSince, kingMood } from './time';
+import { elapsedSince, kingAge, kingMood } from './time';
 
 const now = new Date('2026-10-08T12:00:00Z');
 const ago = (seconds: number) => new Date(now.getTime() - seconds * 1000);
@@ -34,5 +34,15 @@ describe('kingMood', () => {
 
   it('is hungry after 12 hours', () => {
     expect(kingMood(ago(12 * 3600 + 1), now)).toBe('hungry');
+  });
+});
+
+describe('kingAge', () => {
+  it('is 11 through the last day of 2026', () => {
+    expect(kingAge(new Date(2026, 11, 31, 23, 59))).toBe(11);
+  });
+
+  it('turns 12 on 1 January 2027', () => {
+    expect(kingAge(new Date(2027, 0, 1))).toBe(12);
   });
 });

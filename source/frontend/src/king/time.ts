@@ -20,3 +20,8 @@ export type Mood = 'content' | 'hungry';
 export function kingMood(lastFed: Date | null, now: Date): Mood {
   return lastFed === null || secondsBetween(lastFed, now) > HUNGRY_AFTER_SECONDS ? 'hungry' : 'content';
 }
+
+// Born January 2015 (only the month is known), so he turns a year older each 1 January.
+const BORN_YEAR = 2015;
+
+export const kingAge = (now: Date) => now.getFullYear() - BORN_YEAR;

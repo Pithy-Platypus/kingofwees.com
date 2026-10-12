@@ -7,11 +7,11 @@ import type { GeoPoint } from './location';
 import { MapView } from './LazyMapView';
 import type { MapMarker } from './MapView';
 import { common, formatWhen, photoAlt, placeOf } from './messages';
-import { kingMood } from './time';
+import { kingAge, kingMood } from './time';
 
 // Placeholder types are declared so a missing or misspelled {value} fails the type-check.
 type Values = {
-  tagline: NoMessageValues;
+  tagline: { age: number };
   photoAlt: NoMessageValues;
   content: NoMessageValues;
   contentDetail: NoMessageValues;
@@ -36,8 +36,8 @@ const m = defineMessages<Values>({
   tagline: {
     id: 'home.tagline',
     defaultMessage:
-      'A whimsical, neighborly way to keep track of King, the 11-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.',
-    description: 'One-line explanation of the site under the header on the home page',
+      'A whimsical, neighborly way to keep track of King, the {age}-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.',
+    description: 'One-line explanation of the site under the header on the home page; {age} is King’s age in years, worked out from his birth year',
   },
   photoAlt: { id: 'home.photoAlt', defaultMessage: 'King, a fluffy grey long-haired cat', description: 'Alt text for King’s photo' },
   content: { id: 'home.mood.content', defaultMessage: 'King is content', description: 'Heading when King was fed recently' },
@@ -120,7 +120,7 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
         </span>
       </header>
       <p className="app-tagline">
-        <FormattedMessage {...m.tagline} />
+        <FormattedMessage {...m.tagline} values={{ age: kingAge(now) }} />
       </p>
 
       <section className="status-card" aria-labelledby="king-mood">

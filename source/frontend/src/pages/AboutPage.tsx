@@ -1,11 +1,14 @@
-import { defineMessages, FormattedMessage, type MessageTag, type NoMessageValues } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl, type MessageTag, type NoMessageValues } from 'react-intl';
+import { kingAge } from '../king/time';
 import { contactEmail } from '../site';
 import { MailLink } from './MailLink';
 import { PageShell } from './PageShell';
 
 type Values = {
   title: NoMessageValues;
-  story: NoMessageValues;
+  story: { age: number };
+  kittenAlt: NoMessageValues;
+  kittenCaption: NoMessageValues;
   purpose: NoMessageValues;
   howTitle: NoMessageValues;
   howSeen: NoMessageValues;
@@ -21,8 +24,18 @@ const m = defineMessages<Values>({
   story: {
     id: 'about.story',
     defaultMessage:
-      'King is an 11-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together.',
-    description: 'King’s story, first paragraph of the About page',
+      'King is {age, plural, =8 {an 8} =11 {an 11} =18 {an 18} other {a #}}-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together.',
+    description: 'King’s story, first paragraph of the About page; {age} is his age in years, worked out from his birth year; the plural only picks “a” or “an”',
+  },
+  kittenAlt: {
+    id: 'about.kitten.alt',
+    defaultMessage: 'King as a tiny grey kitten on an orange toy (full-size photo)',
+    description: 'Alt text for the photo of King as a kitten; the photo is a link to the full-size picture',
+  },
+  kittenCaption: {
+    id: 'about.kitten.caption',
+    defaultMessage: 'King as a kitten — tap for the full-size photo.',
+    description: 'Caption under the photo of King as a kitten',
   },
   purpose: {
     id: 'about.purpose',
@@ -53,12 +66,21 @@ const m = defineMessages<Values>({
 
 // Rich text: <mail>…</mail> becomes the email link, wherever the translation puts it.
 
-export function AboutPage() {
+export function AboutPage({ now }: { now: Date }) {
+  const intl = useIntl();
   return (
     <PageShell title={<FormattedMessage {...m.title} />}>
       <p>
-        <FormattedMessage {...m.story} />
+        <FormattedMessage {...m.story} values={{ age: kingAge(now) }} />
       </p>
+      <figure className="page-figure">
+        <a href="/king/king-kitten.jpg" className="page-photo-link">
+          <img src="/king/king-kitten-small.jpg" alt={intl.formatMessage(m.kittenAlt)} width={480} height={480} className="page-photo" />
+        </a>
+        <figcaption className="page-caption">
+          <FormattedMessage {...m.kittenCaption} />
+        </figcaption>
+      </figure>
       <p>
         <FormattedMessage {...m.purpose} />
       </p>

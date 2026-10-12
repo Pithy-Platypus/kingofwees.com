@@ -123,7 +123,7 @@ describe('pseudo-locale catalog', () => {
     ],
     ['hiding a photo', <HidePhotoForm onEntry busy={false} onHide={noop} onCancel={noop} />],
     ['name question', <NicknameScreen initialName="" onDone={noop} />],
-    ['about', <AboutPage />],
+    ['about', <AboutPage now={NOW} />],
     ['privacy', <PrivacyPage />],
     ['app loading', <App api={fakeApi()} reporterKey="k" now={() => NOW} />],
   ])('translates every message on the %s screen', (_name, ui) => {
