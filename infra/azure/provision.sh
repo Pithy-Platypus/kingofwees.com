@@ -238,9 +238,9 @@ if [[ -n "$EXISTING_IMAGE" ]]; then
 else
   az containerapp create -g "$GROUP" -n "$APP" --yaml "$WORK/app.json" -o none
 fi
-# Also assigned explicitly (a no-op when the definition already did it): whether an update from the definition alone
-# adds the identity isn't checked. It reads and writes photos, in the photos container only.
-az containerapp identity assign -g "$GROUP" -n "$APP" --system-assigned -o none
+# The identity comes from the definition (checked on the first real run, 2026-10-12). Don't add
+# `az containerapp identity assign`: on an app that already has one it re-sends the app with the identity's principalId,
+# which Azure refuses (InvalidResourceIdentityPrincipalId). The identity reads and writes photos, in that container only.
 grant "$(az containerapp show -g "$GROUP" -n "$APP" --query identity.principalId -o tsv)" ServicePrincipal "Storage Blob Data Contributor" "$PHOTOS_SCOPE"
 if [[ -n "$EXISTING_IMAGE" ]]; then
   # A secret change alone doesn't reach a running revision. After the grant, so the restarted app can reach its photos
