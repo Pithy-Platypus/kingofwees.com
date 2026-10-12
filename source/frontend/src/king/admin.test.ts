@@ -94,6 +94,8 @@ describe('adminApi', () => {
     ['hideEntry', 'POST', '/api/admin/events/a%2Fb/hide'],
     ['unhideEntry', 'DELETE', '/api/admin/events/a%2Fb/hide'],
     ['restoreDevice', 'DELETE', '/api/admin/hidden/a%2Fb'],
+    ['hidePhoto', 'POST', '/api/admin/photos/a%2Fb/hide'],
+    ['showPhoto', 'DELETE', '/api/admin/photos/a%2Fb/hide'],
   ] as const)('%s sends %s %s', async (call, method, url) => {
     respond(204);
 
@@ -121,6 +123,7 @@ describe('adminApi', () => {
   it.each([
     ['hiddenEntries', '/api/admin/hidden-entries'],
     ['hiddenDevices', '/api/admin/hidden'],
+    ['hiddenPhotos', '/api/admin/hidden-photos'],
   ] as const)('lists %s', async (call, url) => {
     respond(200, []);
 

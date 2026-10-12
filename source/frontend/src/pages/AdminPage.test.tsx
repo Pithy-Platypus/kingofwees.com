@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ActivityRecord, AdminSignIn, AdminTouched, HiddenDevice } from '../king/admin';
 import { ApiError } from '../king/api';
-import { ADMIN_KEY, adminSpot, device, event, fakeAdminApi, NOW, SIGN_IN } from '../test/fakeApi';
+import { ADMIN_KEY, adminSpot, device, event, fakeAdminApi, NOW, photo, SIGN_IN } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 import { AdminPage } from './AdminPage';
 
@@ -151,6 +151,34 @@ describe('AdminPage — with a key', () => {
 
     expect(await screen.findByText('No hidden entries.')).toBeInTheDocument();
     expect(screen.getByText('No hidden posters.')).toBeInTheDocument();
+    expect(screen.getByText('No hidden photos.')).toBeInTheDocument();
+  });
+
+  it('lists hidden photos in words, never showing the picture', async () => {
+    const onFeeding = photo({ id: 'p1', event: event({ kind: 'fed', reporterName: 'Kael', spotName: 'Porch', photoId: null }) });
+    const shared = photo({ id: 'p2', reporterName: 'Sarah' });
+    const api = fakeAdminApi({ hiddenPhotos: [onFeeding, shared, photo({ id: 'p3', event: event({ kind: 'seen' }) })] });
+    renderPage(api, SIGN_IN);
+
+    const list = await screen.findByRole('list', { name: 'Hidden photos' });
+    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Photo on a feeding by Kael at Porch (Oct 8)Show photo again',
+      'Shared photo by Sarah (Oct 8)Show photo again',
+      'Photo on a sighting by a neighbor (Oct 8)Show photo again',
+    ]);
+    // Any <img>, decorative ones too: alt="" takes an image out of the img role.
+    expect(list.querySelector('img')).toBeNull();
+    expect(api.hiddenPhotos).toHaveBeenCalledWith(SIGN_IN);
+  });
+
+  it('shows a hidden photo again', async () => {
+    const api = fakeAdminApi({ hiddenPhotos: [photo({ id: 'p1', reporterName: 'Sarah' })] });
+    renderPage(api, SIGN_IN);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Show photo again' }));
+
+    expect(api.showPhoto).toHaveBeenCalledWith(SIGN_IN, 'p1');
+    expect(await screen.findByText('No hidden photos.')).toBeInTheDocument();
   });
 
   it('points to the history page for hiding', async () => {
@@ -371,6 +399,8 @@ describe('AdminPage — activity', () => {
       record({ action: 'mergePlaces', touched: { placeName: 'porch', newName: 'Porch', mergedNames: ['PORCH'], feedings: 3 } }),
       record({ action: 'renamePlace', touched: { placeName: 'Porch', newName: 'Front porch' } }),
       record({ action: 'restorePoster', touched: { posterName: null, entries: 1, spots: 0 } }),
+      record({ action: 'showPhoto', touched: { posterName: null, entryAt: NOW.toISOString() } }),
+      record({ action: 'hidePhoto', touched: { posterName: 'Sarah', entryKind: 'seen', entryAt: NOW.toISOString() } }),
       record({ action: 'hidePoster', touched: { posterName: 'Spammy', entries: 14, spots: 2 } }),
       record({ action: 'showEntry', touched: { posterName: null, entryKind: 'seen', entryAt: NOW.toISOString() } }),
       record({ action: 'hideEntry', touched: { posterName: 'Sarah', entryKind: 'fed', entryAt: NOW.toISOString(), placeName: 'Porch' } }),
@@ -386,6 +416,8 @@ describe('AdminPage — activity', () => {
       'Merged PORCH into porch, now called Porch (3 feedings moved)',
       'Renamed Porch to Front porch',
       'Restored everything from a neighbor (1 entry, 0 spots)',
+      'Showed a photo shared by a neighbor again (Oct 8)',
+      'Hid the photo on a sighting by Sarah (Oct 8)',
       'Hid everything from Spammy (14 entries, 2 spots)',
       'Showed a sighting by a neighbor again (Oct 8)',
       'Hid a feeding by Sarah at Porch (Oct 8)',

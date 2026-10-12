@@ -1,4 +1,4 @@
-import { ApiError, request, type KingEventView } from './api';
+import { ApiError, request, type KingEventView, type PhotoView } from './api';
 import type { KeyValueStorage } from './reporter';
 
 const ADMIN_KEY_KEY = 'kingofwees.adminKey';
@@ -21,7 +21,9 @@ export type AdminAction =
   | 'hidePoster'
   | 'restorePoster'
   | 'renamePlace'
-  | 'mergePlaces';
+  | 'mergePlaces'
+  | 'hidePhoto'
+  | 'showPhoto';
 /** What an action touched, in words: names and counts, never a device key. */
 export type AdminTouched = {
   posterName: string | null;
@@ -58,6 +60,7 @@ const as = (who: AdminSignIn, method?: 'POST' | 'DELETE'): RequestInit => ({
   headers: headers(who),
 });
 const event = (id: string) => `/api/admin/events/${encodeURIComponent(id)}`;
+const photo = (id: string) => `/api/admin/photos/${encodeURIComponent(id)}`;
 
 export const adminApi = {
   check: (who: AdminSignIn) => request<void>('/api/admin/check', as(who)),
@@ -84,6 +87,10 @@ export const adminApi = {
       headers: { ...headers(who), 'Content-Type': 'application/json' },
       body: JSON.stringify({ keepId, mergeIds, name: name ?? null }),
     }),
+  // A photo on its own: its entry stays. Hidden, never deleted.
+  hidePhoto: (who: AdminSignIn, id: string) => request<void>(`${photo(id)}/hide`, as(who, 'POST')),
+  showPhoto: (who: AdminSignIn, id: string) => request<void>(`${photo(id)}/hide`, as(who, 'DELETE')),
+  hiddenPhotos: (who: AdminSignIn) => request<PhotoView[]>('/api/admin/hidden-photos', as(who)),
 };
 export type AdminApi = typeof adminApi;
 /** An accepted sign-in on this device; `onRejected` drops it when the server stops accepting the key (rotated). */

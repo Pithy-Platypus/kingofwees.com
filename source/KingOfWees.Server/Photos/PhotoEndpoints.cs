@@ -6,6 +6,60 @@ namespace KingOfWees.Server.Photos;
 
 public static class PhotoEndpoints
 {
+    // Reads: no device key needed, open to every country.
+    public static void MapPhotoReads(this RouteGroupBuilder king)
+    {
+        king.MapGet("/photos", ListPhotos);
+        king.MapGet("/photos/{id}/full", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
+            ServeAsync(id, PhotoFiles.Full(id), photos, files, context, ct));
+        king.MapGet("/photos/{id}/thumb", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
+            ServeAsync(id, PhotoFiles.Thumbnail(id), photos, files, context, ct));
+    }
+
+    // Only while visible. Private and an hour at most, so a photo an admin hides leaves everyone's view soon after
+    // (a shared cache, should a proxy ever sit in front, keeps nothing).
+    private static async Task<Results<FileStreamHttpResult, NotFound>> ServeAsync(
+        string id, string fileName, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken cancellationToken)
+    {
+        if (await photos.FindVisibleAsync(id, cancellationToken) is null
+            || await files.OpenAsync(fileName, cancellationToken) is not { } content)
+        {
+            return TypedResults.NotFound();
+        }
+
+        context.Response.Headers.CacheControl = "private, max-age=3600";
+        context.Response.Headers.XContentTypeOptions = "nosniff";
+        return TypedResults.Stream(content, "image/jpeg");
+    }
+
+    private static async Task<Ok<PhotosPage>> ListPhotos(
+        [AsParameters] PhotosQuery query, IPhotoStore photos, IKingEventStore events, ISpotStore spots, CancellationToken cancellationToken)
+    {
+        var limit = query.Limit ?? PhotosQuery.DefaultLimit;
+        // The validator has already checked that the cursor names a photo.
+        var before = query.Before is null ? null : await photos.FindAsync(query.Before, cancellationToken);
+        // One extra tells whether an older page exists without a second query.
+        var found = await photos.GetPageAsync(before, limit + 1, cancellationToken);
+        var page = found.Take(limit).ToList();
+        return TypedResults.Ok(new PhotosPage(
+            await PhotoViews(page, events, spots, photos, cancellationToken), found.Count > limit ? page[^1].Id : null));
+    }
+
+    // Each photo with its entry, shown as in history. A visible photo's entry is visible too: same device, and a hidden
+    // entry hides its photo.
+    internal static async Task<IReadOnlyList<PhotoView>> PhotoViews(
+        IReadOnlyList<Photo> page, IKingEventStore events, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
+    {
+        var entries = new Dictionary<string, KingEvent>();
+        foreach (var eventId in page.Select(p => p.EventId).OfType<string>())
+        {
+            if (await events.FindAsync(eventId, cancellationToken) is { } entry) entries[eventId] = entry;
+        }
+        var view = await KingEndpoints.EventViews(spots, photos, entries.Values, cancellationToken);
+        return [.. page.Select(p => new PhotoView(
+            p.Id, p.PostedAt, p.ReporterName, p.EventId is { } id && entries.TryGetValue(id, out var entry) ? view(entry) : null))];
+    }
+
     // Called only on the /api/king writes group (KingEndpoints), which carries CanPost, the write limit and the US check.
     // No antiforgery: the site has no cookies to ride on. The size limits stop an oversized body before it's read.
     public static void MapPhotoWrites(this RouteGroupBuilder writes)
@@ -45,7 +99,7 @@ public static class PhotoEndpoints
         var photo = new Photo(Guid.CreateVersion7(now).ToString(), id, now, reporterKey, kingEvent.ReporterName);
         await StoreAsync(photo, form.Photo!, form.Thumbnail!, photos, files, cancellationToken);
         metrics.PhotoPosted(kingEvent.Kind == KingEventKind.Seen ? "sighting" : "feeding");
-        var view = await KingEndpoints.EventViews(spots, cancellationToken);
+        var view = await KingEndpoints.EventViews(spots, photos, [kingEvent], cancellationToken);
         return TypedResults.Created((string?)null, new PhotoView(photo.Id, photo.PostedAt, photo.ReporterName, view(kingEvent)));
     }
 

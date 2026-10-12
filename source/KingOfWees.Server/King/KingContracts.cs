@@ -1,4 +1,5 @@
 using FluentValidation;
+using KingOfWees.Server.Photos;
 
 namespace KingOfWees.Server.King;
 
@@ -19,12 +20,13 @@ public sealed record SpotView(string Id, string Name, GeoPoint Location)
 }
 
 // A feeding is shown at its spot (name and place); a sighting at its own location, if one was given.
+// PhotoId is the entry's photo while a visitor may see it.
 public sealed record EventView(
     string Id, KingEventKind Kind, DateTimeOffset OccurredAt, string? ReporterName, IReadOnlyList<Food> Foods, bool SawKing,
-    string? SpotName, GeoPoint? Location)
+    string? SpotName, GeoPoint? Location, string? PhotoId = null)
 {
-    public static EventView From(KingEvent e, Spot? spot) =>
-        new(e.Id, e.Kind, e.OccurredAt, e.ReporterName, e.Foods, e.SawKing, spot?.Name, spot?.Location ?? e.Location);
+    public static EventView From(KingEvent e, Spot? spot, string? photoId = null) =>
+        new(e.Id, e.Kind, e.OccurredAt, e.ReporterName, e.Foods, e.SawKing, spot?.Name, spot?.Location ?? e.Location, photoId);
 }
 
 // Bound from the query string with [AsParameters]; Before is the id of the last event already shown.
@@ -51,7 +53,8 @@ public sealed record HeatCell(GeoPoint Location, int Count, string? SpotName);
 
 public sealed record HeatMap(IReadOnlyList<HeatCell> Cells);
 
-public sealed record KingStatus(EventView? LastFed, EventView? LastSeen, IReadOnlyList<EventView> Recent);
+// LatestPhoto is the newest visible photo of any kind (Home's crowned avatar).
+public sealed record KingStatus(EventView? LastFed, EventView? LastSeen, IReadOnlyList<EventView> Recent, PhotoView? LatestPhoto);
 
 // Error codes are what the client translates — never English sentences.
 public sealed class LogFeedingRequestValidator : AbstractValidator<LogFeedingRequest>

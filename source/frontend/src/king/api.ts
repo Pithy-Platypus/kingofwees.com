@@ -18,7 +18,11 @@ export type KingEventView = {
   spotName: string | null;
   /** A feeding's spot, or where a sighting was logged; null when not given. */
   location: GeoPoint | null;
+  /** The entry's photo while visitors may see it, else null. */
+  photoId: string | null;
 };
+/** A photo on an entry (`event`, shown as in history) or shared on its own (`event` null). */
+export type PhotoView = { id: string; postedAt: string; reporterName: string | null; event: KingEventView | null };
 export type KingStatus = { lastFed: KingEventView | null; lastSeen: KingEventView | null; recent: KingEventView[] };
 export type HeatLayer = 'seen' | 'fed';
 export type HeatRange = 7 | 30 | 'all';

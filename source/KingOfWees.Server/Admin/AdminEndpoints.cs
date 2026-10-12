@@ -1,4 +1,5 @@
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 using KingOfWees.Server.Validation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
@@ -32,6 +33,9 @@ public static class AdminEndpoints
         admin.MapPost("/spots/rename", RenameSpot);
         admin.MapPost("/spots/merge", MergeSpots);
         admin.MapGet("/activity", GetActivity);
+        admin.MapPost("/photos/{id}/hide", HidePhoto);
+        admin.MapDelete("/photos/{id}/hide", ShowPhoto);
+        admin.MapGet("/hidden-photos", ListHiddenPhotos);
 
         return routes;
     }
@@ -66,6 +70,38 @@ public static class AdminEndpoints
             context, hidden ? AdminAction.HideEntry : AdminAction.ShowEntry, AdminAudit.Entry(entry, spot), cancellationToken);
         return TypedResults.NoContent();
     }
+
+    // A photo on its own: its entry stays. Hidden, never deleted — the files stay, so it can be shown again (and a photo
+    // reported to NCMEC must be kept a year).
+    private static Task<Results<NoContent, NotFound>> HidePhoto(
+        string id, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
+        HttpContext context, CancellationToken cancellationToken) =>
+        SetPhotoHidden(id, hidden: true, photos, store, spots, audit, metrics, context, cancellationToken);
+
+    private static Task<Results<NoContent, NotFound>> ShowPhoto(
+        string id, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
+        HttpContext context, CancellationToken cancellationToken) =>
+        SetPhotoHidden(id, hidden: false, photos, store, spots, audit, metrics, context, cancellationToken);
+
+    private static async Task<Results<NoContent, NotFound>> SetPhotoHidden(
+        string id, bool hidden, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
+        HttpContext context, CancellationToken cancellationToken)
+    {
+        var photo = await photos.FindAsync(id, cancellationToken);
+        if (photo is null || !await photos.SetHiddenAsync(id, hidden, cancellationToken)) return TypedResults.NotFound();
+        if (hidden) metrics.Hidden("photo");
+        else metrics.Restored("photo");
+        // A photo on an entry is described like the entry; a shared photo by who shared it and when.
+        var entry = photo.EventId is null ? null : await store.FindAsync(photo.EventId, cancellationToken);
+        var spot = entry?.SpotId is null ? null : await spots.FindAsync(entry.SpotId, cancellationToken);
+        var touched = entry is null ? new AdminTouched(PosterName: photo.ReporterName, EntryAt: photo.PostedAt) : AdminAudit.Entry(entry, spot);
+        await audit.RecordAsync(context, hidden ? AdminAction.HidePhoto : AdminAction.ShowPhoto, touched, cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<Ok<IReadOnlyList<PhotoView>>> ListHiddenPhotos(
+        IPhotoStore photos, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken) =>
+        TypedResults.Ok(await PhotoEndpoints.PhotoViews(await photos.GetHiddenAsync(cancellationToken), store, spots, photos, cancellationToken));
 
     // What "hide everything from this poster" would hide, for the confirmation.
     private static async Task<Results<Ok<DeviceView>, NotFound>> DescribeDevice(
@@ -149,10 +185,11 @@ public static class AdminEndpoints
     }
 
     private static async Task<Ok<EventView[]>> ListHiddenEntries(
-        IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)
+        IKingEventStore store, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
     {
-        var view = await KingEndpoints.EventViews(spots, cancellationToken);
-        return TypedResults.Ok((await store.GetHiddenEntriesAsync(cancellationToken)).Select(view).ToArray());
+        var entries = await store.GetHiddenEntriesAsync(cancellationToken);
+        var view = await KingEndpoints.EventViews(spots, photos, entries, cancellationToken);
+        return TypedResults.Ok(entries.Select(view).ToArray());
     }
 
     // A handful of hidden devices at most, so a summary each is fine.

@@ -10,7 +10,7 @@ import {
   type HiddenDevice,
 } from '../king/admin';
 import { ActivityItem } from '../king/ActivityItem';
-import { ApiError, NICKNAME_MAX_LENGTH, SPOT_NAME_MAX_LENGTH, type KingEventView, type SpotView } from '../king/api';
+import { ApiError, NICKNAME_MAX_LENGTH, SPOT_NAME_MAX_LENGTH, type KingEventView, type PhotoView, type SpotView } from '../king/api';
 import { common } from '../king/messages';
 import { useSpotsByName } from '../king/useSpotsByName';
 import { Link } from '../routing/Link';
@@ -31,6 +31,10 @@ type Values = {
   showAgain: NoMessageValues;
   postersHeading: NoMessageValues;
   noPosters: NoMessageValues;
+  photosHeading: NoMessageValues;
+  noPhotos: NoMessageValues;
+  hiddenPhoto: { kind: string; poster: string; hasPlace: string; place: string; when: string };
+  showPhotoAgain: NoMessageValues;
   poster: { entries: number; spots: number; when: string };
   restore: NoMessageValues;
   loading: NoMessageValues;
@@ -70,6 +74,8 @@ type Values = {
   wrongKeyTried: NoMessageValues;
   hidEntry: { kind: string; poster: string; hasPlace: string; place: string; when: string };
   showedEntry: { kind: string; poster: string; hasPlace: string; place: string; when: string };
+  hidPhoto: { kind: string; poster: string; hasPlace: string; place: string; when: string };
+  showedPhoto: { kind: string; poster: string; hasPlace: string; place: string; when: string };
   hidPoster: { poster: string; entries: number; spots: number };
   restoredPoster: { poster: string; entries: number; spots: number };
   renamedPlace: { from: string; to: string };
@@ -105,6 +111,15 @@ const m = defineMessages<Values>({
   showAgain: { id: 'admin.showAgain', defaultMessage: 'Show again', description: 'Un-hides one entry' },
   postersHeading: { id: 'admin.postersHeading', defaultMessage: 'Hidden posters', description: 'Heading over hidden posters (devices)' },
   noPosters: { id: 'admin.noPosters', defaultMessage: 'No hidden posters.', description: 'No poster is hidden' },
+  photosHeading: { id: 'admin.photosHeading', defaultMessage: 'Hidden photos', description: 'Heading over photos hidden one by one' },
+  noPhotos: { id: 'admin.noPhotos', defaultMessage: 'No hidden photos.', description: 'No photo is hidden on its own' },
+  hiddenPhoto: {
+    id: 'admin.hiddenPhoto',
+    defaultMessage:
+      '{kind, select, fed {Photo on a feeding} seen {Photo on a sighting} other {Shared photo}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})',
+    description: 'A hidden photo, in words only (the picture is never shown again); {when} is the entry’s or the shared photo’s date',
+  },
+  showPhotoAgain: { id: 'admin.showPhotoAgain', defaultMessage: 'Show photo again', description: 'Un-hides one photo' },
   poster: {
     id: 'admin.poster',
     defaultMessage:
@@ -237,6 +252,18 @@ const m = defineMessages<Values>({
     defaultMessage:
       'Restored everything from {poster} ({entries, plural, one {# entry} other {# entries}}, {spots, plural, one {# spot} other {# spots}})',
     description: 'Activity line: a hidden poster was restored',
+  },
+  hidPhoto: {
+    id: 'admin.activity.hidePhoto',
+    defaultMessage:
+      'Hid {kind, select, fed {the photo on a feeding} seen {the photo on a sighting} other {a photo shared}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})',
+    description: 'Activity line: one photo was hidden (its entry stays); {poster} posted it, {when} is the entry’s or the shared photo’s date',
+  },
+  showedPhoto: {
+    id: 'admin.activity.showPhoto',
+    defaultMessage:
+      'Showed {kind, select, fed {the photo on a feeding} seen {the photo on a sighting} other {a photo shared}} by {poster}{hasPlace, select, yes { at {place}} other {}} again ({when})',
+    description: 'Activity line: a hidden photo was shown again',
   },
   renamedPlace: { id: 'admin.activity.renamePlace', defaultMessage: 'Renamed {from} to {to}', description: 'Activity line: a place was renamed' },
   activityBy: {
@@ -664,6 +691,7 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
   const intl = useIntl();
   const [entries, setEntries] = useState<KingEventView[] | null>(null);
   const [devices, setDevices] = useState<HiddenDevice[] | null>(null);
+  const [photos, setPhotos] = useState<PhotoView[] | null>(null);
   const [places, setPlaces] = useState<AdminSpot[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
@@ -672,11 +700,12 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
 
   // A key the server no longer accepts (rotated) is forgotten, which brings back the key form.
   useEffect(() => {
-    Promise.all([api.hiddenEntries(signIn), api.hiddenDevices(signIn), api.listSpots(signIn)]).then(
-      ([hiddenEntries, hiddenDevices, allPlaces]) => {
+    Promise.all([api.hiddenEntries(signIn), api.hiddenDevices(signIn), api.listSpots(signIn), api.hiddenPhotos(signIn)]).then(
+      ([hiddenEntries, hiddenDevices, allPlaces, hiddenPhotos]) => {
         setEntries(hiddenEntries);
         setDevices(hiddenDevices);
         setPlaces(allPlaces);
+        setPhotos(hiddenPhotos);
       },
       (error: unknown) => (isKeyRejected(error) ? onSignIn(null) : setLoadFailed(true)),
     );
@@ -696,6 +725,17 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
 
   const showAgain = (id: string) =>
     act(() => api.unhideEntry(signIn, id), () => setEntries((shown) => shown?.filter((e) => e.id !== id) ?? null));
+  const showPhotoAgain = (id: string) =>
+    act(() => api.showPhoto(signIn, id), () => setPhotos((shown) => shown?.filter((p) => p.id !== id) ?? null));
+  // In words only: a photo hidden because it was unlawful must not be shown again here.
+  const describePhoto = (p: PhotoView) =>
+    intl.formatMessage(m.hiddenPhoto, {
+      kind: p.event?.kind ?? 'shared',
+      poster: (p.event ? p.event.reporterName : p.reporterName) ?? intl.formatMessage(common.aNeighbor),
+      hasPlace: p.event?.spotName ? 'yes' : 'no',
+      place: p.event?.spotName ?? '',
+      when: dateOf(p.event?.occurredAt ?? p.postedAt),
+    });
   // A restored poster's places lose their mark; which ones they are only the server knows.
   const restore = (id: string) =>
     act(
@@ -733,7 +773,7 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
         <FormattedMessage {...m.loadFailed} />
       </div>
     );
-  } else if (!entries || !devices || !places) {
+  } else if (!entries || !devices || !places || !photos) {
     lists = (
       <p role="status">
         <FormattedMessage {...m.loading} />
@@ -780,6 +820,27 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
                     </div>
                   }
                 />
+              ))}
+            </ul>
+          )}
+        </section>
+        <section aria-labelledby="hidden-photos" className="log-section">
+          <h2 id="hidden-photos" className="section-title">
+            <FormattedMessage {...m.photosHeading} />
+          </h2>
+          {photos.length === 0 ? (
+            <p className="activity-detail">
+              <FormattedMessage {...m.noPhotos} />
+            </p>
+          ) : (
+            <ul className="activity-list" aria-labelledby="hidden-photos">
+              {photos.map((p) => (
+                <li key={p.id} className="activity-item">
+                  <span className="activity-text">{describePhoto(p)}</span>
+                  <button type="button" className="admin-button" onClick={() => void showPhotoAgain(p.id)}>
+                    <FormattedMessage {...m.showPhotoAgain} />
+                  </button>
+                </li>
               ))}
             </ul>
           )}
@@ -904,6 +965,8 @@ function Activity({ api, signIn, onSignIn, changes, now }: ActivityProps) {
       when: day(t.entryAt),
     };
     const counts = { poster, entries: t.entries ?? 0, spots: t.spots ?? 0 };
+    // A shared photo has no entry, so no kind.
+    const photo = { ...entry, kind: t.entryKind ?? 'shared' };
     switch (action) {
       case 'signIn':
         return intl.formatMessage(m.signedIn);
@@ -919,6 +982,10 @@ function Activity({ api, signIn, onSignIn, changes, now }: ActivityProps) {
         return intl.formatMessage(m.restoredPoster, counts);
       case 'renamePlace':
         return intl.formatMessage(m.renamedPlace, { from: t.placeName ?? '', to: t.newName ?? '' });
+      case 'hidePhoto':
+        return intl.formatMessage(m.hidPhoto, photo);
+      case 'showPhoto':
+        return intl.formatMessage(m.showedPhoto, photo);
       case 'mergePlaces':
         return intl.formatMessage(m.mergedPlaces, {
           merged: intl.formatList(t.mergedNames ?? [], { type: 'conjunction' }),

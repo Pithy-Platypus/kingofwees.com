@@ -30,6 +30,9 @@ public interface IPhotoStore
     /// <returns>True when the photo exists.</returns>
     Task<bool> SetHiddenAsync(string id, bool hidden, CancellationToken cancellationToken);
 
+    /// <summary>Photos hidden one by one (admin), newest first, whatever their device or entry.</summary>
+    Task<IReadOnlyList<Photo>> GetHiddenAsync(CancellationToken cancellationToken);
+
     /// <returns>True when a photo was deleted.</returns>
     Task<bool> DeleteAsync(string id, CancellationToken cancellationToken);
 }

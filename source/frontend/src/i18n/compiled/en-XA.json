@@ -258,6 +258,91 @@
       "value": "]"
     }
   ],
+  "admin.activity.hidePhoto": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓ "
+    },
+    {
+      "type": 5,
+      "value": "kind",
+      "options": {
+        "fed": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ŧħḗḗ ƥħǿǿŧǿǿ ǿǿƞ ȧȧ ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "seen": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ŧħḗḗ ƥħǿǿŧǿǿ ǿǿƞ ȧȧ şīɠħŧīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ȧȧ ƥħǿǿŧǿǿ şħȧȧřḗḗḓ"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "poster"
+    },
+    {
+      "type": 5,
+      "value": "hasPlace",
+      "options": {
+        "yes": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ȧȧŧ "
+            },
+            {
+              "type": 1,
+              "value": "place"
+            }
+          ]
+        },
+        "other": {
+          "value": []
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ("
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.activity.hidePoster": [
     {
       "type": 0,
@@ -626,6 +711,91 @@
       "value": "]"
     }
   ],
+  "admin.activity.showPhoto": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇḗḗḓ "
+    },
+    {
+      "type": 5,
+      "value": "kind",
+      "options": {
+        "fed": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ŧħḗḗ ƥħǿǿŧǿǿ ǿǿƞ ȧȧ ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "seen": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ŧħḗḗ ƥħǿǿŧǿǿ ǿǿƞ ȧȧ şīɠħŧīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ȧȧ ƥħǿǿŧǿǿ şħȧȧřḗḗḓ"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "poster"
+    },
+    {
+      "type": 5,
+      "value": "hasPlace",
+      "options": {
+        "yes": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ȧȧŧ "
+            },
+            {
+              "type": 1,
+              "value": "place"
+            }
+          ]
+        },
+        "other": {
+          "value": []
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ȧȧɠȧȧīƞ ("
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.activity.signIn": [
     {
       "type": 0,
@@ -894,6 +1064,20 @@
       "value": "]"
     }
   ],
+  "admin.confirmPhoto": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓḗḗ ŧħīş ƥħǿǿŧǿǿ ƒřǿǿḿ ḗḗṽḗḗřẏǿǿƞḗḗ? Ŧħḗḗ ḗḗƞŧřẏ şŧȧȧẏş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.counting": [
     {
       "type": 0,
@@ -936,6 +1120,87 @@
       "value": "]"
     }
   ],
+  "admin.hiddenPhoto": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 5,
+      "value": "kind",
+      "options": {
+        "fed": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ƥħǿǿŧǿǿ ǿǿƞ ȧȧ ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "seen": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ƥħǿǿŧǿǿ ǿǿƞ ȧȧ şīɠħŧīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Şħȧȧřḗḗḓ ƥħǿǿŧǿǿ"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "poster"
+    },
+    {
+      "type": 5,
+      "value": "hasPlace",
+      "options": {
+        "yes": {
+          "value": [
+            {
+              "type": 0,
+              "value": " ȧȧŧ "
+            },
+            {
+              "type": 1,
+              "value": "place"
+            }
+          ]
+        },
+        "other": {
+          "value": []
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ("
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": ")"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.hideDevice": [
     {
       "type": 0,
@@ -972,6 +1237,20 @@
     {
       "type": 0,
       "value": "Ƈǿǿŭŭŀḓƞ’ŧ ħīḓḗḗ īŧ. Ŧřẏ ȧȧɠȧȧīƞ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.hidePhoto": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓḗḗ ŧħīş ƥħǿǿŧǿǿ"
     },
     {
       "type": 0,
@@ -1364,6 +1643,20 @@
       "value": "]"
     }
   ],
+  "admin.noPhotos": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿ ħīḓḓḗḗƞ ƥħǿǿŧǿǿş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.noPlaces": [
     {
       "type": 0,
@@ -1386,6 +1679,20 @@
     {
       "type": 0,
       "value": "Ƞǿǿ ħīḓḓḗḗƞ ƥǿǿşŧḗḗřş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.photosHeading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓḓḗḗƞ ƥħǿǿŧǿǿş"
     },
     {
       "type": 0,
@@ -1674,6 +1981,20 @@
       "value": "]"
     }
   ],
+  "admin.showPhotoAgain": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇ ƥħǿǿŧǿǿ ȧȧɠȧȧīƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.signOut": [
     {
       "type": 0,
@@ -1802,6 +2123,20 @@
     {
       "type": 0,
       "value": "Ħīḓḗḗ īŧ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.yesPhoto": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓḗḗ ƥħǿǿŧǿǿ"
     },
     {
       "type": 0,

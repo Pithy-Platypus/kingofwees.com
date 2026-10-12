@@ -51,6 +51,10 @@
     "defaultMessage": "Hid {kind, select, fed {a feeding} other {a sighting}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})",
     "description": "Activity line: one entry was hidden; {poster} posted it, {place} is its feeding place, {when} the entry’s date"
   },
+  "admin.activity.hidePhoto": {
+    "defaultMessage": "Hid {kind, select, fed {the photo on a feeding} seen {the photo on a sighting} other {a photo shared}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})",
+    "description": "Activity line: one photo was hidden (its entry stays); {poster} posted it, {when} is the entry’s or the shared photo’s date"
+  },
   "admin.activity.hidePoster": {
     "defaultMessage": "Hid everything from {poster} ({entries, plural, one {# entry} other {# entries}}, {spots, plural, one {# spot} other {# spots}})",
     "description": "Activity line: everything from one poster was hidden"
@@ -70,6 +74,10 @@
   "admin.activity.showEntry": {
     "defaultMessage": "Showed {kind, select, fed {a feeding} other {a sighting}} by {poster}{hasPlace, select, yes { at {place}} other {}} again ({when})",
     "description": "Activity line: a hidden entry was shown again; {poster} posted it, {when} is the entry’s date"
+  },
+  "admin.activity.showPhoto": {
+    "defaultMessage": "Showed {kind, select, fed {the photo on a feeding} seen {the photo on a sighting} other {a photo shared}} by {poster}{hasPlace, select, yes { at {place}} other {}} again ({when})",
+    "description": "Activity line: a hidden photo was shown again"
   },
   "admin.activity.signIn": {
     "defaultMessage": "Signed in",
@@ -119,6 +127,10 @@
     "defaultMessage": "Hide this entry from everyone?",
     "description": "Asked before hiding one entry"
   },
+  "admin.confirmPhoto": {
+    "defaultMessage": "Hide this photo from everyone? The entry stays.",
+    "description": "Asked before hiding one photo"
+  },
   "admin.counting": {
     "defaultMessage": "Counting…",
     "description": "Shown while counting what hiding a poster would hide"
@@ -131,6 +143,10 @@
     "defaultMessage": "That looks like the key’s hash. Enter the key itself — the shorter line from the key tool.",
     "description": "The 64-character server setting was entered instead of the admin key"
   },
+  "admin.hiddenPhoto": {
+    "defaultMessage": "{kind, select, fed {Photo on a feeding} seen {Photo on a sighting} other {Shared photo}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})",
+    "description": "A hidden photo, in words only (the picture is never shown again); {when} is the entry’s or the shared photo’s date"
+  },
   "admin.hideDevice": {
     "defaultMessage": "Hide everything from this poster",
     "description": "Admin button under an entry: hides every entry and spot from the device that posted it"
@@ -142,6 +158,10 @@
   "admin.hideFailed": {
     "defaultMessage": "Couldn’t hide it. Try again.",
     "description": "Shown when hiding fails"
+  },
+  "admin.hidePhoto": {
+    "defaultMessage": "Hide this photo",
+    "description": "Admin button under an entry with a photo: hides only the photo, the entry stays"
   },
   "admin.howToHide": {
     "defaultMessage": "To hide something, use the buttons under each entry on <history>King’s history</history>.",
@@ -227,6 +247,10 @@
     "defaultMessage": "no name",
     "description": "In the activity log: no name was typed at sign-in"
   },
+  "admin.noPhotos": {
+    "defaultMessage": "No hidden photos.",
+    "description": "No photo is hidden on its own"
+  },
   "admin.noPlaces": {
     "defaultMessage": "No places yet.",
     "description": "Nobody has added a feeding place"
@@ -234,6 +258,10 @@
   "admin.noPosters": {
     "defaultMessage": "No hidden posters.",
     "description": "No poster is hidden"
+  },
+  "admin.photosHeading": {
+    "defaultMessage": "Hidden photos",
+    "description": "Heading over photos hidden one by one"
   },
   "admin.placeFeedings": {
     "defaultMessage": "{feedings, plural, one {# feeding} other {# feedings}}",
@@ -279,6 +307,10 @@
     "defaultMessage": "Show older activity",
     "description": "Loads the next, older page of the activity log"
   },
+  "admin.showPhotoAgain": {
+    "defaultMessage": "Show photo again",
+    "description": "Un-hides one photo"
+  },
   "admin.signOut": {
     "defaultMessage": "Sign out on this device",
     "description": "Forgets the admin key on this device"
@@ -314,6 +346,10 @@
   "admin.yesEntry": {
     "defaultMessage": "Hide it",
     "description": "Confirms hiding one entry"
+  },
+  "admin.yesPhoto": {
+    "defaultMessage": "Hide photo",
+    "description": "Confirms hiding one photo"
   },
   "app.loading": {
     "defaultMessage": "Finding King…",

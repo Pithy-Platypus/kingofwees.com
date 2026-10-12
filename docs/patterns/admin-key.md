@@ -33,6 +33,7 @@ A missing setting must not leave admin open, and shouldn't advertise it either. 
 - **Filtering lives in the stores**, not the endpoints: status, history, heat and spots all read through a handful of store methods, and an endpoint can't forget a filter it never sees. `FindAsync` stays unfiltered — undo, rename and history cursors need to find hidden entries.
 - **The device key is never shown, admins included.** A hidden device is a record with its own id; that id is what admins list and restore.
 - **`Ne(Hidden, true)`, not `Eq(Hidden, false)`** — the same trap as `SawKing`: documents from before the field have none, and `Eq(false)` would hide all of them. Mongo contract tests with pre-field documents catch it.
+- **Photos (Slice 6, 2026-10-11)** hide on their own (the entry stays — for an unsuitable picture on a genuine sighting), with their entry, or with their poster; hidden photos also leave with a hidden entry (`Nin(EventId, hidden entries)`). **Never deleted by an admin**: a photo reported to NCMEC must be kept a year (18 U.S.C. § 2258A(h)), and an admin delete could destroy evidence. `/admin` lists hidden photos **in words only** ("Photo on a feeding by Kael at Porch (Oct 8)") — a photo hidden because it was unlawful must not be shown again there — and the files are served only while visible. Recorded as `hidePhoto` / `showPhoto`.
 - **Cost:** each public read also reads the hidden-device list (one small query). A street's moderation list stays tiny; if it ever doesn't, cache it.
 
 ## In the browser (Slice 4 step 4)

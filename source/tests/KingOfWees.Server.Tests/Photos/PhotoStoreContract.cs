@@ -76,6 +76,24 @@ public abstract class PhotoStoreContract
     }
 
     [Fact]
+    public async Task The_hidden_list_has_photos_hidden_one_by_one_newest_first_whatever_their_device()
+    {
+        var (photos, _, hidden) = CreateStores();
+        var older = NewPhoto(0, device: "spammer");
+        var newer = NewPhoto(1, eventId: "event-1");
+        var shownAgain = NewPhoto(2);
+        var fromHiddenDevice = NewPhoto(3, device: "spammer");
+        foreach (var photo in new[] { older, newer, shownAgain, fromHiddenDevice }) await photos.AddAsync(photo, Ct);
+        await photos.SetHiddenAsync(older.Id, true, Ct);
+        await photos.SetHiddenAsync(newer.Id, true, Ct);
+        await photos.SetHiddenAsync(shownAgain.Id, true, Ct);
+        await photos.SetHiddenAsync(shownAgain.Id, false, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        Assert.Equal([newer, older], await photos.GetHiddenAsync(Ct));
+    }
+
+    [Fact]
     public async Task Hiding_an_unknown_photo_reports_false()
     {
         var (photos, _, _) = CreateStores();

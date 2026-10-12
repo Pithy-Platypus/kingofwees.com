@@ -47,6 +47,15 @@ public sealed class InMemoryPhotoStore(IKingEventStore events, IHiddenReporterSt
         return Task.FromResult(true);
     }
 
+    public Task<IReadOnlyList<Photo>> GetHiddenAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Photo>>(
+        [
+            .. _photos.Values
+                .Where(p => _hiddenIds.ContainsKey(p.Id))
+                .OrderByDescending(p => p.PostedAt)
+                .ThenByDescending(p => p.Id, StringComparer.Ordinal),
+        ]);
+
     public Task<bool> DeleteAsync(string id, CancellationToken cancellationToken) => Task.FromResult(_photos.TryRemove(id, out _));
 
     // What a visitor may see: not hidden, not from a hidden device, not on a hidden entry.

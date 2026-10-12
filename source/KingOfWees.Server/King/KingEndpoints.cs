@@ -20,6 +20,7 @@ public static class KingEndpoints
         king.MapGet("/heat", GetHeat);
         king.MapGet("/spots", ListSpots);
         king.MapGet("/map", GetMap);
+        king.MapPhotoReads();
         king.MapGet("/posting", (PostingCountry posting, HttpContext context) =>
             TypedResults.Ok(new PostingView(posting.Allows(context.Connection.RemoteIpAddress))));
 
@@ -38,28 +39,33 @@ public static class KingEndpoints
     }
 
     private static async Task<Ok<KingStatus>> GetStatus(
-        IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)
+        IKingEventStore store, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
     {
         var lastFed = await store.GetLatestAsync(KingEventKind.Fed, cancellationToken);
         var lastSeen = await store.GetLatestSightingAsync(cancellationToken);
         var recent = await store.GetPageAsync(before: null, RecentCount, cancellationToken);
-        var view = await EventViews(spots, cancellationToken);
+        var view = await EventViews(spots, photos, [.. recent, .. new[] { lastFed, lastSeen }.OfType<KingEvent>()], cancellationToken);
+        var latestPhoto = await photos.GetPageAsync(before: null, 1, cancellationToken);
 
         return TypedResults.Ok(new KingStatus(
             lastFed is null ? null : view(lastFed),
             lastSeen is null ? null : view(lastSeen),
-            [.. recent.Select(view)]));
+            [.. recent.Select(view)],
+            (await PhotoEndpoints.PhotoViews(latestPhoto, store, spots, photos, cancellationToken)).FirstOrDefault()));
     }
 
-    // A street has a handful of spots; one read beats a lookup per event.
-    internal static async Task<Func<KingEvent, EventView>> EventViews(ISpotStore spots, CancellationToken cancellationToken)
+    // A street has a handful of spots; one read beats a lookup per event. Photos: one read for the events shown.
+    internal static async Task<Func<KingEvent, EventView>> EventViews(
+        ISpotStore spots, IPhotoStore photos, IReadOnlyCollection<KingEvent> events, CancellationToken cancellationToken)
     {
         var spotsById = (await spots.ListAsync(cancellationToken)).ToDictionary(s => s.Id);
-        return e => EventView.From(e, e.SpotId is null ? null : spotsById.GetValueOrDefault(e.SpotId));
+        var photoIds = (await photos.ForEventsAsync([.. events.Select(e => e.Id).Distinct()], cancellationToken))
+            .ToDictionary(p => p.EventId!, p => p.Id);
+        return e => EventView.From(e, e.SpotId is null ? null : spotsById.GetValueOrDefault(e.SpotId), photoIds.GetValueOrDefault(e.Id));
     }
 
     private static async Task<Ok<HistoryPage>> GetHistory(
-        [AsParameters] HistoryQuery query, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)
+        [AsParameters] HistoryQuery query, IKingEventStore store, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
     {
         var limit = query.Limit ?? HistoryQuery.DefaultLimit;
         // The validator has already checked that the cursor names an event.
@@ -67,7 +73,7 @@ public static class KingEndpoints
         // One extra tells whether an older page exists without a second query.
         var events = await store.GetPageAsync(before, limit + 1, cancellationToken);
         var page = events.Take(limit).ToList();
-        var view = await EventViews(spots, cancellationToken);
+        var view = await EventViews(spots, photos, page, cancellationToken);
 
         return TypedResults.Ok(new HistoryPage(
             [.. page.Select(view)], events.Count > limit ? page[^1].Id : null));

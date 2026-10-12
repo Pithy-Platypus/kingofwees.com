@@ -24,6 +24,15 @@ public sealed record SharePhotoForm
 // Event is the entry the photo belongs to, or null for a shared photo. Never the device key.
 public sealed record PhotoView(string Id, DateTimeOffset PostedAt, string? ReporterName, EventView? Event);
 
+// Bound from the query string with [AsParameters]; Before is the id of the last photo already shown.
+public sealed record PhotosQuery(string? Before, int? Limit)
+{
+    public const int DefaultLimit = 50;
+    public const int MaxLimit = 100;
+}
+
+public sealed record PhotosPage(IReadOnlyList<PhotoView> Photos, string? Next);
+
 public static class PhotoFiles
 {
     public static string Full(string id) => $"{id}.jpg";
@@ -61,6 +70,18 @@ public sealed class AddPhotoFormValidator : AbstractValidator<AddPhotoForm>
     {
         RuleFor(f => f.Photo).ValidJpeg("photo", PhotoRules.MaxPhotoBytes);
         RuleFor(f => f.Thumbnail).ValidJpeg("thumbnail", PhotoRules.MaxThumbnailBytes);
+    }
+}
+
+public sealed class PhotosQueryValidator : AbstractValidator<PhotosQuery>
+{
+    public PhotosQueryValidator(IPhotoStore photos)
+    {
+        RuleFor(q => q.Limit).InclusiveBetween(1, PhotosQuery.MaxLimit).WithErrorCode("limit.outOfRange");
+        RuleFor(q => q.Before)
+            .MustAsync(async (id, ct) => await photos.FindAsync(id!, ct) is not null)
+            .When(q => q.Before is not null)
+            .WithErrorCode("before.unknown");
     }
 }
 

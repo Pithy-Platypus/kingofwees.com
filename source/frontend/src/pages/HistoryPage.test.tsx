@@ -257,6 +257,7 @@ describe('HistoryPage — hiding, for admins', () => {
     return { api, adminApi, onRejected };
   };
   const firstEntry = async () => within((await screen.findAllByRole('listitem'))[0]);
+  const withPhoto = { events: [event({ id: 'e1', kind: 'seen', photoId: 'p1' }), event({ id: 'e2' })], next: null };
 
   it('offers nothing to visitors', async () => {
     renderInEnglish(<HistoryPage api={fakeApi(undefined, { history })} spots={[]} mapCenter={null} now={NOW} />);
@@ -319,6 +320,38 @@ describe('HistoryPage — hiding, for admins', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t hide it. Try again.');
     expect(api.getHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers to hide a photo only under an entry that has one', async () => {
+    renderAsAdmin(fakeAdminApi(), fakeApi(undefined, { history: withPhoto }));
+
+    const [first, second] = (await screen.findAllByRole('listitem')).map((li) => within(li));
+    expect(first.getByRole('button', { name: 'Hide this photo' })).toBeInTheDocument();
+    expect(second.queryByRole('button', { name: 'Hide this photo' })).not.toBeInTheDocument();
+  });
+
+  it('hides just the photo after asking, then reloads the log', async () => {
+    const { api, adminApi } = renderAsAdmin(fakeAdminApi(), fakeApi(undefined, { history: withPhoto }));
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide this photo' }));
+
+    expect(screen.getByText('Hide this photo from everyone? The entry stays.')).toHaveFocus();
+    expect(adminApi.hidePhoto).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Hide photo' }));
+
+    expect(adminApi.hidePhoto).toHaveBeenCalledWith(SIGN_IN, 'p1');
+    expect(adminApi.hideEntry).not.toHaveBeenCalled();
+    await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/^Hidden\. You can restore it on the/)).toHaveFocus();
+  });
+
+  it('cancels hiding a photo and puts focus back on its button', async () => {
+    const { adminApi } = renderAsAdmin(fakeAdminApi(), fakeApi(undefined, { history: withPhoto }));
+    await userEvent.click((await firstEntry()).getByRole('button', { name: 'Hide this photo' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(adminApi.hidePhoto).not.toHaveBeenCalled();
+    expect((await firstEntry()).getByRole('button', { name: 'Hide this photo' })).toHaveFocus();
   });
 
   it('drops admin mode when the key is no longer accepted', async () => {

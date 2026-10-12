@@ -2,7 +2,7 @@ using KingOfWees.Server.King;
 
 namespace KingOfWees.Server.Admin;
 
-public enum AdminAction { SignIn, SignInFailed, HideEntry, ShowEntry, HidePoster, RestorePoster, RenamePlace, MergePlaces }
+public enum AdminAction { SignIn, SignInFailed, HideEntry, ShowEntry, HidePoster, RestorePoster, RenamePlace, MergePlaces, HidePhoto, ShowPhoto }
 
 // What an admin action touched, in words a reader recognises: names and counts, never a device key.
 public sealed record AdminTouched(

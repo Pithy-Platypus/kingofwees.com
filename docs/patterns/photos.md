@@ -14,6 +14,10 @@ Minimal APIs bind a `[FromForm]` record's constructor parameters as **required**
 
 The browser sends a ~1600 px photo and a thumbnail, so limits are 1 MB and 100 KB per file (validator: `photo.tooLarge`), and the whole request may be at most both plus 64 KB. That request limit is endpoint metadata (`RequestSizeLimitAttribute` for Kestrel, plus the form reader's multipart limit): Kestrel answers **413 before reading** a larger body (checked by hand: 5 MB → 413), so an oversized upload never fills the server's memory. The test server doesn't enforce request limits, so a test checks that both upload endpoints carry them.
 
+## Serving: private, an hour at most
+
+Files are served by the server only while the photo is visible (`FindVisibleAsync`: not hidden itself, not on a hidden entry, not from a hidden device), so hiding works the moment it's saved for anyone who hasn't loaded the photo yet. The files never change, which would normally earn a long `immutable` cache — but then a hidden photo would stay in every browser that had shown it. `Cache-Control: private, max-age=3600` bounds that to an hour, and `private` keeps it out of any shared cache: none sits in front today (Cloudflare is DNS only), but turning the proxy on later would otherwise keep serving a hidden photo from Cloudflare's edge. `nosniff` because the bytes come from the public.
+
 ## Order of writes
 
 Adding: both files first, the record last. Deleting: the record first, the files last. Either way a record never points at missing files; at worst a failure leaves an orphaned file nobody can reach, which costs a fraction of a cent.

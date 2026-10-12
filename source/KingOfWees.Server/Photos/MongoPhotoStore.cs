@@ -51,6 +51,15 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
         return result.MatchedCount == 1;
     }
 
+    public async Task<IReadOnlyList<Photo>> GetHiddenAsync(CancellationToken cancellationToken)
+    {
+        var documents = await _photos.Find(Builders<PhotoDocument>.Filter.Eq(p => p.Hidden, true))
+            .SortByDescending(p => p.PostedAtUtc)
+            .ThenByDescending(p => p.Id)
+            .ToListAsync(cancellationToken);
+        return documents.ConvertAll(d => d.ToPhoto());
+    }
+
     public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken) =>
         (await _photos.DeleteOneAsync(p => p.Id == id, cancellationToken)).DeletedCount == 1;
 

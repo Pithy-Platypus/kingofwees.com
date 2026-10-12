@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, SpotView } from '../king/api';
+import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotoView, SpotView } from '../king/api';
 import type { ActivityPage, AdminApi, AdminSignIn, AdminSpot, DeviceView, HiddenDevice } from '../king/admin';
 import type { GeoPoint } from '../king/location';
 
@@ -15,6 +15,15 @@ export const event = (overrides: Partial<KingEventView>): KingEventView => ({
   sawKing: true,
   spotName: null,
   location: null,
+  photoId: null,
+  ...overrides,
+});
+
+export const photo = (overrides: Partial<PhotoView> = {}): PhotoView => ({
+  id: 'p1',
+  postedAt: NOW.toISOString(),
+  reporterName: null,
+  event: null,
   ...overrides,
 });
 
@@ -65,6 +74,7 @@ type AdminWorld = {
   device?: DeviceView;
   spots?: AdminSpot[];
   activity?: ActivityPage;
+  hiddenPhotos?: PhotoView[];
 };
 export const adminSpot = (id: string, name: string, hiddenPoster = false, feedings = 0): AdminSpot => ({ id, name, hiddenPoster, feedings });
 
@@ -75,6 +85,7 @@ export function fakeAdminApi({
   device: described = device(),
   spots = [],
   activity = { records: [], next: null },
+  hiddenPhotos = [],
 }: AdminWorld = {}) {
   return {
     check: vi.fn<AdminApi['check']>().mockResolvedValue(undefined),
@@ -89,5 +100,8 @@ export function fakeAdminApi({
     renameSpot: vi.fn<AdminApi['renameSpot']>().mockResolvedValue(undefined),
     activity: vi.fn<AdminApi['activity']>().mockResolvedValue(activity),
     mergeSpots: vi.fn<AdminApi['mergeSpots']>().mockResolvedValue(undefined),
+    hidePhoto: vi.fn<AdminApi['hidePhoto']>().mockResolvedValue(undefined),
+    showPhoto: vi.fn<AdminApi['showPhoto']>().mockResolvedValue(undefined),
+    hiddenPhotos: vi.fn<AdminApi['hiddenPhotos']>().mockResolvedValue(hiddenPhotos),
   };
 }
