@@ -1,4 +1,5 @@
 import { roundToBlock, type GeoPoint } from './location';
+import type { PhotoFiles } from './photo';
 
 export type SpotView = { id: string; name: string; location: GeoPoint };
 /** The server's limit for a place's name (AddSpotRequestValidator.MaxNameLength), new or renamed. */
@@ -60,6 +61,13 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
 const postJson = <T>(url: string, body: unknown) =>
   request<T>(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
+const photoForm = ({ photo, thumbnail }: PhotoFiles) => {
+  const form = new FormData();
+  form.append('photo', photo, 'photo.jpg');
+  form.append('thumbnail', thumbnail, 'thumbnail.jpg');
+  return form;
+};
+
 export const kingApi = {
   getStatus: () => request<KingStatus>('/api/king/status', undefined),
   logFeeding: (body: Reporter & { foods: Food[]; sawKing: boolean; spotId?: string }) =>
@@ -91,6 +99,13 @@ export const kingApi = {
       method: 'PATCH',
       headers: { 'X-Reporter-Key': reporterKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ reporterName }),
+    }),
+  // Same device and time window as undo; only on a sighting or a feeding where King was seen.
+  addPhoto: (id: string, reporterKey: string, files: PhotoFiles) =>
+    request<PhotoView>(`/api/king/events/${encodeURIComponent(id)}/photo`, {
+      method: 'POST',
+      headers: { 'X-Reporter-Key': reporterKey },
+      body: photoForm(files),
     }),
   undo: (id: string, reporterKey: string) =>
     request<void>(`/api/king/events/${encodeURIComponent(id)}`, {

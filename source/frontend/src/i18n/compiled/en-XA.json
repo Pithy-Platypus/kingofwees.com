@@ -3623,6 +3623,174 @@
       "value": "]"
     }
   ],
+  "photo.add": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧḓḓ ȧȧ ƥħǿǿŧǿǿ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.added": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿ ȧȧḓḓḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.addedAlt": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧħḗḗ ƥħǿǿŧǿǿ ẏǿǿŭŭ ȧȧḓḓḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.failedFeeding": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẏǿǿŭŭř ƥħǿǿŧǿǿ ƈǿǿŭŭŀḓƞ’ŧ ƀḗḗ ȧȧḓḓḗḗḓ. Ẏǿǿŭŭř ƒḗḗḗḗḓīƞɠ īş şȧȧṽḗḗḓ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.failedSighting": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẏǿǿŭŭř ƥħǿǿŧǿǿ ƈǿǿŭŭŀḓƞ’ŧ ƀḗḗ ȧȧḓḓḗḗḓ. Ẏǿǿŭŭř şīɠħŧīƞɠ īş şȧȧṽḗḗḓ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.pickedAlt": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧħḗḗ ƥħǿǿŧǿǿ ẏǿǿŭŭ ƥīƈķḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.reading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ɠḗḗŧŧīƞɠ ẏǿǿŭŭř ƥħǿǿŧǿǿ řḗḗȧȧḓẏ…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.remove": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Řḗḗḿǿǿṽḗḗ ƥħǿǿŧǿǿ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.retry": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Řḗḗŧřẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.sending": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧḓḓīƞɠ ẏǿǿŭŭř ƥħǿǿŧǿǿ…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.tooLate": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Īŧ’ş ŧǿǿǿǿ ŀȧȧŧḗḗ ŧǿǿ ȧȧḓḓ ȧȧ ƥħǿǿŧǿǿ — ƥħǿǿŧǿǿş ƈȧȧƞ ǿǿƞŀẏ ƀḗḗ ȧȧḓḓḗḗḓ ƒǿǿř 10 ḿīƞŭŭŧḗḗş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.unreadable": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŭŭşḗḗ ŧħȧȧŧ ƥħǿǿŧǿǿ. Ŧřẏ ȧȧƞǿǿŧħḗḗř ǿǿƞḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "place.back": [
     {
       "type": 0,

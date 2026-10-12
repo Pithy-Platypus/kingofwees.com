@@ -47,9 +47,10 @@ export function fakeApi(
     addSpot: vi.fn<typeof kingApi.addSpot>().mockImplementation(async (s) => ({ id: 'new-spot', name: s.name, location: s.location })),
     getStatus: vi.fn<typeof kingApi.getStatus>().mockResolvedValue(status),
     logFeeding: vi.fn<typeof kingApi.logFeeding>().mockImplementation(async (r) =>
-      event({ id: 'new-fed', kind: 'fed', foods: r.foods }),
+      event({ id: 'new-fed', kind: 'fed', foods: r.foods, sawKing: r.sawKing }),
     ),
     logSighting: vi.fn<typeof kingApi.logSighting>().mockResolvedValue(event({ id: 'new-seen', kind: 'seen' })),
+    addPhoto: vi.fn<typeof kingApi.addPhoto>().mockImplementation(async (id) => photo({ id: 'new-photo', event: event({ id }) })),
     undo: vi.fn<typeof kingApi.undo>().mockResolvedValue(undefined),
     renameEvent: vi.fn<typeof kingApi.renameEvent>().mockResolvedValue(undefined),
     getHeat: vi.fn<typeof kingApi.getHeat>().mockResolvedValue(heat),

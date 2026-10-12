@@ -2,11 +2,13 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactEl
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { Footer } from './Footer';
 import { adminApi as liveAdminApi, loadAdminSignIn, saveAdminSignIn, type AdminApi, type AdminSession, type AdminSignIn } from './king/admin';
-import { isPostingRefused, kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
+import { ApiError, isPostingRefused, kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
 import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
 import { LoggedScreen } from './king/LoggedScreen';
 import { NicknameScreen } from './king/NicknameScreen';
+import { resizePhoto, type PhotoFiles, type PhotoResizer } from './king/photo';
+import { DraftPhoto, LoggedPhoto, type PhotoState } from './king/PhotoSlot';
 import type { GeoPoint, Geolocator } from './king/location';
 import { loadLastSpotId, loadNickname, saveLastSpotId, saveNickname, type KeyValueStorage } from './king/reporter';
 import { SeenScreen } from './king/SeenScreen';
@@ -59,9 +61,18 @@ type Props = {
   storage?: KeyValueStorage;
   geolocation?: Geolocator;
   now?: () => Date;
+  resize?: PhotoResizer;
 };
 
-function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geolocation, now = () => new Date() }: Props) {
+function App({
+  api = kingApi,
+  adminApi = liveAdminApi,
+  reporterKey,
+  storage,
+  geolocation,
+  now = () => new Date(),
+  resize = resizePhoto,
+}: Props) {
   const [status, setStatus] = useState<KingStatus | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
@@ -73,6 +84,7 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   const [spots, setSpots] = useState<SpotView[]>([]);
   const [spotId, setSpotId] = useState(() => loadLastSpotId(storage));
   const [feedDraft, setFeedDraft] = useState<FeedDraft>(noFeedDraft);
+  const [photo, setPhoto] = useState<PhotoState | null>(null);
   const [postingAllowed, setPostingAllowed] = useState(true);
   const [adminSignIn, setAdminSignIn] = useState(() => loadAdminSignIn(storage));
   const [, setTick] = useState(0);
@@ -141,6 +153,7 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
     await load();
     setUndoFailed(false);
     setRenameFailed(false);
+    setPhoto(null);
     setScreen({ name: 'home' });
   };
 
@@ -152,17 +165,54 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   // A remembered spot that no longer exists (or hasn't loaded) is simply not offered.
   const spot = spots.find((s) => s.id === spotId) ?? null;
 
+  // 409 is the undo window closing (photo.exists can't happen: one photo per entry from this screen, with busy guards).
+  const sendPhoto = async (event: KingEventView, files: PhotoFiles) => {
+    setPhoto({ status: 'sending', files });
+    try {
+      await api.addPhoto(event.id, reporterKey, files);
+      setPhoto({ status: 'added', files });
+    } catch (error) {
+      setPhoto(error instanceof ApiError && error.status === 409 ? { status: 'tooLate' } : { status: 'failed', files });
+    }
+  };
+
+  const readPhoto = async (file: File) => {
+    setPhoto({ status: 'reading' });
+    try {
+      return await resize(file);
+    } catch {
+      setPhoto({ status: 'unreadable' });
+      return null;
+    }
+  };
+
+  const pickDraftPhoto = async (file: File) => {
+    const files = await readPhoto(file);
+    if (files) setPhoto({ status: 'picked', files });
+  };
+
+  const pickLoggedPhoto = async (event: KingEventView, file: File) => {
+    const files = await readPhoto(file);
+    if (files) await run(() => sendPhoto(event, files));
+  };
+
+  // The entry is posted first and shown at once; its photo follows, and a failed photo never takes the entry with it.
+  const showLogged = async (event: KingEventView) => {
+    const files = event.sawKing && photo?.status === 'picked' ? photo.files : null;
+    setPhoto(null);
+    setScreen({ name: 'logged', event });
+    if (files) await sendPhoto(event, files);
+  };
+
   const logFeeding = (foods: Food[], sawKing: boolean) =>
     run(async () => {
       const event = await api.logFeeding({ ...reporter(nickname), foods, sawKing, ...(spot ? { spotId: spot.id } : {}) });
       saveLastSpotId(storage, spot?.id ?? null);
-      setScreen({ name: 'logged', event });
+      await showLogged(event);
     });
 
   const logSighting = (location?: GeoPoint) =>
-    run(async () =>
-      setScreen({ name: 'logged', event: await api.logSighting({ ...reporter(nickname), ...(location ? { location } : {}) }) }),
-    );
+    run(async () => showLogged(await api.logSighting({ ...reporter(nickname), ...(location ? { location } : {}) })));
 
   const addSpot = (name: string, location: GeoPoint) =>
     run(async () => {
@@ -208,6 +258,10 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
       await showFreshHome();
     });
 
+  // Nothing logs while a picked photo is still being shrunk, so it can't be left behind.
+  const photoBusy = busy || photo?.status === 'reading';
+  const draftPhoto = <DraftPhoto photo={photo} onPick={(file) => void pickDraftPhoto(file)} onRemove={() => setPhoto(null)} />;
+
   let content: ReactElement;
   let withFooter = true;
   if (route === 'history') {
@@ -241,10 +295,11 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
   } else if (screen.name === 'feed') {
     content = (
       <FeedScreen
-        busy={busy}
+        busy={photoBusy}
         spots={spots}
         spotId={spot?.id ?? null}
         draft={feedDraft}
+        photo={draftPhoto}
         onDraft={setFeedDraft}
         onPickSpot={setSpotId}
         onAddSpot={() => setScreen({ name: 'spots' })}
@@ -266,7 +321,15 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
     withFooter = false;
   } else if (screen.name === 'seen') {
     content = (
-      <SeenScreen spots={spots} mapCenter={mapCenter} geolocation={geolocation} busy={busy} onLog={logSighting} onBack={goHome} />
+      <SeenScreen
+        spots={spots}
+        mapCenter={mapCenter}
+        geolocation={geolocation}
+        busy={photoBusy}
+        photo={draftPhoto}
+        onLog={logSighting}
+        onBack={goHome}
+      />
     );
     withFooter = false;
   } else if (screen.name === 'logged') {
@@ -277,7 +340,19 @@ function App({ api = kingApi, adminApi = liveAdminApi, reporterKey, storage, geo
         nickname={nickname ?? ''}
         undoFailed={undoFailed}
         renameFailed={renameFailed}
-        busy={busy}
+        busy={photoBusy}
+        photo={
+          event.sawKing && (
+            <LoggedPhoto
+              photo={photo}
+              kind={event.kind}
+              onPick={(file) => void pickLoggedPhoto(event, file)}
+              onRetry={() => {
+                if (photo?.status === 'failed') void run(() => sendPhoto(event, photo.files));
+              }}
+            />
+          )
+        }
         onUndo={() => undo(event)}
         onDone={goHome}
         onChangeName={() => setScreen({ name: 'nickname', then: screen })}

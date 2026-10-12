@@ -57,3 +57,10 @@ export const PinIcon = ({ className }: IconProps) => (
     <circle cx="12" cy="10" r="2.5" />
   </svg>
 );
+
+export const CameraIcon = ({ className }: IconProps) => (
+  <svg {...strokeProps} className={className}>
+    <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);

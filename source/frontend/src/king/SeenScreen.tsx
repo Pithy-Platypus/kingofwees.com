@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import type { SpotView } from './api';
 import { BackIcon, EyeIcon } from './icons';
@@ -42,11 +42,13 @@ type Props = {
   mapCenter: GeoPoint | null;
   geolocation: Geolocator | undefined;
   busy: boolean;
+  /** "Add a photo" and the picked photo, kept by the app. */
+  photo: ReactNode;
   onLog: (location?: GeoPoint) => void;
   onBack: () => void;
 };
 
-export function SeenScreen({ spots, mapCenter, geolocation, busy, onLog, onBack }: Props) {
+export function SeenScreen({ spots, mapCenter, geolocation, busy, photo, onLog, onBack }: Props) {
   const intl = useIntl();
   const heading = useRef<HTMLHeadingElement>(null);
   const [picked, setPicked] = useState<GeoPoint | null>(null);
@@ -74,6 +76,8 @@ export function SeenScreen({ spots, mapCenter, geolocation, busy, onLog, onBack 
       <p className="screen-hint">
         <FormattedMessage {...m.hint} />
       </p>
+      {/* Before the places: every place choice logs at once. */}
+      {photo}
       {locationFailed && (
         <div role="alert" className="alert alert-error">
           <FormattedMessage {...place.locationFailed} />

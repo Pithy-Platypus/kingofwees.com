@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { defineMessages, FormattedMessage, type NoMessageValues } from 'react-intl';
 import type { Food, SpotView } from './api';
 import { BackIcon, BowlIcon, CheckIcon } from './icons';
@@ -45,6 +45,8 @@ type Props = {
   spots: SpotView[];
   spotId: string | null;
   draft: FeedDraft;
+  /** "Add a photo" and the picked photo, kept by the app; not offered for food left out (no sighting). */
+  photo: ReactNode;
   onDraft: (draft: FeedDraft) => void;
   onPickSpot: (spotId: string | null) => void;
   onAddSpot: () => void;
@@ -52,7 +54,7 @@ type Props = {
   onBack: () => void;
 };
 
-export function FeedScreen({ busy, spots, spotId, draft, onDraft, onPickSpot, onAddSpot, onLog, onBack }: Props) {
+export function FeedScreen({ busy, spots, spotId, draft, photo, onDraft, onPickSpot, onAddSpot, onLog, onBack }: Props) {
   const heading = useRef<HTMLHeadingElement>(null);
   const radioName = useId();
   const sorted = useSpotsByName(spots);
@@ -123,6 +125,7 @@ export function FeedScreen({ busy, spots, spotId, draft, onDraft, onPickSpot, on
         />
         <FormattedMessage {...m.leftOut} />
       </label>
+      {!leftOut && photo}
       {/* Logged in menu order, whatever order they were tapped in. */}
       <button
         type="button"

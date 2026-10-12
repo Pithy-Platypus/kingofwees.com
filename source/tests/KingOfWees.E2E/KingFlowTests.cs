@@ -227,6 +227,7 @@ public sealed partial class KingFlowTests(AppFixture app)
         await AssertNoAxeViolations(page);
 
         // What Wallie's tester did: move the map, then look for the button to log.
+        await map.ScrollIntoViewIfNeededAsync(); // mouse coordinates are the viewport's: the map's middle must be on screen
         var box = (await map.BoundingBoxAsync())!;
         await page.Mouse.MoveAsync(box.X + box.Width / 2, box.Y + box.Height / 2);
         await page.Mouse.DownAsync();

@@ -130,6 +130,24 @@ describe('kingApi', () => {
     });
   });
 
+  it('adds a photo to an entry as a form with both JPEGs, the reporter key header and an encoded id', async () => {
+    const added = { id: 'p1', postedAt: '2026-10-08T12:00:00Z', reporterName: null, event: null };
+    respond(201, added);
+    const photo = new Blob(['full'], { type: 'image/jpeg' });
+    const thumbnail = new Blob(['thumb'], { type: 'image/jpeg' });
+
+    await expect(kingApi.addPhoto('a/b', 'k', { photo, thumbnail })).resolves.toEqual(added);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/king/events/a%2Fb/photo');
+    expect(init.method).toBe('POST');
+    expect(init.headers).toEqual({ 'X-Reporter-Key': 'k' }); // the browser sets the multipart Content-Type and boundary
+    const form = init.body as FormData;
+    expect(await (form.get('photo') as File).text()).toBe('full');
+    expect(await (form.get('thumbnail') as File).text()).toBe('thumb');
+    expect((form.get('photo') as File).name).toMatch(/\.jpg$/);
+  });
+
   it('renames an entry with the reporter key header and an encoded id; no name is sent as null', async () => {
     respond(204);
     respond(204);

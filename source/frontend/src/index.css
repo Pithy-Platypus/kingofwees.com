@@ -330,6 +330,35 @@
     @apply btn btn-primary mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
   }
 
+  /* "Add a photo": a real file input, hidden but focusable, inside a label drawn as a button (like the spot tiles). */
+  .photo-pick {
+    @apply btn btn-outline min-h-14 rounded-field border-secondary text-lg text-base-content;
+  }
+
+  .photo-pick:has(:focus-visible) {
+    @apply outline-2 outline-offset-2 outline-base-content;
+  }
+
+  .photo-pick-input {
+    @apply sr-only;
+  }
+
+  .photo-picked {
+    @apply flex items-center gap-4;
+  }
+
+  .photo-preview {
+    @apply size-24 rounded-box object-cover;
+  }
+
+  .photo-status {
+    @apply flex min-h-12 items-center font-bold;
+  }
+
+  .photo-retry {
+    @apply btn btn-outline min-h-14 rounded-field text-lg;
+  }
+
   .logged-screen {
     @apply items-center text-center;
   }

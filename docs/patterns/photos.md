@@ -21,3 +21,9 @@ Files are served by the server only while the photo is visible (`FindVisibleAsyn
 ## Order of writes
 
 Adding: both files first, the record last. Deleting: the record first, the files last. Either way a record never points at missing files; at worst a failure leaves an orphaned file nobody can reach, which costs a fraction of a cent.
+
+## In the browser: shrink, then post the entry before the photo
+
+The browser shrinks every picked photo before sending it (`src/king/photo.ts`): drawn through a canvas to at most 1600 px on the longer side, plus a 400 px thumbnail, as JPEG at quality 0.85, stepping down (0.7, 0.55, 0.4) until each fits the server's limit; a photo that still doesn't fit, or that the browser can't decode (a HEIC file in a desktop browser), is refused on the spot with "Couldn't use that photo." The re-encode is also what drops the EXIF block the first time. Current browsers apply the EXIF orientation when drawing an `<img>`, so portrait phone photos should stay upright — not tested here (the e2e photo has no EXIF); step 8 checks it on a phone. jsdom has no decoder or canvas, so the unit tests cover only the sizing and quality steps; the e2e flow draws a 4032×3024 photo in the page and checks the stored files are 1600×1200 and 400×300 (checked by changing the edge to 2000: caught).
+
+The entry is posted first and shown at once; its photo follows. A failed upload says the entry is saved and offers Retry with the same files, so a bad connection never costs the entry. A 409 means the 10-minute window closed ("too late", no Retry). Undo stays off while a photo is on its way, so the two requests never race (an upload that lost the race would get a 404 — no stray photo — but the screen would say the photo failed on an entry that's gone).

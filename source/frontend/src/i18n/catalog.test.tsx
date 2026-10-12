@@ -8,6 +8,7 @@ import { HomeScreen } from '../king/HomeScreen';
 import { LoggedScreen } from '../king/LoggedScreen';
 import { MapView } from '../king/MapView';
 import { NicknameScreen } from '../king/NicknameScreen';
+import { DraftPhoto, LoggedPhoto, type PhotoState } from '../king/PhotoSlot';
 import { AboutPage } from '../pages/AboutPage';
 import { PrivacyPage } from '../pages/PrivacyPage';
 import { SeenScreen } from '../king/SeenScreen';
@@ -16,6 +17,11 @@ import { CENTER, event, fakeApi, NOW, spot } from '../test/fakeApi';
 import { loadCatalog, type Catalog } from './catalogs';
 
 const noop = () => {};
+const files = { photo: new Blob(['full']), thumbnail: new Blob(['thumb']) };
+const draftPhoto = (photo: PhotoState | null) => <DraftPhoto photo={photo} onPick={noop} onRemove={noop} />;
+const loggedPhoto = (photo: PhotoState | null, kind: 'fed' | 'seen' = 'seen') => (
+  <LoggedPhoto photo={photo} kind={kind} onPick={noop} onRetry={noop} />
+);
 const status = {
   lastFed: event({ id: 'f', kind: 'fed', foods: ['wet'], reporterName: null, spotName: 'Corner', location: CENTER }),
   lastSeen: event({ id: 's', kind: 'seen', location: CENTER }),
@@ -53,6 +59,7 @@ describe('pseudo-locale catalog', () => {
         spots={[spot('c', 'Corner')]}
         spotId="c"
         draft={{ foods: ['wet'], leftOut: false }}
+        photo={draftPhoto(null)}
         onDraft={noop}
         onPickSpot={noop}
         onAddSpot={noop}
@@ -60,7 +67,7 @@ describe('pseudo-locale catalog', () => {
         onBack={noop}
       />,
     ],
-    ['where seen', <SeenScreen spots={[spot('c', 'Corner')]} mapCenter={CENTER} geolocation={undefined} busy={false} onLog={noop} onBack={noop} />],
+    ['where seen', <SeenScreen spots={[spot('c', 'Corner')]} mapCenter={CENTER} geolocation={undefined} busy={false} photo={draftPhoto(null)} onLog={noop} onBack={noop} />],
     [
       'spots',
       <SpotScreen
@@ -87,6 +94,14 @@ describe('pseudo-locale catalog', () => {
         busy={false}
       />,
     ],
+    ['photo can’t be used', draftPhoto({ status: 'unreadable' })],
+    ['photo getting ready', draftPhoto({ status: 'reading' })],
+    ['photo picked', draftPhoto({ status: 'picked', files })],
+    ['photo sending', loggedPhoto({ status: 'sending', files })],
+    ['photo added', loggedPhoto({ status: 'added', files })],
+    ['photo failed on a sighting', loggedPhoto({ status: 'failed', files })],
+    ['photo failed on a feeding', loggedPhoto({ status: 'failed', files }, 'fed')],
+    ['photo too late', loggedPhoto({ status: 'tooLate' })],
     ['name question', <NicknameScreen initialName="" onDone={noop} />],
     ['about', <AboutPage />],
     ['privacy', <PrivacyPage />],

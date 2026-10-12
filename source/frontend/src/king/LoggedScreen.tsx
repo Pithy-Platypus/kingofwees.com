@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type MessageTag, type NoMessageValues } from 'react-intl';
 import type { KingEventView } from './api';
 import { CheckIcon, UndoIcon } from './icons';
@@ -46,12 +46,24 @@ type Props = {
   undoFailed: boolean;
   renameFailed?: boolean;
   busy: boolean;
+  /** The photo going with this entry, or "Add a photo"; nothing for food left out. */
+  photo?: ReactNode;
   onUndo: () => void;
   onDone: () => void;
   onChangeName: () => void;
 };
 
-export function LoggedScreen({ event, nickname, undoFailed, renameFailed = false, busy, onUndo, onDone, onChangeName }: Props) {
+export function LoggedScreen({
+  event,
+  nickname,
+  undoFailed,
+  renameFailed = false,
+  busy,
+  photo,
+  onUndo,
+  onDone,
+  onChangeName,
+}: Props) {
   const intl = useIntl();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
@@ -66,6 +78,7 @@ export function LoggedScreen({ event, nickname, undoFailed, renameFailed = false
       <p>
         <FormattedMessage {...(fed ? m.fedDetail : m.seenDetail)} />
       </p>
+      {photo}
       <p className="logging-as">
         <FormattedMessage
           {...m.loggingAs}
