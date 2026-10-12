@@ -31,6 +31,8 @@ WORKSPACE_DAILY_GB=0.05 # ~1.5 GB a month at most, inside the 5 GB a month free 
 INSIGHTS="kingofwees-insights"
 ALERTS="kingofwees-alerts"
 BACKUP_ALERT="kingofwees-backup-failed"
+SEEN_ALERT="kingofwees-king-seen-or-fed"
+PHOTO_ALERT="kingofwees-photo-posted"
 REPOSITORY="ghcr.io/pithy-platypus/kingofwees"
 SECRETS="$HOME/.kingofwees"
 
@@ -186,6 +188,23 @@ if ! az monitor metrics alert show -g "$GROUP" -n "$BACKUP_ALERT" -o none 2>/dev
     --condition "total Executions > 0 where state includes Failed" --window-size 1h --evaluation-frequency 15m \
     --severity 2 --action "$ALERTS" --description "A nightly backup run failed: see the job's execution history and its log in $STORAGE/$BACKUPS."
 fi
+
+# The app's counters never reach Azure, but every request does, as one unsampled AppRequests row. ResultCode there reads 0,
+# so success is the span's status tag. Rows can land minutes late (16 seen), so each run takes the rows that arrived since
+# the last one, over an hour of event time. Stateless: a rule that stayed fired would email only once.
+event_alert() { # name, routes, description
+  az monitor scheduled-query create -g "$GROUP" -n "$1" -o none \
+    --scopes "$(az monitor log-analytics workspace show -g "$GROUP" -n "$WORKSPACE" --query id -o tsv)" \
+    --condition "count 'Posts' > 0" \
+    --condition-query Posts="AppRequests | where ingestion_time() > ago(15m) | where Name in ($2) | where tostring(Properties['http.response.status_code']) == '201'" \
+    --window-size 1h --evaluation-frequency 15m --auto-mitigate false --severity 4 --action-groups "$ALERTS_ID" --description "$3"
+}
+echo "== Alerts $SEEN_ALERT, $PHOTO_ALERT: email when King is seen or fed, and when a photo is posted"
+ALERTS_ID=$(az monitor action-group show -g "$GROUP" -n "$ALERTS" --query id -o tsv)
+event_alert "$SEEN_ALERT" "'POST /api/king/sightings', 'POST /api/king/feedings'" \
+  "King has been seen or fed: https://$DOMAIN/history"
+event_alert "$PHOTO_ALERT" "'POST /api/king/events/{id}/photo', 'POST /api/king/photos'" \
+  "A photo of King has been posted: https://$DOMAIN/photos"
 
 echo "== Container app $APP"
 # Re-applying the definition without the bound domains would drop them, so they're carried over.
