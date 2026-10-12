@@ -47,6 +47,9 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
         // Never contacted either: the in-memory photo stores replace it.
         builder.UseSetting("ConnectionStrings:photos", "UseDevelopmentStorage=true;ContainerName=photos");
         builder.UseSetting("RateLimiting:WritesPerMinute", writesPerMinute.ToString());
+        // A test makes many reads from one address; RateLimitTests set lower ones through settings.
+        builder.UseSetting("RateLimiting:ReadsPerMinute", "1000");
+        builder.UseSetting("RateLimiting:PhotoFilesPerMinute", "1000");
         foreach (var (key, value) in settings)
         {
             builder.UseSetting(key, value);

@@ -18,6 +18,9 @@ public sealed class InMemoryKingEventStore(IHiddenReporterStore hiddenReporters)
     public Task<KingEvent?> FindAsync(string id, CancellationToken cancellationToken) =>
         Task.FromResult(_events.GetValueOrDefault(id));
 
+    public Task<IReadOnlyList<KingEvent>> FindManyAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<KingEvent>>([.. ids.Distinct().Select(_events.GetValueOrDefault).OfType<KingEvent>()]);
+
     public Task<KingEvent?> GetLatestAsync(KingEventKind kind, CancellationToken cancellationToken) =>
         Task.FromResult(Visible().Where(e => e.Kind == kind).MaxBy(e => e.OccurredAt));
 

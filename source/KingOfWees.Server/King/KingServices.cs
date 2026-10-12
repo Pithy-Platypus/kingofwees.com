@@ -11,11 +11,16 @@ public static class KingPolicies
     // Allows everyone today; the single switch for "invite to post" later.
     public const string CanPost = "CanPost";
     public const string Writes = "writes";
+    public const string Reads = "reads";
+    // Apart from other reads: one page of /photos is 50 thumbnails.
+    public const string PhotoFiles = "photo-files";
 }
 
 public static class KingServices
 {
     private const int DefaultWritesPerMinute = 20;
+    private const int DefaultReadsPerMinute = 120;
+    private const int DefaultPhotoFilesPerMinute = 600;
 
     public static IServiceCollection AddKing(this IServiceCollection services)
     {
@@ -43,17 +48,21 @@ public static class KingServices
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy(KingPolicies.Writes, context =>
-            {
-                // Read per request so configuration (and tests) can change the limit.
-                var permits = context.RequestServices.GetRequiredService<IConfiguration>()
-                    .GetValue("RateLimiting:WritesPerMinute", DefaultWritesPerMinute);
-                return RateLimitPartition.GetFixedWindowLimiter(
-                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    _ => new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1) });
-            });
+            options.AddPolicy(KingPolicies.Writes, context => PerVisitor(context, "RateLimiting:WritesPerMinute", DefaultWritesPerMinute));
+            options.AddPolicy(KingPolicies.Reads, context => PerVisitor(context, "RateLimiting:ReadsPerMinute", DefaultReadsPerMinute));
+            options.AddPolicy(KingPolicies.PhotoFiles,
+                context => PerVisitor(context, "RateLimiting:PhotoFilesPerMinute", DefaultPhotoFilesPerMinute));
         });
 
         return services;
+    }
+
+    private static RateLimitPartition<string> PerVisitor(HttpContext context, string setting, int defaultPermits)
+    {
+        // Read per request so configuration (and tests) can change the limit.
+        var permits = context.RequestServices.GetRequiredService<IConfiguration>().GetValue(setting, defaultPermits);
+        return RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1) });
     }
 }

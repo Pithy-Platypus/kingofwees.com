@@ -411,6 +411,36 @@ public abstract class KingEventStoreContract
     }
 
     [Fact]
+    public async Task Find_many_returns_each_named_event_hidden_ones_too_and_skips_unknown_ids()
+    {
+        // A page of photos looks up its entries in one read; an admin's hidden photos have hidden entries.
+        var (store, hidden) = CreateStores();
+        var fed = Event(KingEventKind.Fed, 0, spotId: "porch");
+        var hiddenEntry = Event(KingEventKind.Seen, 1, location: Block);
+        var fromHiddenDevice = Event(KingEventKind.Seen, 2, device: "spammer");
+        var notAsked = Event(KingEventKind.Fed, 3);
+        foreach (var e in new[] { fed, hiddenEntry, fromHiddenDevice, notAsked }) await store.AddAsync(e, Ct);
+        await store.SetHiddenAsync(hiddenEntry.Id, hidden: true, Ct);
+        await hidden.HideAsync("spammer", T0, Ct);
+
+        var found = await store.FindManyAsync([fed.Id, hiddenEntry.Id, fromHiddenDevice.Id, Guid.CreateVersion7().ToString()], Ct);
+
+        Assert.Equal(3, found.Count);
+        AssertSameEvent(fed, found.Single(e => e.Id == fed.Id));
+        AssertSameEvent(hiddenEntry, found.Single(e => e.Id == hiddenEntry.Id));
+        AssertSameEvent(fromHiddenDevice, found.Single(e => e.Id == fromHiddenDevice.Id));
+    }
+
+    [Fact]
+    public async Task Find_many_of_no_ids_is_empty()
+    {
+        var store = CreateStore();
+        await store.AddAsync(Event(KingEventKind.Fed, 0), Ct);
+
+        Assert.Empty(await store.FindManyAsync([], Ct));
+    }
+
+    [Fact]
     public async Task Hiding_an_unknown_entry_reports_false()
     {
         var store = CreateStore();

@@ -10,6 +10,9 @@ public interface IKingEventStore
 
     Task<KingEvent?> FindAsync(string id, CancellationToken cancellationToken);
 
+    /// <summary>Like <see cref="FindAsync"/> for many ids in one read, hidden entries included; unknown ids are skipped.</summary>
+    Task<IReadOnlyList<KingEvent>> FindManyAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken);
+
     Task<KingEvent?> GetLatestAsync(KingEventKind kind, CancellationToken cancellationToken);
 
     /// <summary>The newest event in which someone saw King: a sighting, or a feeding where the food wasn't just left out.</summary>

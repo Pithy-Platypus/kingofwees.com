@@ -11,9 +11,9 @@ public static class PhotoEndpoints
     {
         king.MapGet("/photos", ListPhotos);
         king.MapGet("/photos/{id}/full", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
-            ServeAsync(id, PhotoFiles.Full(id), photos, files, context, ct));
+            ServeAsync(id, PhotoFiles.Full(id), photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
         king.MapGet("/photos/{id}/thumb", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
-            ServeAsync(id, PhotoFiles.Thumbnail(id), photos, files, context, ct));
+            ServeAsync(id, PhotoFiles.Thumbnail(id), photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
     }
 
     // Only while visible. Private and an hour at most, so a photo an admin hides leaves everyone's view soon after
@@ -28,7 +28,6 @@ public static class PhotoEndpoints
         }
 
         context.Response.Headers.CacheControl = "private, max-age=3600";
-        context.Response.Headers.XContentTypeOptions = "nosniff";
         return TypedResults.Stream(content, "image/jpeg");
     }
 
@@ -50,11 +49,9 @@ public static class PhotoEndpoints
     internal static async Task<IReadOnlyList<PhotoView>> PhotoViews(
         IReadOnlyList<Photo> page, IKingEventStore events, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
     {
-        var entries = new Dictionary<string, KingEvent>();
-        foreach (var eventId in page.Select(p => p.EventId).OfType<string>())
-        {
-            if (await events.FindAsync(eventId, cancellationToken) is { } entry) entries[eventId] = entry;
-        }
+        // One read for the page's entries, not one per photo: up to 100 photos on a public, anonymous page.
+        var entries = (await events.FindManyAsync([.. page.Select(p => p.EventId).OfType<string>().Distinct()], cancellationToken))
+            .ToDictionary(e => e.Id);
         var view = await KingEndpoints.EventViews(spots, photos, entries.Values, cancellationToken);
         return [.. page.Select(p => new PhotoView(
             p.Id, p.PostedAt, p.ReporterName, p.EventId is { } id && entries.TryGetValue(id, out var entry) ? view(entry) : null))];

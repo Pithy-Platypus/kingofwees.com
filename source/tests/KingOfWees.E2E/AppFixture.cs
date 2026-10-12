@@ -53,6 +53,8 @@ public sealed class AppFixture : IAsyncLifetime
             .WithEnvironment("King__Map__Center__Longitude", MapLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
             // Every flow posts from one address, faster than any neighbor would; the limit itself is covered by RateLimitTests.
             .WithEnvironment("RateLimiting__WritesPerMinute", "1000")
+            .WithEnvironment("RateLimiting__ReadsPerMinute", "1000")
+            .WithEnvironment("RateLimiting__PhotoFilesPerMinute", "1000")
             .WithEnvironment("King__Admin__KeyHash", Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(AdminKey))))
             .WithEnvironment("RateLimiting__AdminPerMinute", "1000")
             // MaxMind's test database: the browser's own loopback address isn't in it, so every flow may post; a page

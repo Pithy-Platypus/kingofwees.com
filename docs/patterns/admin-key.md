@@ -39,7 +39,7 @@ A missing setting must not leave admin open, and shouldn't advertise it either. 
 
 ## In the browser (Slice 4 step 4)
 
-- **The key is kept in `localStorage` on the admin's own device**, so moderating doesn't mean pasting it every visit. Anything running on the page could read it, so the site keeps loading no third-party scripts (it loads none today). **Sign out on this device** forgets it; a rotated key is forgotten the first time the server answers 401.
+- **The key is kept in `localStorage` on the admin's own device**, so moderating doesn't mean pasting it every visit. Anything running on the page could read it, so the site loads no third-party scripts, and since 2026-10-12 a Content-Security-Policy makes the browser refuse any script the site didn't ship (`security-headers.md`). **Sign out on this device** forgets it; a rotated key is forgotten the first time the server answers 401.
 - **A pasted hash is caught before any request** (64 hex characters; a key is 43 URL-safe Base64 ones). That exact mix-up happened in the first manual test, and the server's answer — a 401 — can't say why. Checking first also saves one of the ten tries a minute.
 - **The tool prints KEY then HASH under plain labels**, with nothing between them, for the same reason.
 - **Hiding is asked in place** ("Hide 14 entries and 2 spots from Sarah, including anything they post later?"), never with a browser dialog, and the counts come from the server before anything is hidden.

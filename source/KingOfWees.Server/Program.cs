@@ -7,6 +7,13 @@ using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// No request needs more than a few kB except a photo upload, which raises the cap for itself (PhotoRules.MaxRequestBytes).
+builder.WebHost.ConfigureKestrel(kestrel =>
+{
+    kestrel.Limits.MaxRequestBodySize = 64 * 1024;
+    kestrel.AddServerHeader = false;
+});
+
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 // AddMongoDBClient registers the database only when the connection string names one; without it every request is
@@ -56,6 +63,7 @@ if (app.Configuration.GetValue<bool>("King:Proxy:TrustForwardedFor"))
 }
 
 // Configure the HTTP request pipeline.
+app.UseSecurityHeaders();
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())

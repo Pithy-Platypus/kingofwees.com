@@ -4,7 +4,7 @@
 
 ## The problem
 
-Both rate limits — writes (20 a minute) and wrong admin keys (10 a minute) — are per address, keyed on `Connection.RemoteIpAddress`. Behind Azure Container Apps' ingress every connection comes from the proxy, so every visitor would share one bucket: one busy neighbor, or one spammer, would lock everyone else out. Locally there's no proxy, so everything looks fine until it's deployed.
+Every rate limit — writes (20 a minute), wrong admin keys (10 a minute), and since 2026-10-12 reads and photo files (`request-limits.md`) — is per address, keyed on `Connection.RemoteIpAddress`. Behind Azure Container Apps' ingress every connection comes from the proxy, so every visitor would share one bucket: one busy neighbor, or one spammer, would lock everyone else out. Locally there's no proxy, so everything looks fine until it's deployed.
 
 ## What the ingress sends
 

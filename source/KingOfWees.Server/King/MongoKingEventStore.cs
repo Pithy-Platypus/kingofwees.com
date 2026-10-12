@@ -18,6 +18,13 @@ public sealed class MongoKingEventStore(IMongoDatabase database, IHiddenReporter
         return document?.ToEvent();
     }
 
+    public async Task<IReadOnlyList<KingEvent>> FindManyAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0) return [];
+        var documents = await _events.Find(Builders<KingEventDocument>.Filter.In(e => e.Id, ids)).ToListAsync(cancellationToken);
+        return [.. documents.Select(d => d.ToEvent())];
+    }
+
     public async Task<KingEvent?> GetLatestAsync(KingEventKind kind, CancellationToken cancellationToken)
     {
         var document = await _events.Find(await Visible(cancellationToken) & Builders<KingEventDocument>.Filter.Eq(e => e.Kind, kind.ToString()))

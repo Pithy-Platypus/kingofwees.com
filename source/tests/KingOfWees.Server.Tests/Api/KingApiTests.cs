@@ -524,15 +524,49 @@ public sealed class RateLimitTests
     }
 
     [Fact]
-    public async Task Reads_are_not_rate_limited()
+    public async Task Reads_share_one_per_minute_limit_beyond_which_they_get_429()
     {
-        await using var factory = new KingApiFactory(writesPerMinute: 1);
+        await using var factory = new KingApiFactory(settings: [("RateLimiting:ReadsPerMinute", "2")]);
         var client = factory.CreateClient();
         var ct = TestContext.Current.CancellationToken;
 
-        for (var i = 0; i < 3; i++)
+        var statuses = new List<HttpStatusCode>();
+        foreach (var path in new[] { "/api/king/status", "/api/king/photos", "/api/king/history" })
         {
-            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/king/status", ct)).StatusCode);
+            statuses.Add((await client.GetAsync(path, ct)).StatusCode);
         }
+
+        Assert.Equal([HttpStatusCode.OK, HttpStatusCode.OK, HttpStatusCode.TooManyRequests], statuses);
+    }
+
+    [Fact]
+    public async Task Photo_files_have_their_own_limit_apart_from_other_reads()
+    {
+        // One page of /photos is 50 thumbnails, so they can't share the other reads' budget.
+        await using var factory = new KingApiFactory(
+            settings: [("RateLimiting:ReadsPerMinute", "1"), ("RateLimiting:PhotoFilesPerMinute", "2")]);
+        var client = factory.CreateClient();
+        var ct = TestContext.Current.CancellationToken;
+        var unknown = Guid.CreateVersion7().ToString();
+
+        var statuses = new List<HttpStatusCode>();
+        foreach (var path in new[] { "/api/king/status", $"/api/king/photos/{unknown}/thumb", $"/api/king/photos/{unknown}/full", $"/api/king/photos/{unknown}/thumb" })
+        {
+            statuses.Add((await client.GetAsync(path, ct)).StatusCode);
+        }
+
+        Assert.Equal([HttpStatusCode.OK, HttpStatusCode.NotFound, HttpStatusCode.NotFound, HttpStatusCode.TooManyRequests], statuses);
+    }
+
+    [Fact]
+    public async Task Writes_count_only_against_the_write_limit()
+    {
+        await using var factory = new KingApiFactory(settings: [("RateLimiting:ReadsPerMinute", "1")]);
+        var client = factory.CreateClient();
+        var ct = TestContext.Current.CancellationToken;
+
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/king/sightings", new { reporterKey = "k" }, ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/king/sightings", new { reporterKey = "k" }, ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/king/status", ct)).StatusCode);
     }
 }

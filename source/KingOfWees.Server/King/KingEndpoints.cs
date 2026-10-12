@@ -14,7 +14,8 @@ public static class KingEndpoints
 
     public static IEndpointRouteBuilder MapKingEndpoints(this IEndpointRouteBuilder routes)
     {
-        var king = routes.MapGroup("/api/king").AddEndpointFilter<ValidationFilter>();
+        // The innermost limit wins: writes and photo files count only against their own.
+        var king = routes.MapGroup("/api/king").AddEndpointFilter<ValidationFilter>().RequireRateLimiting(KingPolicies.Reads);
         king.MapGet("/status", GetStatus);
         king.MapGet("/history", GetHistory);
         king.MapGet("/heat", GetHeat);

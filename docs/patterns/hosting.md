@@ -9,7 +9,7 @@ One Azure Container Apps (ACA) app, **one replica, always warm**, at the smalles
 ## Why
 
 - **Always warm, not scale to zero.** Neighbors open the site when King turns up; a cold start costs them seconds at the one moment it matters. At the idle rate one small replica costs about $6 a month.
-- **Exactly one replica.** The write and admin rate limits live in the process's memory, so a second replica would double every limit and nothing would fail. More replicas need the limits in a shared store first.
+- **Exactly one replica.** The rate limits (`request-limits.md`) live in the process's memory, so a second replica would double every limit and nothing would fail. More replicas need the limits in a shared store first.
 - **The smallest size held.** Measured before anything was created (Slice 5 step 1, image capped at 0.25 CPU / 512 MiB): a simulated neighborhood evening plus a "King's here" spike peaked at 7.7% of a core and 98 MiB with no errors; a 2,100-request stress burst peaked at 25% of a core and 89 MiB. About 5× memory headroom.
 - **DocumentDB, not a Mongo container.** Mongo can't run on ACA: its network file shares corrupt Mongo's data directory. The free tier is effectively unlimited here — a year of entries at 4 a day dumps to 44 KB. The store contract tests passed against it (46/46) before go-live.
 - **Our own deploy script, not `aspire deploy`.** Aspire's Container Apps environment adds an Azure Container Registry (about $5 a month), a Log Analytics workspace and the dashboard by default. GHCR is free for a public repository, and the image holds no secrets.
