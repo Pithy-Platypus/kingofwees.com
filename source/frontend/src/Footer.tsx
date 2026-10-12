@@ -24,7 +24,10 @@ export function Footer() {
   return (
     <footer className="site-footer">
       <p>
-        <FormattedMessage {...m.credit} /> <FormattedMessage {...m.copyright} />
+        <FormattedMessage {...m.credit} />{' '}
+        <span className="footer-copyright">
+          <FormattedMessage {...m.copyright} />
+        </span>
       </p>
       <nav aria-labelledby="footer-links">
         <span id="footer-links" className="sr-only">

@@ -143,6 +143,10 @@
     @apply flex gap-6;
   }
 
+  .footer-copyright {
+    @apply whitespace-nowrap;
+  }
+
   .footer-credit {
     @apply text-sm;
   }
@@ -201,8 +205,9 @@
     @apply mt-1 flex flex-wrap gap-2;
   }
 
+  /* A badge has a fixed height; a chip that wraps on a narrow phone must grow with its text. */
   .status-chip {
-    @apply badge badge-lg font-bold;
+    @apply badge badge-lg h-auto min-h-(--size) py-1 font-bold;
   }
 
   .big-actions {
