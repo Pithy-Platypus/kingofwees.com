@@ -201,6 +201,14 @@ describe('PhotosPage — sharing a photo', () => {
 describe('PhotosPage — admin', () => {
   const session = (api = fakeAdminApi()) => ({ signIn: SIGN_IN, api, onRejected: vi.fn() });
 
+  it('keeps focus on the page heading for an admin, not on a photo’s hide button', async () => {
+    renderPage({ admin: session() });
+
+    await shown('listitem');
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Photos of King' })).toHaveFocus();
+  });
+
   it('offers no hide button to visitors', async () => {
     renderPage();
     await shown('link');
