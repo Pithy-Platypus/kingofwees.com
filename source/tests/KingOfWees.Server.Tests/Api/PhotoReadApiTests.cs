@@ -16,6 +16,8 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    private static readonly PhotoHiding Hiding = new(HideReason.NotKing, null, DateTimeOffset.UnixEpoch, "Wallie");
+
     public ValueTask InitializeAsync()
     {
         _client = _factory.CreateClient();
@@ -80,7 +82,7 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
         var id = photo.Id;
         switch (shape)
         {
-            case "hidden itself": await _factory.Photos.SetHiddenAsync(id, true, Ct); break;
+            case "hidden itself": await _factory.Photos.HideAsync(id, Hiding, Ct); break;
             case "on a hidden entry": await _factory.Store.SetHiddenAsync(entry, true, Ct); break;
             case "from a hidden device": await _factory.Hidden.HideAsync(DeviceKey, _factory.Clock.GetUtcNow(), Ct); break;
             case "unknown": id = Guid.CreateVersion7().ToString(); break;
@@ -101,7 +103,7 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
         var photo = await Stored(eventId: withPhoto);
         var hiddenPhotoEntry = await LoggedSighting();
         var hidden = await Stored(eventId: hiddenPhotoEntry);
-        await _factory.Photos.SetHiddenAsync(hidden.Id, true, Ct);
+        await _factory.Photos.HideAsync(hidden.Id, Hiding, Ct);
         var without = await LoggedSighting();
 
         var recent = (await Status()).GetProperty("recent").EnumerateArray()
@@ -133,7 +135,7 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
         var onEntry = await Stored(eventId: entry);
         var shared = await Stored();
         var hidden = await Stored();
-        await _factory.Photos.SetHiddenAsync(hidden.Id, true, Ct);
+        await _factory.Photos.HideAsync(hidden.Id, Hiding, Ct);
         await Stored(device: "spammer");
         await _factory.Hidden.HideAsync("spammer", _factory.Clock.GetUtcNow(), Ct);
 
@@ -193,7 +195,7 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
         Assert.Equal(shared.Id, latest.GetProperty("id").GetString());
         Assert.Equal(JsonValueKind.Null, latest.GetProperty("event").ValueKind);
 
-        await _factory.Photos.SetHiddenAsync(shared.Id, true, Ct);
+        await _factory.Photos.HideAsync(shared.Id, Hiding, Ct);
         Assert.Equal(onEntry.Id, (await Status()).GetProperty("latestPhoto").GetProperty("id").GetString());
     }
 }

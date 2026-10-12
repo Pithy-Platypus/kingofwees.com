@@ -69,30 +69,30 @@ describe('routing', () => {
     scrollTo.mockRestore();
   });
 
-  it('reaches the history from the footer and from under Lately on Home', async () => {
+  it('lists the footer links About, Privacy, Photos, History (Wallie, 2026-10-12)', async () => {
+    renderAt('/');
+    await screen.findByRole('button', { name: 'I fed King' });
+
+    const site = within(footer().getByRole('navigation', { name: 'Site' }));
+    expect(site.getAllByRole('link').map((l) => l.textContent)).toEqual(['About', 'Privacy', 'Photos', 'History']);
+  });
+
+  it('reaches the history from the footer', async () => {
     renderAt('/');
     await screen.findByRole('button', { name: 'I fed King' });
 
     await userEvent.click(footer().getByRole('link', { name: 'History' }));
     expect(window.location.pathname).toBe('/history');
     expect(await screen.findByRole('heading', { level: 1, name: 'King’s history' })).toHaveFocus();
-
-    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
-    await userEvent.click(await screen.findByRole('link', { name: 'See King’s history' }));
-    expect(window.location.pathname).toBe('/history');
   });
 
-  it('reaches every photo from the footer, from under Lately on Home and from the history', async () => {
+  it('reaches every photo from the footer and from the history', async () => {
     renderAt('/');
     await screen.findByRole('button', { name: 'I fed King' });
 
     await userEvent.click(footer().getByRole('link', { name: 'Photos' }));
     expect(window.location.pathname).toBe('/photos');
     expect(await screen.findByRole('heading', { level: 1, name: 'Photos of King' })).toHaveFocus();
-
-    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
-    await userEvent.click(await screen.findByRole('link', { name: 'See every photo' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Photos of King' })).toBeInTheDocument();
 
     await userEvent.click(footer().getByRole('link', { name: 'History' }));
     await userEvent.click(await screen.findByRole('link', { name: 'See every photo' }));

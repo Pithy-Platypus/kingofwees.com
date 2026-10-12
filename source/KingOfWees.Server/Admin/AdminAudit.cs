@@ -21,7 +21,8 @@ public sealed class AdminAudit(IAdminLogStore log, TimeProvider clock)
 
     // Header values must be ASCII, so the page sends the name URL-encoded. Trimmed and capped like a nickname;
     // missing or blank is "no name". Only ever stored here — never logged or tagged.
-    private static string? NameOf(HttpRequest request)
+    /// <summary>The name typed at sign-in, as recorded in the log (trimmed, cut to a nickname's length); null when none.</summary>
+    public static string? NameOf(HttpRequest request)
     {
         var name = Uri.UnescapeDataString(request.Headers[NameHeader].ToString()).Trim();
         if (name.Length == 0) return null;

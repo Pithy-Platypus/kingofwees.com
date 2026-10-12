@@ -21,6 +21,9 @@ public abstract class PhotoStoreContract
 
     private static async Task<IReadOnlyList<Photo>> FirstPage(IPhotoStore photos) => await photos.GetPageAsync(null, 50, Ct);
 
+    private static PhotoHiding Because(HideReason reason = HideReason.NotKing, string? note = null) =>
+        new(reason, note, T0.AddDays(1), "Wallie");
+
     [Fact]
     public async Task Added_photos_are_found_by_id_with_every_field_intact()
     {
@@ -62,15 +65,15 @@ public abstract class PhotoStoreContract
         await photos.AddAsync(hidden, Ct);
         await photos.AddAsync(kept, Ct);
 
-        Assert.True(await photos.SetHiddenAsync(hidden.Id, true, Ct));
+        Assert.True(await photos.HideAsync(hidden.Id, Because(), Ct));
 
         Assert.Equal([kept], await FirstPage(photos));
         Assert.Null(await photos.FindVisibleAsync(hidden.Id, Ct));
         Assert.Empty(await photos.ForEventsAsync(["event-1"], Ct));
-        Assert.Equal(hidden, await photos.FindAsync(hidden.Id, Ct));
-        Assert.Equal(hidden, await photos.FindByEventAsync("event-1", Ct));
+        Assert.Equal(hidden with { Hiding = Because() }, await photos.FindAsync(hidden.Id, Ct));
+        Assert.Equal(hidden with { Hiding = Because() }, await photos.FindByEventAsync("event-1", Ct));
 
-        Assert.True(await photos.SetHiddenAsync(hidden.Id, false, Ct));
+        Assert.True(await photos.ShowAsync(hidden.Id, Ct));
         Assert.Equal([kept, hidden], await FirstPage(photos));
         Assert.Equal(hidden, await photos.FindVisibleAsync(hidden.Id, Ct));
     }
@@ -84,21 +87,43 @@ public abstract class PhotoStoreContract
         var shownAgain = NewPhoto(2);
         var fromHiddenDevice = NewPhoto(3, device: "spammer");
         foreach (var photo in new[] { older, newer, shownAgain, fromHiddenDevice }) await photos.AddAsync(photo, Ct);
-        await photos.SetHiddenAsync(older.Id, true, Ct);
-        await photos.SetHiddenAsync(newer.Id, true, Ct);
-        await photos.SetHiddenAsync(shownAgain.Id, true, Ct);
-        await photos.SetHiddenAsync(shownAgain.Id, false, Ct);
+        await photos.HideAsync(older.Id, Because(), Ct);
+        await photos.HideAsync(newer.Id, Because(), Ct);
+        await photos.HideAsync(shownAgain.Id, Because(), Ct);
+        await photos.ShowAsync(shownAgain.Id, Ct);
         await hidden.HideAsync("spammer", T0, Ct);
 
-        Assert.Equal([newer, older], await photos.GetHiddenAsync(Ct));
+        Assert.Equal([newer with { Hiding = Because() }, older with { Hiding = Because() }], await photos.GetHiddenAsync(Ct));
     }
 
     [Fact]
-    public async Task Hiding_an_unknown_photo_reports_false()
+    public async Task Hiding_or_showing_an_unknown_photo_reports_false()
     {
         var (photos, _, _) = CreateStores();
 
-        Assert.False(await photos.SetHiddenAsync(Guid.CreateVersion7().ToString(), true, Ct));
+        Assert.False(await photos.HideAsync(Guid.CreateVersion7().ToString(), Because(), Ct));
+        Assert.False(await photos.ShowAsync(Guid.CreateVersion7().ToString(), Ct));
+    }
+
+    [Theory]
+    [InlineData(HideReason.NotKing, null)]
+    [InlineData(HideReason.ShowsPerson, null)]
+    [InlineData(HideReason.Rude, "rude words")]
+    [InlineData(HideReason.Unlawful, "reported to NCMEC on Oct 12")]
+    [InlineData(HideReason.Other, "a blurry thumb")]
+    public async Task A_hidden_photo_keeps_why_when_and_by_whom_until_it_is_shown_again(HideReason reason, string? note)
+    {
+        var (photos, _, _) = CreateStores();
+        var photo = NewPhoto(0);
+        await photos.AddAsync(photo, Ct);
+
+        await photos.HideAsync(photo.Id, Because(reason, note), Ct);
+        Assert.Equal(new PhotoHiding(reason, note, T0.AddDays(1), "Wallie"), (await photos.FindAsync(photo.Id, Ct))!.Hiding);
+        Assert.Equal(Because(reason, note), (await photos.GetHiddenAsync(Ct)).Single().Hiding);
+
+        await photos.ShowAsync(photo.Id, Ct);
+        Assert.Null((await photos.FindAsync(photo.Id, Ct))!.Hiding);
+        Assert.Null((await FirstPage(photos)).Single().Hiding);
     }
 
     [Fact]

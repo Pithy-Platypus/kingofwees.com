@@ -1,4 +1,5 @@
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 
 namespace KingOfWees.Server.Admin;
 
@@ -14,7 +15,10 @@ public sealed record AdminTouched(
     string? PlaceName = null,
     string? NewName = null,
     IReadOnlyList<string>? MergedNames = null,
-    int? Feedings = null);
+    int? Feedings = null,
+    // Why a photo was hidden; the note is admin-written free text, kept here and on the photo, never logged or tagged.
+    HideReason? Reason = null,
+    string? Note = null);
 
 // One line of the audit log. AdminName is what was typed at sign-in: with one shared key it's a claim, not proof.
 public sealed record AdminLogRecord(

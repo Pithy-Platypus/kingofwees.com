@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ActivityRecord, AdminSignIn, AdminTouched, HiddenDevice } from '../king/admin';
 import { ApiError } from '../king/api';
-import { ADMIN_KEY, adminSpot, device, event, fakeAdminApi, NOW, photo, SIGN_IN } from '../test/fakeApi';
+import { ADMIN_KEY, adminSpot, device, event, fakeAdminApi, hiddenPhoto, NOW, SIGN_IN } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 import { AdminPage } from './AdminPage';
 
@@ -155,24 +155,48 @@ describe('AdminPage — with a key', () => {
   });
 
   it('lists hidden photos in words, never showing the picture', async () => {
-    const onFeeding = photo({ id: 'p1', event: event({ kind: 'fed', reporterName: 'Kael', spotName: 'Porch', photoId: null }) });
-    const shared = photo({ id: 'p2', reporterName: 'Sarah' });
-    const api = fakeAdminApi({ hiddenPhotos: [onFeeding, shared, photo({ id: 'p3', event: event({ kind: 'seen' }) })] });
+    // Local noon, so the times read the same in any time zone.
+    const noon = new Date('2026-10-08T12:00:00').toISOString();
+    const onFeeding = hiddenPhoto({
+      id: 'p1',
+      event: event({ kind: 'fed', reporterName: 'Kael', spotName: 'Porch', photoId: null, occurredAt: noon }),
+    });
+    const shared = hiddenPhoto({ id: 'p2', reporterName: 'Sarah', postedAt: noon });
+    const api = fakeAdminApi({
+      hiddenPhotos: [onFeeding, shared, hiddenPhoto({ id: 'p3', event: event({ kind: 'seen', occurredAt: noon }) })],
+    });
     renderPage(api, SIGN_IN);
 
     const list = await screen.findByRole('list', { name: 'Hidden photos' });
     expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Photo on a feeding by Kael at Porch (Oct 8)Show photo again',
-      'Shared photo by Sarah (Oct 8)Show photo again',
-      'Photo on a sighting by a neighbor (Oct 8)Show photo again',
+      'Photo on a feeding by Kael at Porch (Oct 8, 12:00 PM)No reason recordedShow photo again',
+      'Shared photo by Sarah (Oct 8, 12:00 PM)No reason recordedShow photo again',
+      'Photo on a sighting by a neighbor (Oct 8, 12:00 PM)No reason recordedShow photo again',
     ]);
     // Any <img>, decorative ones too: alt="" takes an image out of the img role.
     expect(list.querySelector('img')).toBeNull();
     expect(api.hiddenPhotos).toHaveBeenCalledWith(SIGN_IN);
   });
 
+  it('says why, when and by whom each photo was hidden, so a later admin can tell them apart', async () => {
+    const hiddenAt = '2026-10-08T15:40:00';
+    const api = fakeAdminApi({
+      hiddenPhotos: [
+        hiddenPhoto({ id: 'p1', reporterName: 'Sarah', hidden: { reason: 'notKing', note: null, at: new Date(hiddenAt).toISOString(), by: 'Wallie' } }),
+        hiddenPhoto({ id: 'p2', reporterName: 'Sarah', hidden: { reason: 'other', note: 'a thumb over the lens', at: new Date(hiddenAt).toISOString(), by: null } }),
+      ],
+    });
+    renderPage(api, SIGN_IN);
+
+    const list = await screen.findByRole('list', { name: 'Hidden photos' });
+    expect(within(list).getAllByRole('listitem').map((li) => li.querySelector('.activity-detail')?.textContent)).toEqual([
+      'Hidden Oct 8, 3:40 PM by Wallie · Not King',
+      'Hidden Oct 8, 3:40 PM by no name · Other: “a thumb over the lens”',
+    ]);
+  });
+
   it('shows a hidden photo again', async () => {
-    const api = fakeAdminApi({ hiddenPhotos: [photo({ id: 'p1', reporterName: 'Sarah' })] });
+    const api = fakeAdminApi({ hiddenPhotos: [hiddenPhoto({ id: 'p1', reporterName: 'Sarah' })] });
     renderPage(api, SIGN_IN);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Show photo again' }));
@@ -400,7 +424,7 @@ describe('AdminPage — activity', () => {
       record({ action: 'renamePlace', touched: { placeName: 'Porch', newName: 'Front porch' } }),
       record({ action: 'restorePoster', touched: { posterName: null, entries: 1, spots: 0 } }),
       record({ action: 'showPhoto', touched: { posterName: null, entryAt: NOW.toISOString() } }),
-      record({ action: 'hidePhoto', touched: { posterName: 'Sarah', entryKind: 'seen', entryAt: NOW.toISOString() } }),
+      record({ action: 'hidePhoto', touched: { posterName: 'Sarah', entryKind: 'seen', entryAt: NOW.toISOString(), reason: 'unlawful', note: 'reported' } }),
       record({ action: 'hidePoster', touched: { posterName: 'Spammy', entries: 14, spots: 2 } }),
       record({ action: 'showEntry', touched: { posterName: null, entryKind: 'seen', entryAt: NOW.toISOString() } }),
       record({ action: 'hideEntry', touched: { posterName: 'Sarah', entryKind: 'fed', entryAt: NOW.toISOString(), placeName: 'Porch' } }),
@@ -417,7 +441,7 @@ describe('AdminPage — activity', () => {
       'Renamed Porch to Front porch',
       'Restored everything from a neighbor (1 entry, 0 spots)',
       'Showed a photo shared by a neighbor again (Oct 8)',
-      'Hid the photo on a sighting by Sarah (Oct 8)',
+      'Hid the photo on a sighting by Sarah (Oct 8) · Possibly unlawful: “reported”',
       'Hid everything from Spammy (14 entries, 2 spots)',
       'Showed a sighting by a neighbor again (Oct 8)',
       'Hid a feeding by Sarah at Porch (Oct 8)',

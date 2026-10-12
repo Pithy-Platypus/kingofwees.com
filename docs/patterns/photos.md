@@ -8,7 +8,7 @@ Uploads and downloads both go through the app rather than straight to Blob Stora
 
 ## Hidden, never deleted, by an admin
 
-Admins hide photos — on their own, with their entry, or with everything from a poster — and can show them again; there is no admin delete. A provider that finds apparent child sexual abuse material must report it to NCMEC and keep it for a year (18 U.S.C. § 2258A(h)); an admin's delete button could destroy exactly that. Hidden photos are never served and never shown on `/admin` (listed in words only, so an unlawful one isn't displayed again). The poster's own undo, within 10 minutes, does delete — the files then sit in the storage account's 30-day soft delete. A "delete for good" for ordinary cases (rude, off-topic) is in `PLAN.md` → Later. The Privacy page says hidden photos are kept.
+Admins hide photos — on their own, with their entry, or with everything from a poster — and can show them again; there is no admin delete. A provider that finds apparent child sexual abuse material must report it to NCMEC and keep it for a year (18 U.S.C. § 2258A(h)); an admin's delete button could destroy exactly that. Hidden photos are never served and never shown on `/admin` (listed in words only, so an unlawful one isn't displayed again); the reason the admin gave when hiding — and when, and who — is how a later admin tells them apart (`admin-key.md`). The poster's own undo, within 10 minutes, does delete — the files then sit in the storage account's 30-day soft delete. A "delete for good" for ordinary cases (rude, off-topic) is in `PLAN.md` → Later. The Privacy page says hidden photos are kept.
 
 ## The server strips metadata, even though the browser already does
 

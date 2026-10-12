@@ -44,11 +44,26 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
         return documents.ConvertAll(d => d.ToPhoto());
     }
 
-    public async Task<bool> SetHiddenAsync(string id, bool hidden, CancellationToken cancellationToken)
+    public async Task<bool> HideAsync(string id, PhotoHiding hiding, CancellationToken cancellationToken)
     {
-        var result = await _photos.UpdateOneAsync(
-            p => p.Id == id, Builders<PhotoDocument>.Update.Set(p => p.Hidden, hidden), cancellationToken: cancellationToken);
-        return result.MatchedCount == 1;
+        var update = Builders<PhotoDocument>.Update
+            .Set(p => p.Hidden, true)
+            .Set(p => p.HiddenReason, hiding.Reason.ToString())
+            .Set(p => p.HiddenNote, hiding.Note)
+            .Set(p => p.HiddenAtUtc, hiding.At.UtcDateTime)
+            .Set(p => p.HiddenBy, hiding.AdminName);
+        return (await _photos.UpdateOneAsync(p => p.Id == id, update, cancellationToken: cancellationToken)).MatchedCount == 1;
+    }
+
+    public async Task<bool> ShowAsync(string id, CancellationToken cancellationToken)
+    {
+        var update = Builders<PhotoDocument>.Update
+            .Set(p => p.Hidden, false)
+            .Unset(p => p.HiddenReason)
+            .Unset(p => p.HiddenNote)
+            .Unset(p => p.HiddenAtUtc)
+            .Unset(p => p.HiddenBy);
+        return (await _photos.UpdateOneAsync(p => p.Id == id, update, cancellationToken: cancellationToken)).MatchedCount == 1;
     }
 
     public async Task<IReadOnlyList<Photo>> GetHiddenAsync(CancellationToken cancellationToken)
@@ -83,6 +98,11 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
         public required string ReporterKey { get; init; }
         public string? ReporterName { get; init; }
         public bool Hidden { get; init; }
+        // Set together by HideAsync; a photo hidden before reasons existed has Hidden and none of these.
+        public string? HiddenReason { get; init; }
+        public string? HiddenNote { get; init; }
+        public DateTime? HiddenAtUtc { get; init; }
+        public string? HiddenBy { get; init; }
 
         public static PhotoDocument From(Photo p) => new()
         {
@@ -94,6 +114,11 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
         };
 
         public Photo ToPhoto() =>
-            new(Id, EventId, new DateTimeOffset(DateTime.SpecifyKind(PostedAtUtc, DateTimeKind.Utc)), ReporterKey, ReporterName);
+            new(Id, EventId, Utc(PostedAtUtc), ReporterKey, ReporterName,
+                Hidden && HiddenReason is not null && HiddenAtUtc is { } at
+                    ? new PhotoHiding(Enum.Parse<HideReason>(HiddenReason), HiddenNote, Utc(at), HiddenBy)
+                    : null);
+
+        private static DateTimeOffset Utc(DateTime time) => new(DateTime.SpecifyKind(time, DateTimeKind.Utc));
     }
 }

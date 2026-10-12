@@ -147,9 +147,13 @@
     "defaultMessage": "That looks like the key’s hash. Enter the key itself — the shorter line from the key tool.",
     "description": "The 64-character server setting was entered instead of the admin key"
   },
+  "admin.hiddenBecause": {
+    "defaultMessage": "Hidden {when} by {by} · {reason}",
+    "description": "Under a hidden photo: when, by the name typed at sign-in, and why; {reason} is e.g. “Not King” or “Other: “a note””"
+  },
   "admin.hiddenPhoto": {
     "defaultMessage": "{kind, select, fed {Photo on a feeding} seen {Photo on a sighting} other {Shared photo}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})",
-    "description": "A hidden photo, in words only (the picture is never shown again); {when} is the entry’s or the shared photo’s date"
+    "description": "A hidden photo, in words only (the picture is never shown again); {when} is the entry’s or the shared photo’s date and time"
   },
   "admin.hideDevice": {
     "defaultMessage": "Hide everything from this poster",
@@ -163,9 +167,21 @@
     "defaultMessage": "Couldn’t hide it. Try again.",
     "description": "Shown when hiding fails"
   },
+  "admin.hideNote": {
+    "defaultMessage": "Note (optional)",
+    "description": "Label of the note about why a photo is hidden"
+  },
+  "admin.hideNoteRequired": {
+    "defaultMessage": "Note (required for Other)",
+    "description": "Label of the note about why a photo is hidden, when the reason is Other"
+  },
   "admin.hidePhoto": {
     "defaultMessage": "Hide this photo",
     "description": "Admin button under an entry with a photo: hides only the photo, the entry stays"
+  },
+  "admin.hideWhy": {
+    "defaultMessage": "Why hide it?",
+    "description": "Heading over the reasons for hiding a photo"
   },
   "admin.howToHide": {
     "defaultMessage": "To hide something, use the buttons under each entry on <history>King’s history</history>.",
@@ -263,6 +279,10 @@
     "defaultMessage": "No hidden posters.",
     "description": "No poster is hidden"
   },
+  "admin.noReason": {
+    "defaultMessage": "No reason recorded",
+    "description": "Under a photo hidden before admins gave reasons"
+  },
   "admin.photosHeading": {
     "defaultMessage": "Hidden photos",
     "description": "Heading over photos hidden one by one"
@@ -286,6 +306,30 @@
   "admin.postersHeading": {
     "defaultMessage": "Hidden posters",
     "description": "Heading over hidden posters (devices)"
+  },
+  "admin.reason.notKing": {
+    "defaultMessage": "Not King",
+    "description": "Reason for hiding a photo: it isn’t King"
+  },
+  "admin.reason.other": {
+    "defaultMessage": "Other",
+    "description": "Reason for hiding a photo: something else (a note is required)"
+  },
+  "admin.reason.rude": {
+    "defaultMessage": "Rude or off-topic",
+    "description": "Reason for hiding a photo"
+  },
+  "admin.reason.showsPerson": {
+    "defaultMessage": "Shows a person",
+    "description": "Reason for hiding a photo: a person is in it"
+  },
+  "admin.reason.unlawful": {
+    "defaultMessage": "Possibly unlawful",
+    "description": "Reason for hiding a photo: it may be illegal (kept hidden, never deleted, in case it must be reported)"
+  },
+  "admin.reasonWithNote": {
+    "defaultMessage": "{reason}: “{note}”",
+    "description": "Why a photo was hidden, with the admin’s note; {reason} is e.g. “Not King”"
   },
   "admin.rename": {
     "defaultMessage": "Rename",
@@ -611,10 +655,6 @@
     "defaultMessage": "King of Wees is a neighborhood site, so feedings and sightings can only be logged from the United States. You can still see when King was last fed and seen.",
     "description": "Shown instead of the I saw / I fed buttons to a visitor whose internet address is outside the US"
   },
-  "home.seeHistory": {
-    "defaultMessage": "See King’s history",
-    "description": "Link under the recent activity list to the history page (heat map and every entry)"
-  },
   "home.seenAgo": {
     "defaultMessage": "Seen {when}",
     "description": "Chip; {when} is e.g. “25 minutes ago”"
@@ -633,7 +673,7 @@
   },
   "link.seePhotos": {
     "defaultMessage": "See every photo",
-    "description": "Link to the page with every photo of King (from Home and History)"
+    "description": "Link from the history page to the page with every photo of King"
   },
   "log.empty": {
     "defaultMessage": "Nothing logged yet.",

@@ -228,6 +228,10 @@ public sealed partial class KingFlowTests
         await Assertions.Expect(entry.GetByRole(AriaRole.Link, new() { NameRegex = new Regex("^Photo from a sighting") })).ToBeVisibleAsync();
         await entry.GetByRole(AriaRole.Button, new() { Name = "Hide this photo" }).ClickAsync();
         await Assertions.Expect(page.GetByText("Hide this photo from everyone? The entry stays.")).ToBeFocusedAsync();
+        await Assertions.Expect(Button(page, "Hide photo")).ToBeDisabledAsync();
+        await page.GetByRole(AriaRole.Radio, new() { Name = "Shows a person" }).CheckAsync();
+        await page.GetByRole(AriaRole.Textbox, new() { Name = "Note (optional)" }).FillAsync("a neighbor’s face");
+        await AssertNoAxeViolations(page);
         await Button(page, "Hide photo").ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Status).Filter(new() { HasText = "Hidden." })).ToBeFocusedAsync();
         await Assertions.Expect(entry).ToHaveCountAsync(1);
@@ -239,6 +243,7 @@ public sealed partial class KingFlowTests
         var hidden = page.GetByRole(AriaRole.List, new() { Name = "Hidden photos" }).GetByRole(AriaRole.Listitem)
             .Filter(new() { HasText = poster });
         await Assertions.Expect(hidden).ToContainTextAsync($"Photo on a sighting by {poster}");
+        await Assertions.Expect(hidden).ToContainTextAsync("by E2E admin · Shows a person: “a neighbor’s face”");
         await Assertions.Expect(hidden.Locator("img")).ToHaveCountAsync(0);
         await AssertNoAxeViolations(page);
         await hidden.GetByRole(AriaRole.Button, new() { Name = "Show photo again" }).ClickAsync();
@@ -250,6 +255,7 @@ public sealed partial class KingFlowTests
         var tile = page.GetByRole(AriaRole.List, new() { Name = "Photos of King" }).GetByRole(AriaRole.Listitem)
             .Filter(new() { Has = page.Locator($"a[href='/api/king/photos/{photoId}/full']") });
         await tile.GetByRole(AriaRole.Button, new() { Name = "Hide this photo" }).ClickAsync();
+        await tile.GetByRole(AriaRole.Radio, new() { Name = "Not King" }).CheckAsync();
         await tile.GetByRole(AriaRole.Button, new() { Name = "Hide photo" }).ClickAsync();
         await Assertions.Expect(tile).ToHaveCountAsync(0);
         Assert.Equal(404, await PhotoStatus(page, photoId));

@@ -94,7 +94,6 @@ describe('adminApi', () => {
     ['hideEntry', 'POST', '/api/admin/events/a%2Fb/hide'],
     ['unhideEntry', 'DELETE', '/api/admin/events/a%2Fb/hide'],
     ['restoreDevice', 'DELETE', '/api/admin/hidden/a%2Fb'],
-    ['hidePhoto', 'POST', '/api/admin/photos/a%2Fb/hide'],
     ['showPhoto', 'DELETE', '/api/admin/photos/a%2Fb/hide'],
   ] as const)('%s sends %s %s', async (call, method, url) => {
     respond(204);
@@ -138,6 +137,20 @@ describe('adminApi.listSpots', () => {
 
     expect(await adminApi.listSpots(WHO)).toEqual([{ id: 's1', name: 'Porch', hiddenPoster: true }]);
     expect(fetchMock).toHaveBeenCalledWith('/api/admin/spots', bearer);
+  });
+});
+
+describe('adminApi.hidePhoto', () => {
+  it('posts why the photo is hidden, with the key only in the header', async () => {
+    respond(204);
+
+    await adminApi.hidePhoto(WHO, 'a/b', 'other', 'a thumb over the lens');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/photos/a%2Fb/hide', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: 'other', note: 'a thumb over the lens' }),
+    });
   });
 });
 

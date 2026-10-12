@@ -10,6 +10,7 @@ import { MapView } from '../king/MapView';
 import { NicknameScreen } from '../king/NicknameScreen';
 import { DraftPhoto, LoggedPhoto, type PhotoState } from '../king/PhotoSlot';
 import { AboutPage } from '../pages/AboutPage';
+import { HidePhotoForm } from '../pages/HidePhotoForm';
 import { PhotosPage } from '../pages/PhotosPage';
 import { PrivacyPage } from '../pages/PrivacyPage';
 import { SeenScreen } from '../king/SeenScreen';
@@ -120,6 +121,7 @@ describe('pseudo-locale catalog', () => {
         resize={async () => files}
       />,
     ],
+    ['hiding a photo', <HidePhotoForm onEntry busy={false} onHide={noop} onCancel={noop} />],
     ['name question', <NicknameScreen initialName="" onDone={noop} />],
     ['about', <AboutPage />],
     ['privacy', <PrivacyPage />],

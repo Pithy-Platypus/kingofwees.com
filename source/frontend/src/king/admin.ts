@@ -35,7 +35,18 @@ export type AdminTouched = {
   newName: string | null;
   mergedNames: string[] | null;
   feedings: number | null;
+  /** Why a photo was hidden (hidePhoto only). */
+  reason?: HideReason | null;
+  note?: string | null;
 };
+/** Why an admin hides a photo; the API's own names. */
+export type HideReason = 'notKing' | 'showsPerson' | 'rude' | 'unlawful' | 'other';
+export const HIDE_REASONS: HideReason[] = ['notKing', 'showsPerson', 'rude', 'unlawful', 'other'];
+/** The server's limit for a hide note (HidePhotoRequest.MaxNoteLength). */
+export const HIDE_NOTE_MAX_LENGTH = 200;
+/** Why, when and by whom a photo was hidden; null for one hidden before reasons existed. */
+export type Hiding = { reason: HideReason; note: string | null; at: string; by: string | null };
+export type HiddenPhotoView = PhotoView & { hidden: Hiding | null };
 /** One line of the audit log; `adminName` is what was typed at sign-in, `address` the one the rate limits use. */
 export type ActivityRecord = {
   id: string;
@@ -88,9 +99,14 @@ export const adminApi = {
       body: JSON.stringify({ keepId, mergeIds, name: name ?? null }),
     }),
   // A photo on its own: its entry stays. Hidden, never deleted.
-  hidePhoto: (who: AdminSignIn, id: string) => request<void>(`${photo(id)}/hide`, as(who, 'POST')),
+  hidePhoto: (who: AdminSignIn, id: string, reason: HideReason, note: string | null) =>
+    request<void>(`${photo(id)}/hide`, {
+      method: 'POST',
+      headers: { ...headers(who), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, note }),
+    }),
   showPhoto: (who: AdminSignIn, id: string) => request<void>(`${photo(id)}/hide`, as(who, 'DELETE')),
-  hiddenPhotos: (who: AdminSignIn) => request<PhotoView[]>('/api/admin/hidden-photos', as(who)),
+  hiddenPhotos: (who: AdminSignIn) => request<HiddenPhotoView[]>('/api/admin/hidden-photos', as(who)),
 };
 export type AdminApi = typeof adminApi;
 /** An accepted sign-in on this device; `onRejected` drops it when the server stops accepting the key (rotated). */

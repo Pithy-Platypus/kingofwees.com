@@ -463,7 +463,7 @@ public sealed partial class KingFlowTests(AppFixture app)
     }
 
     [Fact]
-    public async Task History_opens_in_place_from_Home_and_the_footer_and_works_with_only_a_keyboard()
+    public async Task History_opens_in_place_from_the_footer_and_works_with_only_a_keyboard()
     {
         var page = await app.NewPageAsync();
         await page.GotoAsync("/");
@@ -471,12 +471,9 @@ public sealed partial class KingFlowTests(AppFixture app)
         await page.EvaluateAsync("() => { window.__stillSamePage = true; }");
         var heading = page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "King’s history" });
 
-        await page.GetByRole(AriaRole.Link, new() { Name = "See King’s history" }).ClickAsync();
-        await Assertions.Expect(heading).ToBeFocusedAsync();
-        await Assertions.Expect(page).ToHaveTitleAsync("History · King of Wees");
-        await page.GetByRole(AriaRole.Link, new() { Name = "Back to King" }).ClickAsync();
         await page.GetByRole(AriaRole.Contentinfo).GetByRole(AriaRole.Link, new() { Name = "History", Exact = true }).ClickAsync();
         await Assertions.Expect(heading).ToBeFocusedAsync();
+        await Assertions.Expect(page).ToHaveTitleAsync("History · King of Wees");
         Assert.True(await page.EvaluateAsync<bool>("() => window.__stillSamePage === true"), "A history link reloaded the page.");
 
         await TabUntilFocused(page, "Where he’s fed");

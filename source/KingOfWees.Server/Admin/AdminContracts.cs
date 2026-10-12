@@ -1,5 +1,7 @@
+using System.Text.Json;
 using FluentValidation;
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 
 namespace KingOfWees.Server.Admin;
 
@@ -87,3 +89,42 @@ public sealed class ActivityQueryValidator : AbstractValidator<ActivityQuery>
             .WithErrorCode("before.unknown");
     }
 }
+
+// Why an admin hides a photo: one of the reasons (camelCase, as the API writes them), and a note — required for "other".
+public sealed record HidePhotoRequest(string? Reason, string? Note)
+{
+    public const int MaxNoteLength = 200;
+
+    // Exactly the API's names: no numbers, no other casing.
+    public static readonly IReadOnlyDictionary<string, HideReason> Reasons =
+        Enum.GetValues<HideReason>().ToDictionary(r => JsonNamingPolicy.CamelCase.ConvertName(r.ToString()));
+
+    public HideReason ParsedReason => Reasons[Reason!];
+
+    /// <summary>The note trimmed; null when there's nothing in it.</summary>
+    public string? TrimmedNote => string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
+}
+
+public sealed class HidePhotoRequestValidator : AbstractValidator<HidePhotoRequest>
+{
+    public HidePhotoRequestValidator()
+    {
+        RuleFor(r => r.Reason)
+            .NotEmpty().WithErrorCode("reason.required")
+            .Must(reason => HidePhotoRequest.Reasons.ContainsKey(reason!)).WithErrorCode("reason.unknown")
+            .When(r => !string.IsNullOrEmpty(r.Reason), ApplyConditionTo.CurrentValidator);
+        RuleFor(r => r.TrimmedNote)
+            .NotEmpty().WithErrorCode("note.required")
+            .When(r => r.Reason == "other")
+            .OverridePropertyName(nameof(HidePhotoRequest.Note));
+        RuleFor(r => r.TrimmedNote)
+            .MaximumLength(HidePhotoRequest.MaxNoteLength).WithErrorCode("note.tooLong")
+            .OverridePropertyName(nameof(HidePhotoRequest.Note));
+    }
+}
+
+// A hidden photo on /admin: described like any photo, and why, when and by whom it was hidden (null if before reasons).
+public sealed record HiddenPhotoView(string Id, DateTimeOffset PostedAt, string? ReporterName, EventView? Event, HidingView? Hidden);
+
+public sealed record HidingView(HideReason Reason, string? Note, DateTimeOffset At, string? By);
+

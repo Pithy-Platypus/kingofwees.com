@@ -280,10 +280,11 @@ describe('HomeScreen — photos', () => {
     expect(screen.getByRole('img', { name: 'King, a fluffy grey long-haired cat' })).toHaveAttribute('src', '/king/king-avatar.jpg');
   });
 
-  it('links to every photo under Lately', () => {
+  it('leaves History and Photos to the footer just below, with no links of its own under Lately (Wallie, 2026-10-12)', () => {
     renderInEnglish(<HomeScreen status={emptyStatus} now={NOW} onFed={noop} onSeen={noop} />);
 
-    expect(screen.getByRole('link', { name: 'See every photo' })).toHaveAttribute('href', '/photos');
+    expect(screen.queryByRole('link', { name: 'See every photo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'See King’s history' })).not.toBeInTheDocument();
   });
 });
 

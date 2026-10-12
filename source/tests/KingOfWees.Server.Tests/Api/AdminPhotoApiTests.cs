@@ -52,7 +52,11 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
         return photo;
     }
 
-    private Task<HttpResponseMessage> Hide(string id) => _admin.PostAsync($"/api/admin/photos/{id}/hide", null, Ct);
+    private Task<HttpResponseMessage> Hide(string id, object? body = null) =>
+        _admin.PostAsJsonAsync($"/api/admin/photos/{id}/hide", body ?? new { reason = "notKing" }, Ct);
+
+    private static IEnumerable<string?> ErrorCodes(JsonElement problem) =>
+        problem.GetProperty("errors").EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString());
 
     private Task<HttpResponseMessage> Show(string id) => _admin.DeleteAsync($"/api/admin/photos/{id}/hide", Ct);
 
@@ -140,9 +144,9 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
         Assert.Equal(AdminAction.HidePhoto, hid.Action);
         Assert.Equal(AdminAction.ShowPhoto, showed.Action);
         Assert.Equal("Wallie", hid.AdminName);
-        var expected = new AdminTouched(PosterName: "Sarah", EntryKind: KingEventKind.Seen, EntryAt: entry.OccurredAt);
-        Assert.Equal(expected, hid.Touched);
-        Assert.Equal(expected, showed.Touched);
+        var described = new AdminTouched(PosterName: "Sarah", EntryKind: KingEventKind.Seen, EntryAt: entry.OccurredAt);
+        Assert.Equal(described with { Reason = HideReason.NotKing }, hid.Touched);
+        Assert.Equal(described, showed.Touched);
     }
 
     [Fact]
@@ -152,7 +156,7 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
 
         await Hide(photo.Id);
 
-        Assert.Equal(new AdminTouched(PosterName: "Sarah", EntryAt: photo.PostedAt), (await LatestRecord()).Touched);
+        Assert.Equal(new AdminTouched(PosterName: "Sarah", EntryAt: photo.PostedAt, Reason: HideReason.NotKing), (await LatestRecord()).Touched);
     }
 
     [Fact]
@@ -170,13 +174,112 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
         Assert.Equal("photo", restores.GetMeasurementSnapshot().Single().Tags["target"]);
     }
 
+    public static TheoryData<string, string[]> Unacceptable => new()
+    {
+        { """{}""", ["reason.required"] },
+        { """{"reason":""}""", ["reason.required"] },
+        { """{"reason":"sideways"}""", ["reason.unknown"] },
+        { """{"reason":"1"}""", ["reason.unknown"] },
+        { """{"reason":"NotKing"}""", ["reason.unknown"] },
+        { """{"reason":"other"}""", ["note.required"] },
+        { """{"reason":"other","note":"   "}""", ["note.required"] },
+        { $$"""{"reason":"rude","note":"{{new string('x', 201)}}"}""", ["note.tooLong"] },
+    };
+
+    [Theory]
+    [MemberData(nameof(Unacceptable))]
+    public async Task Hiding_needs_a_known_reason_and_a_note_for_other_and_hides_nothing_without_one(string body, string[] codes)
+    {
+        var photo = await Stored();
+
+        var response = await _admin.PostAsync($"/api/admin/photos/{photo.Id}/hide",
+            new StringContent(body, System.Text.Encoding.UTF8, "application/json"), Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(codes, ErrorCodes(await response.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+        Assert.Null((await _factory.Photos.FindAsync(photo.Id, Ct))!.Hiding);
+        Assert.Equal(HttpStatusCode.OK, await Served(photo.Id));
+    }
+
+    [Fact]
+    public async Task The_hidden_list_says_why_when_and_who_with_the_note_trimmed()
+    {
+        var photo = await Stored();
+        _factory.Clock.Advance(TimeSpan.FromHours(2));
+        var hiddenAt = _factory.Clock.GetUtcNow();
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Hide(photo.Id, new { reason = "unlawful", note = "  reported to NCMEC  " })).StatusCode);
+
+        var hidden = (await _admin.GetFromJsonAsync<JsonElement>("/api/admin/hidden-photos", Ct))[0].GetProperty("hidden");
+        Assert.Equal("unlawful", hidden.GetProperty("reason").GetString());
+        Assert.Equal("reported to NCMEC", hidden.GetProperty("note").GetString());
+        Assert.Equal(hiddenAt, hidden.GetProperty("at").GetDateTimeOffset());
+        Assert.Equal("Wallie", hidden.GetProperty("by").GetString());
+    }
+
+    [Theory]
+    [InlineData("notKing", null)]
+    [InlineData("showsPerson", null)]
+    [InlineData("rude", "")]
+    [InlineData("other", "a thumb over the lens")]
+    public async Task Every_reason_on_the_list_is_accepted_and_an_empty_note_is_no_note(string reason, string? note)
+    {
+        var photo = await Stored();
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Hide(photo.Id, new { reason, note })).StatusCode);
+
+        var hidden = (await _admin.GetFromJsonAsync<JsonElement>("/api/admin/hidden-photos", Ct))[0].GetProperty("hidden");
+        Assert.Equal(reason, hidden.GetProperty("reason").GetString());
+        Assert.Equal(string.IsNullOrEmpty(note) ? null : note, hidden.GetProperty("note").GetString());
+    }
+
+    [Fact]
+    public async Task A_photo_hidden_before_reasons_existed_is_listed_with_no_reason()
+    {
+        var photo = await Stored();
+        // How such a photo reads back from Mongo: hidden, with no reason fields (the in-memory store keeps null as given).
+        await _factory.Photos.HideAsync(photo.Id, null!, Ct);
+
+        var listed = (await _admin.GetFromJsonAsync<JsonElement>("/api/admin/hidden-photos", Ct))[0];
+
+        Assert.Equal(photo.Id, listed.GetProperty("id").GetString());
+        Assert.Equal(JsonValueKind.Null, listed.GetProperty("hidden").ValueKind);
+    }
+
+    [Fact]
+    public async Task Hiding_is_recorded_with_its_reason_and_note()
+    {
+        var photo = await Stored();
+
+        await Hide(photo.Id, new { reason = "other", note = "a thumb over the lens" });
+
+        var touched = (await LatestRecord()).Touched;
+        Assert.Equal(HideReason.Other, touched.Reason);
+        Assert.Equal("a thumb over the lens", touched.Note);
+    }
+
+    [Fact]
+    public async Task Showing_a_photo_again_forgets_why_it_was_hidden()
+    {
+        var photo = await Stored();
+        await Hide(photo.Id, new { reason = "rude", note = "rude words" });
+
+        await Show(photo.Id);
+
+        Assert.Null((await _factory.Photos.FindAsync(photo.Id, Ct))!.Hiding);
+        Assert.Empty(await HiddenIds());
+    }
+
     [Theory]
     [InlineData("POST", "/api/admin/photos/x/hide")]
     [InlineData("DELETE", "/api/admin/photos/x/hide")]
     [InlineData("GET", "/api/admin/hidden-photos")]
     public async Task Every_photo_admin_route_needs_the_key(string method, string path)
     {
-        var response = await _public.SendAsync(new HttpRequestMessage(new HttpMethod(method), path), Ct);
+        // As the page sends it: a hide carries its reason as JSON (a POST without a JSON body never reaches the endpoint).
+        var request = new HttpRequestMessage(new HttpMethod(method), path);
+        if (method == "POST") request.Content = JsonContent.Create(new { reason = "notKing" });
+        var response = await _public.SendAsync(request, Ct);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

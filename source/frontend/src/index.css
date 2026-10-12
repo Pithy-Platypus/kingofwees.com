@@ -304,6 +304,19 @@
     @apply radio radio-secondary;
   }
 
+  /* "Why hide it?": the reasons as a column of radios, each a full-width tap target. */
+  .hide-reasons {
+    @apply flex flex-col gap-1;
+  }
+
+  .hide-reason {
+    @apply flex min-h-11 cursor-pointer items-center gap-3 text-base;
+  }
+
+  .hide-reason-radio {
+    @apply radio radio-secondary;
+  }
+
   .admin-question {
     @apply font-bold;
   }
@@ -323,10 +336,6 @@
 
   .activity-photo-image {
     @apply size-12 rounded-field object-cover;
-  }
-
-  .home-links {
-    @apply flex flex-wrap gap-x-6;
   }
 
   .photo-share {

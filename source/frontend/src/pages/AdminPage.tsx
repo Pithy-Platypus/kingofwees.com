@@ -8,12 +8,14 @@ import {
   type AdminSignIn,
   type AdminSpot,
   type HiddenDevice,
+  type HiddenPhotoView,
 } from '../king/admin';
 import { ActivityItem } from '../king/ActivityItem';
-import { ApiError, NICKNAME_MAX_LENGTH, SPOT_NAME_MAX_LENGTH, type KingEventView, type PhotoView, type SpotView } from '../king/api';
+import { ApiError, NICKNAME_MAX_LENGTH, SPOT_NAME_MAX_LENGTH, type KingEventView, type SpotView } from '../king/api';
 import { common } from '../king/messages';
 import { useSpotsByName } from '../king/useSpotsByName';
 import { Link } from '../routing/Link';
+import { describeReason } from './adminMessages';
 import { PageShell } from './PageShell';
 
 type Values = {
@@ -34,6 +36,8 @@ type Values = {
   photosHeading: NoMessageValues;
   noPhotos: NoMessageValues;
   hiddenPhoto: { kind: string; poster: string; hasPlace: string; place: string; when: string };
+  hiddenBecause: { when: string; by: string; reason: string };
+  noReason: NoMessageValues;
   showPhotoAgain: NoMessageValues;
   poster: { entries: number; spots: number; when: string };
   restore: NoMessageValues;
@@ -117,7 +121,17 @@ const m = defineMessages<Values>({
     id: 'admin.hiddenPhoto',
     defaultMessage:
       '{kind, select, fed {Photo on a feeding} seen {Photo on a sighting} other {Shared photo}} by {poster}{hasPlace, select, yes { at {place}} other {}} ({when})',
-    description: 'A hidden photo, in words only (the picture is never shown again); {when} is the entry’s or the shared photo’s date',
+    description: 'A hidden photo, in words only (the picture is never shown again); {when} is the entry’s or the shared photo’s date and time',
+  },
+  hiddenBecause: {
+    id: 'admin.hiddenBecause',
+    defaultMessage: 'Hidden {when} by {by} · {reason}',
+    description: 'Under a hidden photo: when, by the name typed at sign-in, and why; {reason} is e.g. “Not King” or “Other: “a note””',
+  },
+  noReason: {
+    id: 'admin.noReason',
+    defaultMessage: 'No reason recorded',
+    description: 'Under a photo hidden before admins gave reasons',
   },
   showPhotoAgain: { id: 'admin.showPhotoAgain', defaultMessage: 'Show photo again', description: 'Un-hides one photo' },
   poster: {
@@ -691,7 +705,7 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
   const intl = useIntl();
   const [entries, setEntries] = useState<KingEventView[] | null>(null);
   const [devices, setDevices] = useState<HiddenDevice[] | null>(null);
-  const [photos, setPhotos] = useState<PhotoView[] | null>(null);
+  const [photos, setPhotos] = useState<HiddenPhotoView[] | null>(null);
   const [places, setPlaces] = useState<AdminSpot[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
@@ -728,14 +742,23 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
   const showPhotoAgain = (id: string) =>
     act(() => api.showPhoto(signIn, id), () => setPhotos((shown) => shown?.filter((p) => p.id !== id) ?? null));
   // In words only: a photo hidden because it was unlawful must not be shown again here.
-  const describePhoto = (p: PhotoView) =>
+  const describePhoto = (p: HiddenPhotoView) =>
     intl.formatMessage(m.hiddenPhoto, {
       kind: p.event?.kind ?? 'shared',
       poster: (p.event ? p.event.reporterName : p.reporterName) ?? intl.formatMessage(common.aNeighbor),
       hasPlace: p.event?.spotName ? 'yes' : 'no',
       place: p.event?.spotName ?? '',
-      when: dateOf(p.event?.occurredAt ?? p.postedAt),
+      when: dateTimeOf(p.event?.occurredAt ?? p.postedAt),
     });
+  // Why, when and by whom: how a later admin tells hidden photos apart without seeing them.
+  const describeHiding = ({ hidden }: HiddenPhotoView) =>
+    hidden
+      ? intl.formatMessage(m.hiddenBecause, {
+          when: dateTimeOf(hidden.at),
+          by: hidden.by ?? intl.formatMessage(m.noName),
+          reason: describeReason(intl, hidden.reason, hidden.note),
+        })
+      : intl.formatMessage(m.noReason);
   // A restored poster's places lose their mark; which ones they are only the server knows.
   const restore = (id: string) =>
     act(
@@ -765,6 +788,14 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
   const sameYear = (iso: string) => new Date(iso).getFullYear() === now.getFullYear();
   const dateOf = (iso: string) =>
     intl.formatDate(new Date(iso), { month: 'short', day: 'numeric', ...(sameYear(iso) ? {} : { year: 'numeric' as const }) });
+  const dateTimeOf = (iso: string) =>
+    intl.formatDate(new Date(iso), {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      ...(sameYear(iso) ? {} : { year: 'numeric' as const }),
+    });
 
   let lists;
   if (loadFailed) {
@@ -836,7 +867,10 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
             <ul className="activity-list" aria-labelledby="hidden-photos">
               {photos.map((p) => (
                 <li key={p.id} className="activity-item">
-                  <span className="activity-text">{describePhoto(p)}</span>
+                  <span className="activity-text">
+                    <span>{describePhoto(p)}</span>
+                    <span className="activity-detail">{describeHiding(p)}</span>
+                  </span>
                   <button type="button" className="admin-button" onClick={() => void showPhotoAgain(p.id)}>
                     <FormattedMessage {...m.showPhotoAgain} />
                   </button>
@@ -983,7 +1017,9 @@ function Activity({ api, signIn, onSignIn, changes, now }: ActivityProps) {
       case 'renamePlace':
         return intl.formatMessage(m.renamedPlace, { from: t.placeName ?? '', to: t.newName ?? '' });
       case 'hidePhoto':
-        return intl.formatMessage(m.hidPhoto, photo);
+        return [intl.formatMessage(m.hidPhoto, photo), t.reason && describeReason(intl, t.reason, t.note ?? null)]
+          .filter(Boolean)
+          .join(' · ');
       case 'showPhoto':
         return intl.formatMessage(m.showedPhoto, photo);
       case 'mergePlaces':

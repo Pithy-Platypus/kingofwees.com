@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
-import { isKeyRejected, type AdminSession, type DeviceView } from '../king/admin';
+import { isKeyRejected, type AdminSession, type DeviceView, type HideReason } from '../king/admin';
 import type { KingEventView } from '../king/api';
 import { common } from '../king/messages';
 import { adminMessages } from './adminMessages';
+import { HidePhotoForm } from './HidePhotoForm';
 
 type Values = {
   hideEntry: NoMessageValues;
@@ -57,7 +58,8 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
 
   // The question takes focus so it is read out; Cancel puts focus back on the button that asked it.
   useEffect(() => {
-    if (step.name === 'entry' || step.name === 'photo' || step.name === 'device') question.current?.focus();
+    // The photo's question focuses itself (HidePhotoForm).
+    if (step.name === 'entry' || step.name === 'device') question.current?.focus();
     else if (step.name === 'idle' && returnTo) ({ entry: entryButton, photo: photoButton, device: deviceButton })[returnTo].current?.focus();
   }, [step, returnTo]);
 
@@ -80,11 +82,11 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
     }
   };
 
-  const hide = async () => {
+  const hide = async (why?: { reason: HideReason; note: string | null }) => {
     setBusy(true);
     try {
       if (step.name === 'device') await admin.api.hideDevice(admin.signIn, event.id);
-      else if (step.name === 'photo' && event.photoId) await admin.api.hidePhoto(admin.signIn, event.photoId);
+      else if (step.name === 'photo' && event.photoId && why) await admin.api.hidePhoto(admin.signIn, event.photoId, why.reason, why.note);
       else await admin.api.hideEntry(admin.signIn, event.id);
       onHidden();
     } catch (error) {
@@ -107,12 +109,15 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
     );
   }
 
-  if (step.name === 'entry' || step.name === 'photo' || step.name === 'device') {
+  if (step.name === 'photo') {
+    return <HidePhotoForm onEntry busy={busy} onHide={(reason, note) => void hide({ reason, note })} onCancel={cancel} />;
+  }
+
+  if (step.name === 'entry' || step.name === 'device') {
     return (
       <>
         <p ref={question} tabIndex={-1} className="admin-question">
           {step.name === 'entry' && <FormattedMessage {...m.confirmEntry} />}
-          {step.name === 'photo' && <FormattedMessage {...adminMessages.confirmPhoto} />}
           {step.name === 'device' && (
             <FormattedMessage
               {...m.confirmDevice}
@@ -126,7 +131,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
         </p>
         <div className="admin-buttons">
           <button type="button" className="admin-confirm-button" disabled={busy} onClick={() => void hide()}>
-            <FormattedMessage {...{ entry: m.yesEntry, photo: adminMessages.yesPhoto, device: m.yesDevice }[step.name]} />
+            <FormattedMessage {...{ entry: m.yesEntry, device: m.yesDevice }[step.name]} />
           </button>
           <button type="button" className="admin-button" disabled={busy} onClick={cancel}>
             <FormattedMessage {...adminMessages.cancel} />

@@ -215,9 +215,11 @@ describe('PhotosPage — admin', () => {
 
     await userEvent.click(within(first).getByRole('button', { name: 'Hide this photo' }));
     expect(within(first).getByText('Hide this photo from everyone?')).toHaveFocus();
+    await userEvent.click(within(first).getByRole('radio', { name: 'Other' }));
+    await userEvent.type(within(first).getByRole('textbox', { name: 'Note (required for Other)' }), 'a thumb over the lens');
     await userEvent.click(within(first).getByRole('button', { name: 'Hide photo' }));
 
-    expect(adminApi.hidePhoto).toHaveBeenCalledWith(SIGN_IN, 'p-shared');
+    expect(adminApi.hidePhoto).toHaveBeenCalledWith(SIGN_IN, 'p-shared', 'other', 'a thumb over the lens');
     expect(await screen.findByRole('status')).toHaveTextContent('Hidden. You can restore it on the admin page.');
     expect(screen.getByRole('status')).toHaveFocus();
     expect(grid().getAllByRole('link')).toHaveLength(1);
@@ -252,10 +254,12 @@ describe('PhotosPage — admin', () => {
     const [first] = await shown('listitem');
 
     await userEvent.click(within(first).getByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(within(first).getByRole('radio', { name: 'Rude or off-topic' }));
     await userEvent.click(within(first).getByRole('button', { name: 'Hide photo' }));
     expect(await within(first).findByRole('alert')).toHaveTextContent('Couldn’t hide it. Try again.');
 
     await userEvent.click(within(first).getByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(within(first).getByRole('radio', { name: 'Rude or off-topic' }));
     await userEvent.click(within(first).getByRole('button', { name: 'Hide photo' }));
     await waitFor(() => expect(admin.onRejected).toHaveBeenCalled());
   });

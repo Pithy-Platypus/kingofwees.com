@@ -1134,6 +1134,40 @@
       "value": "]"
     }
   ],
+  "admin.hiddenBecause": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓḓḗḗƞ "
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "by"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "reason"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.hiddenPhoto": [
     {
       "type": 0,
@@ -1257,6 +1291,34 @@
       "value": "]"
     }
   ],
+  "admin.hideNote": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿŧḗḗ (ǿǿƥŧīǿǿƞȧȧŀ)"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.hideNoteRequired": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿŧḗḗ (řḗḗɋŭŭīřḗḗḓ ƒǿǿř Ǿŧħḗḗř)"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.hidePhoto": [
     {
       "type": 0,
@@ -1265,6 +1327,20 @@
     {
       "type": 0,
       "value": "Ħīḓḗḗ ŧħīş ƥħǿǿŧǿǿ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.hideWhy": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẇħẏ ħīḓḗḗ īŧ?"
     },
     {
       "type": 0,
@@ -1699,6 +1775,20 @@
       "value": "]"
     }
   ],
+  "admin.noReason": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿ řḗḗȧȧşǿǿƞ řḗḗƈǿǿřḓḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.photosHeading": [
     {
       "type": 0,
@@ -1901,6 +1991,102 @@
     {
       "type": 0,
       "value": "Ħīḓḓḗḗƞ ƥǿǿşŧḗḗřş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.reason.notKing": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿŧ Ķīƞɠ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.reason.other": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ǿŧħḗḗř"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.reason.rude": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Řŭŭḓḗḗ ǿǿř ǿǿƒƒ-ŧǿǿƥīƈ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.reason.showsPerson": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇş ȧȧ ƥḗḗřşǿǿƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.reason.unlawful": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥǿǿşşīƀŀẏ ŭŭƞŀȧȧẇƒŭŭŀ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "admin.reasonWithNote": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 1,
+      "value": "reason"
+    },
+    {
+      "type": 0,
+      "value": ": “"
+    },
+    {
+      "type": 1,
+      "value": "note"
+    },
+    {
+      "type": 0,
+      "value": "”"
     },
     {
       "type": 0,
@@ -3135,20 +3321,6 @@
     {
       "type": 0,
       "value": "Ķīƞɠ ǿǿƒ Ẇḗḗḗḗş īş ȧȧ ƞḗḗīɠħƀǿǿřħǿǿǿǿḓ şīŧḗḗ, şǿǿ ƒḗḗḗḗḓīƞɠş ȧȧƞḓ şīɠħŧīƞɠş ƈȧȧƞ ǿǿƞŀẏ ƀḗḗ ŀǿǿɠɠḗḗḓ ƒřǿǿḿ ŧħḗḗ Ŭƞīŧḗḗḓ Şŧȧȧŧḗḗş. Ẏǿǿŭŭ ƈȧȧƞ şŧīŀŀ şḗḗḗḗ ẇħḗḗƞ Ķīƞɠ ẇȧȧş ŀȧȧşŧ ƒḗḗḓ ȧȧƞḓ şḗḗḗḗƞ."
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
-  "home.seeHistory": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Şḗḗḗḗ Ķīƞɠ’ş ħīşŧǿǿřẏ"
     },
     {
       "type": 0,

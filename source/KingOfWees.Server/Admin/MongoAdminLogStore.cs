@@ -1,4 +1,5 @@
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
@@ -71,6 +72,8 @@ public sealed class MongoAdminLogStore(IMongoDatabase database) : IAdminLogStore
         public string? NewName { get; init; }
         public string[]? MergedNames { get; init; }
         public int? Feedings { get; init; }
+        public string? Reason { get; init; }
+        public string? Note { get; init; }
 
         public static AdminLogDocument From(AdminLogRecord r) => new()
         {
@@ -88,6 +91,8 @@ public sealed class MongoAdminLogStore(IMongoDatabase database) : IAdminLogStore
             NewName = r.Touched.NewName,
             MergedNames = r.Touched.MergedNames?.ToArray(),
             Feedings = r.Touched.Feedings,
+            Reason = r.Touched.Reason?.ToString(),
+            Note = r.Touched.Note,
         };
 
         public AdminLogRecord ToRecord() => new(
@@ -105,7 +110,9 @@ public sealed class MongoAdminLogStore(IMongoDatabase database) : IAdminLogStore
                 PlaceName,
                 NewName,
                 MergedNames,
-                Feedings));
+                Feedings,
+                Reason is null ? null : Enum.Parse<HideReason>(Reason),
+                Note));
 
         private static DateTimeOffset Utc(DateTime time) => new(DateTime.SpecifyKind(time, DateTimeKind.Utc));
     }

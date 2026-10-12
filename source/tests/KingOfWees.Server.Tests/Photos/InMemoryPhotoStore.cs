@@ -39,11 +39,19 @@ public sealed class InMemoryPhotoStore(IKingEventStore events, IHiddenReporterSt
     public Task<IReadOnlyList<Photo>> ForEventsAsync(IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Photo>>([.. Visible().Where(p => p.EventId is { } id && eventIds.Contains(id))]);
 
-    public Task<bool> SetHiddenAsync(string id, bool hidden, CancellationToken cancellationToken)
+    public Task<bool> HideAsync(string id, PhotoHiding hiding, CancellationToken cancellationToken)
     {
-        if (!_photos.ContainsKey(id)) return Task.FromResult(false);
-        if (hidden) _hiddenIds[id] = true;
-        else _hiddenIds.TryRemove(id, out _);
+        if (!_photos.TryGetValue(id, out var photo)) return Task.FromResult(false);
+        _photos[id] = photo with { Hiding = hiding };
+        _hiddenIds[id] = true;
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> ShowAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!_photos.TryGetValue(id, out var photo)) return Task.FromResult(false);
+        _photos[id] = photo with { Hiding = null };
+        _hiddenIds.TryRemove(id, out _);
         return Task.FromResult(true);
     }
 

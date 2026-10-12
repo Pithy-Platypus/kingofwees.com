@@ -111,6 +111,47 @@ public sealed class TelemetryPrivacyTests
     }
 
     [Fact]
+    public async Task A_hidden_photo_s_note_never_reaches_traces_or_logs()
+    {
+        const string key = "telemetry-admin-key";
+        const string note = "Telemetry-Hide-Note";
+        var spans = new List<Activity>();
+        var exported = new ExportedLogText();
+        var app = new KingApiFactory(settings: [("King:Admin:KeyHash", AdminKeyHasher.Hash(key))]);
+        await using var factory = app.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddInMemoryExporter(spans));
+            services.ConfigureOpenTelemetryLoggerProvider(logging => logging.AddProcessor(exported));
+        }));
+        var photo = new KingOfWees.Server.Photos.Photo(Guid.CreateVersion7().ToString(), null, DateTimeOffset.UnixEpoch, "device", null);
+        await app.Photos.AddAsync(photo, TestContext.Current.CancellationToken);
+
+        // Hidden with the note, then refused with it (a validation failure is where request text would most likely leak).
+        foreach (var (body, status) in new[]
+        {
+            ($$"""{"reason":"other","note":"{{note}}"}""", StatusCodes.Status204NoContent),
+            ($$"""{"reason":"other","note":"{{note}}{{new string('x', 200)}}"}""", StatusCodes.Status400BadRequest),
+        })
+        {
+            // An HttpClient request: TestServer's SendAsync(context => …) marks a request as having no body.
+            var traceId = ActivityTraceId.CreateRandom();
+            var request = new HttpRequestMessage(HttpMethod.Post, $"/api/admin/photos/{photo.Id}/hide")
+            {
+                Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Authorization = new("Bearer", key);
+            request.Headers.Add("traceparent", $"00-{traceId}-{ActivitySpanId.CreateRandom()}-01");
+            var response = await factory.CreateClient().SendAsync(request, TestContext.Current.CancellationToken);
+            var span = await ServerSpan(spans, traceId);
+
+            Assert.Equal(status, (int)response.StatusCode);
+            Assert.DoesNotContain(span.TagObjects, t => t.Value?.ToString()?.Contains(note) == true);
+            Assert.DoesNotContain(span.Events, e => e.Tags.Any(t => t.Value?.ToString()?.Contains(note) == true));
+        }
+        Assert.DoesNotContain(exported.Lines, line => line.Contains(note, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Exported_logs_carry_no_address_user_agent_query_device_key_or_admin_secrets()
     {
         const string key = "telemetry-admin-key";

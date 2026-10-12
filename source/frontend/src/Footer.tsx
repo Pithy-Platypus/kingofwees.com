@@ -32,8 +32,13 @@ export function Footer() {
         </span>
         <ul className="footer-links">
           <li>
-            <Link to="history" className="footer-link">
-              <FormattedMessage {...m.history} />
+            <Link to="about" className="footer-link">
+              <FormattedMessage {...m.about} />
+            </Link>
+          </li>
+          <li>
+            <Link to="privacy" className="footer-link">
+              <FormattedMessage {...m.privacy} />
             </Link>
           </li>
           <li>
@@ -42,13 +47,8 @@ export function Footer() {
             </Link>
           </li>
           <li>
-            <Link to="about" className="footer-link">
-              <FormattedMessage {...m.about} />
-            </Link>
-          </li>
-          <li>
-            <Link to="privacy" className="footer-link">
-              <FormattedMessage {...m.privacy} />
+            <Link to="history" className="footer-link">
+              <FormattedMessage {...m.history} />
             </Link>
           </li>
         </ul>

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
-import { isKeyRejected, type AdminSession } from '../king/admin';
+import { isKeyRejected, type AdminSession, type HideReason } from '../king/admin';
 import { isPostingRefused, photoUrl, type kingApi, type PhotoView, type SpotView } from '../king/api';
 import { photoAlt, photoPhrases } from '../king/messages';
 import type { PhotoFiles, PhotoResizer } from '../king/photo';
 import { PhotoPicker } from '../king/PhotoSlot';
 import { Link } from '../routing/Link';
 import { adminMessages } from './adminMessages';
+import { HidePhotoForm } from './HidePhotoForm';
 import { PageShell } from './PageShell';
 
 type Values = {
@@ -22,7 +23,6 @@ type Values = {
   olderFailed: NoMessageValues;
   tryAgain: NoMessageValues;
   showOlder: NoMessageValues;
-  confirmShared: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -42,11 +42,6 @@ const m = defineMessages<Values>({
   olderFailed: { id: 'photos.olderFailed', defaultMessage: 'Couldn’t load older photos.', description: 'Shown when Show older fails' },
   tryAgain: { id: 'photos.tryAgain', defaultMessage: 'Try again', description: 'Retry loading the photos' },
   showOlder: { id: 'photos.showOlder', defaultMessage: 'Show older', description: 'Loads the next, older photos' },
-  confirmShared: {
-    id: 'admin.confirmSharedPhoto',
-    defaultMessage: 'Hide this photo from everyone?',
-    description: 'Asked before hiding a photo shared on its own (no entry)',
-  },
 });
 
 type Share = { status: 'reading' | 'unreadable' | 'shared' } | { status: 'sending' | 'failed'; files: PhotoFiles };
@@ -59,20 +54,16 @@ function HidePhoto({ photo, admin, onHidden }: HideProps) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [cancelled, setCancelled] = useState(0);
-  const question = useRef<HTMLParagraphElement>(null);
   const button = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (asking) question.current?.focus();
-  }, [asking]);
   useEffect(() => {
     if (cancelled > 0) button.current?.focus();
   }, [cancelled]);
 
-  const hide = async () => {
+  const hide = async (reason: HideReason, note: string | null) => {
     setBusy(true);
     try {
-      await admin.api.hidePhoto(admin.signIn, photo.id);
+      await admin.api.hidePhoto(admin.signIn, photo.id, reason, note);
       onHidden();
     } catch (error) {
       if (isKeyRejected(error)) admin.onRejected();
@@ -85,27 +76,15 @@ function HidePhoto({ photo, admin, onHidden }: HideProps) {
 
   if (asking) {
     return (
-      <>
-        <p ref={question} tabIndex={-1} className="admin-question">
-          <FormattedMessage {...(photo.event ? adminMessages.confirmPhoto : m.confirmShared)} />
-        </p>
-        <div className="admin-buttons">
-          <button type="button" className="admin-confirm-button" disabled={busy} onClick={() => void hide()}>
-            <FormattedMessage {...adminMessages.yesPhoto} />
-          </button>
-          <button
-            type="button"
-            className="admin-button"
-            disabled={busy}
-            onClick={() => {
-              setAsking(false);
-              setCancelled((n) => n + 1);
-            }}
-          >
-            <FormattedMessage {...adminMessages.cancel} />
-          </button>
-        </div>
-      </>
+      <HidePhotoForm
+        onEntry={photo.event !== null}
+        busy={busy}
+        onHide={(reason, note) => void hide(reason, note)}
+        onCancel={() => {
+          setAsking(false);
+          setCancelled((n) => n + 1);
+        }}
+      />
     );
   }
   return (

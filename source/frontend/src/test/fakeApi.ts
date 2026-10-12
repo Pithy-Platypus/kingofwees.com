@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotosPage, PhotoView, SpotView } from '../king/api';
-import type { ActivityPage, AdminApi, AdminSignIn, AdminSpot, DeviceView, HiddenDevice } from '../king/admin';
+import type { ActivityPage, AdminApi, AdminSignIn, AdminSpot, DeviceView, HiddenDevice, HiddenPhotoView } from '../king/admin';
 import type { GeoPoint } from '../king/location';
 
 export const at = (iso: string) => new Date(iso);
@@ -26,6 +26,9 @@ export const photo = (overrides: Partial<PhotoView> = {}): PhotoView => ({
   event: null,
   ...overrides,
 });
+
+/** A hidden photo as /api/admin/hidden-photos lists it; `hidden` null = hidden before reasons existed. */
+export const hiddenPhoto = (overrides: Partial<HiddenPhotoView> = {}): HiddenPhotoView => ({ ...photo(), hidden: null, ...overrides });
 
 export const emptyStatus: KingStatus = { lastFed: null, lastSeen: null, recent: [], latestPhoto: null };
 
@@ -84,7 +87,7 @@ type AdminWorld = {
   device?: DeviceView;
   spots?: AdminSpot[];
   activity?: ActivityPage;
-  hiddenPhotos?: PhotoView[];
+  hiddenPhotos?: HiddenPhotoView[];
 };
 export const adminSpot = (id: string, name: string, hiddenPoster = false, feedings = 0): AdminSpot => ({ id, name, hiddenPoster, feedings });
 

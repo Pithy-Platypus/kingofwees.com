@@ -4,7 +4,6 @@ import { photoUrl, type KingEventView, type KingStatus, type SpotView } from './
 import { BowlIcon, CrownIcon, EyeIcon } from './icons';
 import { ActivityItem } from './ActivityItem';
 import type { GeoPoint } from './location';
-import { Link } from '../routing/Link';
 import { MapView } from './LazyMapView';
 import type { MapMarker } from './MapView';
 import { common, formatWhen, photoAlt, placeOf } from './messages';
@@ -28,7 +27,6 @@ type Values = {
   iFed: NoMessageValues;
   postingClosed: NoMessageValues;
   lately: NoMessageValues;
-  seeHistory: NoMessageValues;
   nothingYet: NoMessageValues;
   mapTitle: NoMessageValues;
   mapKey: NoMessageValues;
@@ -65,11 +63,6 @@ const m = defineMessages<Values>({
     description: 'Shown instead of the I saw / I fed buttons to a visitor whose internet address is outside the US',
   },
   lately: { id: 'home.lately', defaultMessage: 'Lately', description: 'Heading over the recent activity list' },
-  seeHistory: {
-    id: 'home.seeHistory',
-    defaultMessage: 'See King’s history',
-    description: 'Link under the recent activity list to the history page (heat map and every entry)',
-  },
   nothingYet: { id: 'home.nothingYet', defaultMessage: 'Nothing logged yet. Be the first!', description: 'Shown when the activity list is empty' },
   mapTitle: {
     id: 'home.mapTitle',
@@ -224,14 +217,6 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
             ))}
           </ul>
         )}
-        <div className="home-links">
-          <Link to="history" className="history-link">
-            <FormattedMessage {...m.seeHistory} />
-          </Link>
-          <Link to="photos" className="history-link">
-            <FormattedMessage {...common.seePhotos} />
-          </Link>
-        </div>
       </section>
     </main>
   );

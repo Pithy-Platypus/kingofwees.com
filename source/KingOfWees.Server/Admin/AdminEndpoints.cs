@@ -73,35 +73,51 @@ public static class AdminEndpoints
 
     // A photo on its own: its entry stays. Hidden, never deleted — the files stay, so it can be shown again (and a photo
     // reported to NCMEC must be kept a year).
-    private static Task<Results<NoContent, NotFound>> HidePhoto(
-        string id, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
-        HttpContext context, CancellationToken cancellationToken) =>
-        SetPhotoHidden(id, hidden: true, photos, store, spots, audit, metrics, context, cancellationToken);
-
-    private static Task<Results<NoContent, NotFound>> ShowPhoto(
-        string id, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
-        HttpContext context, CancellationToken cancellationToken) =>
-        SetPhotoHidden(id, hidden: false, photos, store, spots, audit, metrics, context, cancellationToken);
-
-    private static async Task<Results<NoContent, NotFound>> SetPhotoHidden(
-        string id, bool hidden, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
-        HttpContext context, CancellationToken cancellationToken)
+    // Hidden with why, when and the typed name, so a later admin knows which photo this is without seeing it again.
+    private static async Task<Results<NoContent, NotFound>> HidePhoto(
+        string id, HidePhotoRequest request, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit,
+        KingMetrics metrics, TimeProvider clock, HttpContext context, CancellationToken cancellationToken)
     {
         var photo = await photos.FindAsync(id, cancellationToken);
-        if (photo is null || !await photos.SetHiddenAsync(id, hidden, cancellationToken)) return TypedResults.NotFound();
-        if (hidden) metrics.Hidden("photo");
-        else metrics.Restored("photo");
-        // A photo on an entry is described like the entry; a shared photo by who shared it and when.
-        var entry = photo.EventId is null ? null : await store.FindAsync(photo.EventId, cancellationToken);
-        var spot = entry?.SpotId is null ? null : await spots.FindAsync(entry.SpotId, cancellationToken);
-        var touched = entry is null ? new AdminTouched(PosterName: photo.ReporterName, EntryAt: photo.PostedAt) : AdminAudit.Entry(entry, spot);
-        await audit.RecordAsync(context, hidden ? AdminAction.HidePhoto : AdminAction.ShowPhoto, touched, cancellationToken);
+        var hiding = new PhotoHiding(request.ParsedReason, request.TrimmedNote, clock.GetUtcNow(), AdminAudit.NameOf(context.Request));
+        if (photo is null || !await photos.HideAsync(id, hiding, cancellationToken)) return TypedResults.NotFound();
+        metrics.Hidden("photo");
+        var touched = await Described(photo, store, spots, cancellationToken) with { Reason = hiding.Reason, Note = hiding.Note };
+        await audit.RecordAsync(context, AdminAction.HidePhoto, touched, cancellationToken);
         return TypedResults.NoContent();
     }
 
-    private static async Task<Ok<IReadOnlyList<PhotoView>>> ListHiddenPhotos(
-        IPhotoStore photos, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken) =>
-        TypedResults.Ok(await PhotoEndpoints.PhotoViews(await photos.GetHiddenAsync(cancellationToken), store, spots, photos, cancellationToken));
+    private static async Task<Results<NoContent, NotFound>> ShowPhoto(
+        string id, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
+        HttpContext context, CancellationToken cancellationToken)
+    {
+        var photo = await photos.FindAsync(id, cancellationToken);
+        if (photo is null || !await photos.ShowAsync(id, cancellationToken)) return TypedResults.NotFound();
+        metrics.Restored("photo");
+        await audit.RecordAsync(context, AdminAction.ShowPhoto, await Described(photo, store, spots, cancellationToken), cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    // A photo on an entry is described like the entry; a shared photo by who shared it and when.
+    private static async Task<AdminTouched> Described(Photo photo, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)
+    {
+        var entry = photo.EventId is null ? null : await store.FindAsync(photo.EventId, cancellationToken);
+        var spot = entry?.SpotId is null ? null : await spots.FindAsync(entry.SpotId, cancellationToken);
+        return entry is null ? new AdminTouched(PosterName: photo.ReporterName, EntryAt: photo.PostedAt) : AdminAudit.Entry(entry, spot);
+    }
+
+    private static async Task<Ok<IReadOnlyList<HiddenPhotoView>>> ListHiddenPhotos(
+        IPhotoStore photos, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)
+    {
+        var hidden = await photos.GetHiddenAsync(cancellationToken);
+        var views = await PhotoEndpoints.PhotoViews(hidden, store, spots, photos, cancellationToken);
+        var hidings = hidden.ToDictionary(p => p.Id, p => p.Hiding);
+        return TypedResults.Ok<IReadOnlyList<HiddenPhotoView>>(
+        [
+            .. views.Select(v => new HiddenPhotoView(v.Id, v.PostedAt, v.ReporterName, v.Event,
+                hidings[v.Id] is { } h ? new HidingView(h.Reason, h.Note, h.At, h.AdminName) : null)),
+        ]);
+    }
 
     // What "hide everything from this poster" would hide, for the confirmation.
     private static async Task<Results<Ok<DeviceView>, NotFound>> DescribeDevice(

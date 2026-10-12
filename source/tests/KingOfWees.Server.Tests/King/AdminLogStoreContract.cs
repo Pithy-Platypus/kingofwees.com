@@ -1,5 +1,6 @@
 using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 
 namespace KingOfWees.Server.Tests.King;
 
@@ -21,7 +22,7 @@ public abstract class AdminLogStoreContract
         var store = CreateStore();
         var record = new AdminLogRecord(
             "r1", T0, AdminAction.MergePlaces, "Wallie", "203.0.113.7",
-            new AdminTouched("Sarah", 14, 2, KingEventKind.Fed, T0.AddHours(-3), "Porch", "Front porch", ["porch", "Steps"], 12));
+            new AdminTouched("Sarah", 14, 2, KingEventKind.Fed, T0.AddHours(-3), "Porch", "Front porch", ["porch", "Steps"], 12, HideReason.Unlawful, "reported"));
 
         await store.AppendAsync(record, Ct);
 

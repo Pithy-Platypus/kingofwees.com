@@ -336,9 +336,12 @@ describe('HistoryPage — hiding, for admins', () => {
 
     expect(screen.getByText('Hide this photo from everyone? The entry stays.')).toHaveFocus();
     expect(adminApi.hidePhoto).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Hide photo' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('radio', { name: 'Shows a person' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Note (optional)' }), 'a neighbor’s face');
     await userEvent.click(screen.getByRole('button', { name: 'Hide photo' }));
 
-    expect(adminApi.hidePhoto).toHaveBeenCalledWith(SIGN_IN, 'p1');
+    expect(adminApi.hidePhoto).toHaveBeenCalledWith(SIGN_IN, 'p1', 'showsPerson', 'a neighbor’s face');
     expect(adminApi.hideEntry).not.toHaveBeenCalled();
     await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/^Hidden\. You can restore it on the/)).toHaveFocus();

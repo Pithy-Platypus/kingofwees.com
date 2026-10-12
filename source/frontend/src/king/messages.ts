@@ -11,7 +11,7 @@ export const common = defineMessages({
   foodDry: { id: 'food.dry', defaultMessage: 'Dry food', description: 'Kibble' },
   foodTreats: { id: 'food.treats', defaultMessage: 'Treats', description: 'Cat treats' },
   aNeighbor: { id: 'home.aNeighbor', defaultMessage: 'a neighbor', description: 'Used as {name} when the reporter gave no name' },
-  seePhotos: { id: 'link.seePhotos', defaultMessage: 'See every photo', description: 'Link to the page with every photo of King (from Home and History)' },
+  seePhotos: { id: 'link.seePhotos', defaultMessage: 'See every photo', description: 'Link from the history page to the page with every photo of King' },
 });
 
 export const foodMessage = (food: Food) =>

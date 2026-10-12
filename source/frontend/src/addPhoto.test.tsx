@@ -295,6 +295,7 @@ describe('App — the photos page', () => {
     await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(1));
 
     await userEvent.click(await screen.findByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Not King' }));
     await userEvent.click(screen.getByRole('button', { name: 'Hide photo' }));
 
     await screen.findByText(/Hidden\./);
