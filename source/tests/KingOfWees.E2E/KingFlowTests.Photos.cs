@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 
 namespace KingOfWees.E2E;
@@ -65,5 +66,35 @@ public sealed partial class KingFlowTests
         int[] full = [1600, 1200], thumbnail = [400, 300];
         Assert.Equal(full, await PixelSize(page, $"/api/king/photos/{photoId}/full"));
         Assert.Equal(thumbnail, await PixelSize(page, $"/api/king/photos/{photoId}/thumb"));
+
+        // Home: the sighting's line in Lately carries the photo, which opens the full size.
+        await Button(page, "Done").ClickAsync();
+        var lately = page.GetByRole(AriaRole.List, new() { Name = "Lately" });
+        var latelyPhoto = lately.GetByRole(AriaRole.Link, new() { NameRegex = new("^Photo from a sighting by a neighbor") }).First;
+        await Assertions.Expect(latelyPhoto).ToHaveAttributeAsync("href", $"/api/king/photos/{photoId}/full");
+        await AssertNoAxeViolations(page);
+    }
+
+    [Fact]
+    public async Task A_photo_shared_on_the_photos_page_comes_first_there_and_crowns_Home_and_the_page_meets_WCAG()
+    {
+        var page = await app.NewPageAsync();
+        await page.GotoAsync("/");
+        var photo = await PhonePhoto(page);
+
+        await page.GetByRole(AriaRole.Contentinfo).GetByRole(AriaRole.Link, new() { Name = "Photos" }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Photos of King", Level = 1 })).ToBeFocusedAsync();
+        await page.GetByLabel("Share a photo").SetInputFilesAsync(photo);
+        await Assertions.Expect(page.GetByText("Photo shared. Thank you!")).ToBeFocusedAsync();
+
+        var grid = page.GetByRole(AriaRole.List, new() { Name = "Photos of King" });
+        await Assertions.Expect(grid.GetByRole(AriaRole.Link).First).ToHaveAccessibleNameAsync(new Regex("^Photo shared by a neighbor on "));
+        await AssertNoAxeViolations(page);
+
+        // Only on this page: a shared photo is never a sighting, but it is the newest photo, so Home wears it.
+        var sharedId = (await Status(page)).GetProperty("latestPhoto").GetProperty("id").GetString();
+        await page.GetByRole(AriaRole.Link, new() { Name = "Back to King" }).ClickAsync();
+        await Assertions.Expect(page.Locator(".king-avatar")).ToHaveAttributeAsync("src", $"/api/king/photos/{sharedId}/thumb");
+        await Assertions.Expect(page.GetByRole(AriaRole.List, new() { Name = "Lately" }).GetByRole(AriaRole.Link, new() { NameRegex = new("^Photo shared") })).ToHaveCountAsync(0);
     }
 }

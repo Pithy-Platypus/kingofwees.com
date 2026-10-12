@@ -20,6 +20,8 @@ import { useRoute, type Route } from './routing/routes';
 
 // Only caretakers open /admin, so visitors never download it (it pushed the main bundle past Vite's 500 kB warning).
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
+// Loaded when opened, so Home stays well under that warning.
+const PhotosPage = lazy(() => import('./pages/PhotosPage').then((module) => ({ default: module.PhotosPage })));
 
 const m = defineMessages({
   loading: { id: 'app.loading', defaultMessage: 'Finding King…', description: 'Shown while the status loads' },
@@ -35,6 +37,7 @@ const m = defineMessages({
 const titles = defineMessages({
   home: { id: 'title.home', defaultMessage: 'King of Wees', description: 'Browser tab title of the home page' },
   history: { id: 'title.history', defaultMessage: 'History · King of Wees', description: 'Browser tab title of the history page' },
+  photos: { id: 'title.photos', defaultMessage: 'Photos · King of Wees', description: 'Browser tab title of the page with every photo of King' },
   about: { id: 'title.about', defaultMessage: 'About · King of Wees', description: 'Browser tab title of the About page' },
   privacy: { id: 'title.privacy', defaultMessage: 'Privacy · King of Wees', description: 'Browser tab title of the Privacy page' },
   admin: { id: 'title.admin', defaultMessage: 'Admin · King of Wees', description: 'Browser tab title of the admin page (caretakers only)' },
@@ -266,6 +269,22 @@ function App({
   let withFooter = true;
   if (route === 'history') {
     content = <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} />;
+  } else if (route === 'photos') {
+    content = (
+      <Suspense fallback={null}>
+        <PhotosPage
+          api={api}
+          spots={spots}
+          reporterKey={reporterKey}
+          nickname={nickname}
+          postingAllowed={postingAllowed}
+          onPostingRefused={() => setPostingAllowed(false)}
+          onPhotosChanged={() => void load()}
+          resize={resize}
+          admin={admin}
+        />
+      </Suspense>
+    );
   } else if (route === 'admin') {
     content = (
       <Suspense fallback={null}>

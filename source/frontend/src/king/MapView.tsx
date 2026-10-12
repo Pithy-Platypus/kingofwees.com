@@ -40,6 +40,11 @@ type Props = {
   goTo?: GeoPoint | null;
   /** Keep every marker in view as they change (the home map); picking maps leave the view to the person. */
   fit?: boolean;
+  /**
+   * The view stays where it was put (the home map): no dragging or arrow-key panning, so a swipe scrolls the page;
+   * buttons, pinch, wheel, double-click and +/- keys still zoom, always about the center.
+   */
+  zoomOnly?: boolean;
   className?: string;
 };
 
@@ -55,7 +60,17 @@ const markerStyle = (marker: MapMarker): L.CircleMarkerOptions =>
 const toPoint = ({ lat, lng }: L.LatLng): GeoPoint => ({ latitude: lat, longitude: lng });
 
 // Leaflet used directly (no react-leaflet): React owns the container, Leaflet everything inside it.
-export function MapView({ center, label, markers = [], onPick, instruction, goTo, fit = false, className = '' }: Props) {
+export function MapView({
+  center,
+  label,
+  markers = [],
+  onPick,
+  instruction,
+  goTo,
+  fit = false,
+  zoomOnly = false,
+  className = '',
+}: Props) {
   const intl = useIntl();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -72,7 +87,12 @@ export function MapView({ center, label, markers = [], onPick, instruction, goTo
 
   // The map is built once per mount; the first center is where it opens, and panning is the person's business.
   useEffect(() => {
-    const created = L.map(container.current!, { center: [center.latitude, center.longitude], zoom: ZOOM, zoomControl: false });
+    const created = L.map(container.current!, {
+      center: [center.latitude, center.longitude],
+      zoom: ZOOM,
+      zoomControl: false,
+      ...(zoomOnly && { dragging: false, keyboardPanDelta: 0, scrollWheelZoom: 'center', doubleClickZoom: 'center', touchZoom: 'center' }),
+    });
     // Bottom right, so a "+" by the pin isn't taken for it.
     L.control.zoom({ position: 'bottomright', zoomInTitle, zoomOutTitle }).addTo(created);
     L.tileLayer(TILES, { maxZoom: 19, attribution }).addTo(created);

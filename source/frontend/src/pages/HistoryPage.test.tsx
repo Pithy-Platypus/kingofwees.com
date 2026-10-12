@@ -364,3 +364,20 @@ describe('HistoryPage — hiding, for admins', () => {
     await waitFor(() => expect(onRejected).toHaveBeenCalled());
   });
 });
+
+describe('HistoryPage — photos', () => {
+  it('shows an entry’s photo as a thumbnail that opens the full size, described like the entry', async () => {
+    const feeding = event({ id: 'f', kind: 'fed', occurredAt: new Date('2026-10-08T09:05:00').toISOString(), spotName: 'Porch', photoId: 'p1' });
+    renderInEnglish(<HistoryPage api={fakeApi(undefined, { history: { events: [feeding], next: null } })} spots={[porch]} mapCenter={null} now={NOW} />);
+
+    const link = await screen.findByRole('link', { name: 'Photo from a feeding by a neighbor at Porch, Oct 8, 2026, 9:05 AM' });
+    expect(link).toHaveAttribute('href', '/api/king/photos/p1/full');
+    expect(within(link).getByRole('img')).toHaveAttribute('src', '/api/king/photos/p1/thumb');
+  });
+
+  it('links to every photo', () => {
+    renderInEnglish(<HistoryPage api={fakeApi()} spots={[]} mapCenter={null} now={NOW} />);
+
+    expect(screen.getByRole('link', { name: 'See every photo' })).toHaveAttribute('href', '/photos');
+  });
+});

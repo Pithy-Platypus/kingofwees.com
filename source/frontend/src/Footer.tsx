@@ -10,6 +10,7 @@ const m = defineMessages({
   copyright: { id: 'footer.copyright', defaultMessage: '© 2026', description: 'Copyright year for the site content' },
   site: { id: 'footer.siteLinks', defaultMessage: 'Site', description: 'Accessible name for the footer link list' },
   history: { id: 'footer.history', defaultMessage: 'History', description: 'Footer link to King’s history page (heat map and every entry)' },
+  photos: { id: 'footer.photos', defaultMessage: 'Photos', description: 'Footer link to the page with every photo of King' },
   about: { id: 'footer.about', defaultMessage: 'About', description: 'Footer link to the About page' },
   privacy: { id: 'footer.privacy', defaultMessage: 'Privacy', description: 'Footer link to the Privacy page' },
   dbIp: {
@@ -33,6 +34,11 @@ export function Footer() {
           <li>
             <Link to="history" className="footer-link">
               <FormattedMessage {...m.history} />
+            </Link>
+          </li>
+          <li>
+            <Link to="photos" className="footer-link">
+              <FormattedMessage {...m.photos} />
             </Link>
           </li>
           <li>

@@ -3,20 +3,16 @@ import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 
 import { isKeyRejected, type AdminSession, type DeviceView } from '../king/admin';
 import type { KingEventView } from '../king/api';
 import { common } from '../king/messages';
+import { adminMessages } from './adminMessages';
 
 type Values = {
   hideEntry: NoMessageValues;
   hideDevice: NoMessageValues;
-  hidePhoto: NoMessageValues;
   confirmEntry: NoMessageValues;
-  confirmPhoto: NoMessageValues;
-  yesPhoto: NoMessageValues;
   confirmDevice: { entries: number; spots: number; name: string };
   yesEntry: NoMessageValues;
   yesDevice: NoMessageValues;
-  cancel: NoMessageValues;
   counting: NoMessageValues;
-  failed: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -26,17 +22,6 @@ const m = defineMessages<Values>({
     defaultMessage: 'Hide everything from this poster',
     description: 'Admin button under an entry: hides every entry and spot from the device that posted it',
   },
-  hidePhoto: {
-    id: 'admin.hidePhoto',
-    defaultMessage: 'Hide this photo',
-    description: 'Admin button under an entry with a photo: hides only the photo, the entry stays',
-  },
-  confirmPhoto: {
-    id: 'admin.confirmPhoto',
-    defaultMessage: 'Hide this photo from everyone? The entry stays.',
-    description: 'Asked before hiding one photo',
-  },
-  yesPhoto: { id: 'admin.yesPhoto', defaultMessage: 'Hide photo', description: 'Confirms hiding one photo' },
   confirmEntry: {
     id: 'admin.confirmEntry',
     defaultMessage: 'Hide this entry from everyone?',
@@ -50,9 +35,7 @@ const m = defineMessages<Values>({
   },
   yesEntry: { id: 'admin.yesEntry', defaultMessage: 'Hide it', description: 'Confirms hiding one entry' },
   yesDevice: { id: 'admin.yesDevice', defaultMessage: 'Hide all', description: 'Confirms hiding everything from a poster' },
-  cancel: { id: 'admin.cancel', defaultMessage: 'Cancel', description: 'Closes the hide question without hiding' },
   counting: { id: 'admin.counting', defaultMessage: 'Counting…', description: 'Shown while counting what hiding a poster would hide' },
-  failed: { id: 'admin.hideFailed', defaultMessage: 'Couldn’t hide it. Try again.', description: 'Shown when hiding fails' },
 });
 
 type Step = { name: 'idle' } | { name: 'entry' } | { name: 'photo' } | { name: 'counting' } | { name: 'device'; device: DeviceView };
@@ -129,7 +112,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
       <>
         <p ref={question} tabIndex={-1} className="admin-question">
           {step.name === 'entry' && <FormattedMessage {...m.confirmEntry} />}
-          {step.name === 'photo' && <FormattedMessage {...m.confirmPhoto} />}
+          {step.name === 'photo' && <FormattedMessage {...adminMessages.confirmPhoto} />}
           {step.name === 'device' && (
             <FormattedMessage
               {...m.confirmDevice}
@@ -143,10 +126,10 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
         </p>
         <div className="admin-buttons">
           <button type="button" className="admin-confirm-button" disabled={busy} onClick={() => void hide()}>
-            <FormattedMessage {...{ entry: m.yesEntry, photo: m.yesPhoto, device: m.yesDevice }[step.name]} />
+            <FormattedMessage {...{ entry: m.yesEntry, photo: adminMessages.yesPhoto, device: m.yesDevice }[step.name]} />
           </button>
           <button type="button" className="admin-button" disabled={busy} onClick={cancel}>
-            <FormattedMessage {...m.cancel} />
+            <FormattedMessage {...adminMessages.cancel} />
           </button>
         </div>
       </>
@@ -157,7 +140,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
     <>
       {failed && (
         <div role="alert" className="alert alert-error">
-          <FormattedMessage {...m.failed} />
+          <FormattedMessage {...adminMessages.failed} />
         </div>
       )}
       <div className="admin-buttons">
@@ -182,7 +165,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
               setStep({ name: 'photo' });
             }}
           >
-            <FormattedMessage {...m.hidePhoto} />
+            <FormattedMessage {...adminMessages.hidePhoto} />
           </button>
         )}
         <button ref={deviceButton} type="button" className="admin-button" onClick={() => void askDevice()}>

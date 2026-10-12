@@ -10,10 +10,11 @@ import { MapView } from '../king/MapView';
 import { NicknameScreen } from '../king/NicknameScreen';
 import { DraftPhoto, LoggedPhoto, type PhotoState } from '../king/PhotoSlot';
 import { AboutPage } from '../pages/AboutPage';
+import { PhotosPage } from '../pages/PhotosPage';
 import { PrivacyPage } from '../pages/PrivacyPage';
 import { SeenScreen } from '../king/SeenScreen';
 import { SpotScreen } from '../king/SpotScreen';
-import { CENTER, event, fakeApi, NOW, spot } from '../test/fakeApi';
+import { CENTER, event, fakeApi, NOW, photo, spot } from '../test/fakeApi';
 import { loadCatalog, type Catalog } from './catalogs';
 
 const noop = () => {};
@@ -25,7 +26,11 @@ const loggedPhoto = (photo: PhotoState | null, kind: 'fed' | 'seen' = 'seen') =>
 const status = {
   lastFed: event({ id: 'f', kind: 'fed', foods: ['wet'], reporterName: null, spotName: 'Corner', location: CENTER }),
   lastSeen: event({ id: 's', kind: 'seen', location: CENTER }),
-  recent: [event({ id: 'f', kind: 'fed', foods: ['wet', 'treats'], spotName: 'Corner' }), event({ id: 's', kind: 'seen', location: CENTER })],
+  recent: [
+    event({ id: 'f', kind: 'fed', foods: ['wet', 'treats'], spotName: 'Corner', photoId: 'p1' }),
+    event({ id: 's', kind: 'seen', location: CENTER }),
+  ],
+  latestPhoto: photo({ id: 'p2', event: null }),
 };
 
 let pseudo: Catalog;
@@ -102,6 +107,19 @@ describe('pseudo-locale catalog', () => {
     ['photo failed on a sighting', loggedPhoto({ status: 'failed', files })],
     ['photo failed on a feeding', loggedPhoto({ status: 'failed', files }, 'fed')],
     ['photo too late', loggedPhoto({ status: 'tooLate' })],
+    [
+      'photos',
+      <PhotosPage
+        api={fakeApi()}
+        spots={[]}
+        reporterKey="k"
+        nickname={null}
+        postingAllowed
+        onPostingRefused={noop}
+        onPhotosChanged={noop}
+        resize={async () => files}
+      />,
+    ],
     ['name question', <NicknameScreen initialName="" onDone={noop} />],
     ['about', <AboutPage />],
     ['privacy', <PrivacyPage />],

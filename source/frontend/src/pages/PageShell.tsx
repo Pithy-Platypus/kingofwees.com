@@ -7,9 +7,10 @@ const m = defineMessages({
   back: { id: 'page.backToKing', defaultMessage: 'Back to King', description: 'Link from About/Privacy back to the home page' },
 });
 
-type Props = { title: ReactNode; children: ReactNode };
+/** `titleId` lets a list on the page take the heading as its name. */
+type Props = { title: ReactNode; titleId?: string; children: ReactNode };
 
-export function PageShell({ title, children }: Props) {
+export function PageShell({ title, titleId, children }: Props) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
 
@@ -19,7 +20,7 @@ export function PageShell({ title, children }: Props) {
         <BackIcon className="button-icon" />
         <FormattedMessage {...m.back} />
       </Link>
-      <h1 ref={heading} tabIndex={-1} className="screen-title">
+      <h1 ref={heading} id={titleId} tabIndex={-1} className="screen-title">
         {title}
       </h1>
       {children}

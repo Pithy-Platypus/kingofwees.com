@@ -1,8 +1,8 @@
 import type { ReactNode, Ref } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
-import type { KingEventView, SpotView } from './api';
+import { photoUrl, type KingEventView, type SpotView } from './api';
 import { BowlIcon, EyeIcon } from './icons';
-import { common, foodMessage, placeOf } from './messages';
+import { common, entryPhotoAlt, foodMessage, placeOf } from './messages';
 
 type Values = { fedBy: { name: string }; seenBy: { name: string }; leftOut: NoMessageValues };
 
@@ -18,6 +18,15 @@ const m = defineMessages<Values>({
 
 /** `actions` (admins only) go on their own row under the entry. */
 type Props = { event: KingEventView; spots: SpotView[]; time: string; ref?: Ref<HTMLLIElement>; actions?: ReactNode };
+
+// Browsers never show alt text on hover; the title does, on devices that hover (same text, so it isn't read twice).
+function PhotoThumbnail({ id, description }: { id: string; description: string }) {
+  return (
+    <a href={photoUrl(id, 'full')} className="activity-photo">
+      <img src={photoUrl(id, 'thumb')} alt={description} title={description} loading="lazy" className="activity-photo-image" />
+    </a>
+  );
+}
 
 /** One line of activity, on Home (Lately) and the history page: who, what, where, when. */
 export function ActivityItem({ event: e, spots, time, ref, actions }: Props) {
@@ -43,6 +52,8 @@ export function ActivityItem({ event: e, spots, time, ref, actions }: Props) {
         </strong>
         {detail && <span className="activity-detail">{detail}</span>}
       </span>
+      {/* A plain link to the full size: works without JavaScript, and the browser's own viewer zooms. */}
+      {e.photoId && <PhotoThumbnail id={e.photoId} description={entryPhotoAlt(intl, e, spots)} />}
       <span className="activity-time">{time}</span>
       {actions && <div className="activity-actions">{actions}</div>}
     </li>

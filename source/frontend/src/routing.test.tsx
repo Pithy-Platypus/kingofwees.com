@@ -25,6 +25,7 @@ describe('routing', () => {
     ['/privacy', 'Privacy', 'Privacy · King of Wees'],
     ['/history', 'King’s history', 'History · King of Wees'],
     ['/admin', 'Admin', 'Admin · King of Wees'],
+    ['/photos', 'Photos of King', 'Photos · King of Wees'],
   ])('opens %s directly with its heading focused and its own title', async (path, heading, title) => {
     renderAt(path);
 
@@ -79,6 +80,23 @@ describe('routing', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
     await userEvent.click(await screen.findByRole('link', { name: 'See King’s history' }));
     expect(window.location.pathname).toBe('/history');
+  });
+
+  it('reaches every photo from the footer, from under Lately on Home and from the history', async () => {
+    renderAt('/');
+    await screen.findByRole('button', { name: 'I fed King' });
+
+    await userEvent.click(footer().getByRole('link', { name: 'Photos' }));
+    expect(window.location.pathname).toBe('/photos');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Photos of King' })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
+    await userEvent.click(await screen.findByRole('link', { name: 'See every photo' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Photos of King' })).toBeInTheDocument();
+
+    await userEvent.click(footer().getByRole('link', { name: 'History' }));
+    await userEvent.click(await screen.findByRole('link', { name: 'See every photo' }));
+    expect(window.location.pathname).toBe('/photos');
   });
 
   it('leaves Ctrl/Cmd-clicks to the browser so links can open in a new tab', async () => {

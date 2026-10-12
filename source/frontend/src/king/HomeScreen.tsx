@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
-import type { KingEventView, KingStatus, SpotView } from './api';
+import { photoUrl, type KingEventView, type KingStatus, type SpotView } from './api';
 import { BowlIcon, CrownIcon, EyeIcon } from './icons';
 import { ActivityItem } from './ActivityItem';
 import type { GeoPoint } from './location';
 import { Link } from '../routing/Link';
 import { MapView, type MapMarker } from './MapView';
-import { common, formatWhen, placeOf } from './messages';
+import { common, formatWhen, photoAlt, placeOf } from './messages';
 import { kingMood } from './time';
 
 // Placeholder types are declared so a missing or misspelled {value} fails the type-check.
@@ -109,6 +109,7 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
   const fedAndSeen = status.lastFed !== null && status.lastSeen?.id === status.lastFed.id;
   const fedChipClass = `status-chip ${hungry ? 'badge-error' : 'badge-success'}`;
   const placed = useMemo(() => placedFor(status), [status]);
+  const latest = status.latestPhoto && { photo: status.latestPhoto, description: photoAlt(intl, status.latestPhoto, spots) };
   const markers = useMemo(() => placed.map((p) => p.marker), [placed]);
   // Words for each marker, so the map never relies on color alone (WCAG 1.4.1).
   const keyOf = ({ event, marker, fedAndSeen }: Placed) => {
@@ -130,7 +131,13 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
 
       <section className="status-card" aria-labelledby="king-mood">
         <div className="status-photo">
-          <img src="/king/king-sitting.jpg" alt={intl.formatMessage(m.photoAlt)} className="king-avatar" />
+          {/* The newest photo of any kind; framing it under the crown is for later (PLAN.md → Later). */}
+          {/* The title shows the description on hover; alt text never does. */}
+          {latest ? (
+            <img src={photoUrl(latest.photo.id, 'thumb')} alt={latest.description} title={latest.description} className="king-avatar" />
+          ) : (
+            <img src="/king/king-sitting.jpg" alt={intl.formatMessage(m.photoAlt)} className="king-avatar" />
+          )}
           <CrownIcon className="avatar-crown" />
         </div>
         <div>
@@ -189,7 +196,7 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
           <h2 className="section-title">
             <FormattedMessage {...m.mapTitle} />
           </h2>
-          <MapView center={markers[0].point} label={intl.formatMessage(m.mapTitle)} markers={markers} fit className="home-map" />
+          <MapView center={markers[0].point} label={intl.formatMessage(m.mapTitle)} markers={markers} fit zoomOnly className="home-map" />
           <ul className="map-key" aria-label={intl.formatMessage(m.mapKey)}>
             {placed.map((p) => (
               <li key={p.marker.kind} className="map-key-item">
@@ -216,9 +223,14 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
             ))}
           </ul>
         )}
-        <Link to="history" className="history-link">
-          <FormattedMessage {...m.seeHistory} />
-        </Link>
+        <div className="home-links">
+          <Link to="history" className="history-link">
+            <FormattedMessage {...m.seeHistory} />
+          </Link>
+          <Link to="photos" className="history-link">
+            <FormattedMessage {...common.seePhotos} />
+          </Link>
+        </div>
       </section>
     </main>
   );

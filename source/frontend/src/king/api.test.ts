@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, isPostingRefused, kingApi } from './api';
+import { ApiError, isPostingRefused, kingApi, photoUrl } from './api';
 
 const fetchMock = vi.fn();
 
@@ -146,6 +146,41 @@ describe('kingApi', () => {
     expect(await (form.get('photo') as File).text()).toBe('full');
     expect(await (form.get('thumbnail') as File).text()).toBe('thumb');
     expect((form.get('photo') as File).name).toMatch(/\.jpg$/);
+  });
+
+  it('shares a photo as a form with the reporter key, the name when there is one, and both JPEGs', async () => {
+    respond(201, { id: 'p1', postedAt: '2026-10-08T12:00:00Z', reporterName: 'Kael', event: null });
+    respond(201, { id: 'p2', postedAt: '2026-10-08T12:00:00Z', reporterName: null, event: null });
+    const files = { photo: new Blob(['full']), thumbnail: new Blob(['thumb']) };
+
+    await kingApi.sharePhoto({ reporterKey: 'k', reporterName: 'Kael' }, files);
+    await kingApi.sharePhoto({ reporterKey: 'k' }, files);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/king/photos');
+    expect(init.method).toBe('POST');
+    const named = init.body as FormData;
+    expect(named.get('reporterKey')).toBe('k');
+    expect(named.get('reporterName')).toBe('Kael');
+    expect(await (named.get('photo') as File).text()).toBe('full');
+    expect(await (named.get('thumbnail') as File).text()).toBe('thumb');
+    expect((fetchMock.mock.calls[1][1] as RequestInit).body).toSatisfy((form: FormData) => !form.has('reporterName'));
+  });
+
+  it.each([
+    [undefined, '/api/king/photos'],
+    ['a/b', '/api/king/photos?before=a%2Fb'],
+  ])('gets a page of photos (before %s)', async (before, url) => {
+    const page = { photos: [], next: null };
+    respond(200, page);
+
+    await expect(kingApi.getPhotos(before)).resolves.toEqual(page);
+    expect(fetchMock).toHaveBeenCalledWith(url, undefined);
+  });
+
+  it('builds the address of a photo’s files with an encoded id', () => {
+    expect(photoUrl('a/b', 'thumb')).toBe('/api/king/photos/a%2Fb/thumb');
+    expect(photoUrl('p1', 'full')).toBe('/api/king/photos/p1/full');
   });
 
   it('renames an entry with the reporter key header and an encoded id; no name is sent as null', async () => {

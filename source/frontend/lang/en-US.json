@@ -131,6 +131,10 @@
     "defaultMessage": "Hide this photo from everyone? The entry stays.",
     "description": "Asked before hiding one photo"
   },
+  "admin.confirmSharedPhoto": {
+    "defaultMessage": "Hide this photo from everyone?",
+    "description": "Asked before hiding a photo shared on its own (no entry)"
+  },
   "admin.counting": {
     "defaultMessage": "Counting…",
     "description": "Shown while counting what hiding a poster would hide"
@@ -431,6 +435,10 @@
     "defaultMessage": "History",
     "description": "Footer link to King’s history page (heat map and every entry)"
   },
+  "footer.photos": {
+    "defaultMessage": "Photos",
+    "description": "Footer link to the page with every photo of King"
+  },
   "footer.privacy": {
     "defaultMessage": "Privacy",
     "description": "Footer link to the Privacy page"
@@ -623,6 +631,10 @@
     "defaultMessage": "A whimsical, neighborly way to keep track of King, the 11-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.",
     "description": "One-line explanation of the site under the header on the home page"
   },
+  "link.seePhotos": {
+    "defaultMessage": "See every photo",
+    "description": "Link to the page with every photo of King (from Home and History)"
+  },
   "log.empty": {
     "defaultMessage": "Nothing logged yet.",
     "description": "The log has no entries at all"
@@ -637,7 +649,7 @@
   },
   "log.hidden": {
     "defaultMessage": "Hidden. You can restore it on the <admin>admin page</admin>.",
-    "description": "Shown to an admin after hiding an entry or a poster; <admin> links to the admin page"
+    "description": "Shown to an admin after hiding an entry, a poster or a photo; <admin> links to the admin page"
   },
   "log.loading": {
     "defaultMessage": "Loading King’s history…",
@@ -747,6 +759,18 @@
     "defaultMessage": "The photo you added",
     "description": "Alt text of the photo just added"
   },
+  "photo.alt.entry": {
+    "defaultMessage": "Photo from a {kind, select, fed {feeding} other {sighting}} by {name}, {when}",
+    "description": "Alt text of a photo added with an entry that has no place; {name} is who posted it or “a neighbor”, {when} its date and time"
+  },
+  "photo.alt.entryAt": {
+    "defaultMessage": "Photo from a {kind, select, fed {feeding} other {sighting}} by {name} {place}, {when}",
+    "description": "Alt text of a photo added with an entry; {place} is “at Porch” or “near Porch”, as in history"
+  },
+  "photo.alt.shared": {
+    "defaultMessage": "Photo shared by {name} on {day}",
+    "description": "Alt text of a photo shared on its own (not with an entry); {day} is the date it was shared"
+  },
   "photo.failedFeeding": {
     "defaultMessage": "Your photo couldn’t be added. Your feeding is saved.",
     "description": "The upload failed after the feeding was logged; Retry follows"
@@ -782,6 +806,54 @@
   "photo.unreadable": {
     "defaultMessage": "Couldn’t use that photo. Try another one.",
     "description": "The browser could not read or shrink the picked file"
+  },
+  "photos.empty": {
+    "defaultMessage": "No photos yet.",
+    "description": "The page has no photos at all"
+  },
+  "photos.failed": {
+    "defaultMessage": "Couldn’t load the photos.",
+    "description": "Shown when the photos cannot be loaded"
+  },
+  "photos.loading": {
+    "defaultMessage": "Loading photos…",
+    "description": "Shown while the photos load"
+  },
+  "photos.notASighting": {
+    "defaultMessage": "A shared photo isn’t logged as a sighting, so it can be from any day.",
+    "description": "Under “Share a photo”: sharing a photo doesn’t say King was seen now"
+  },
+  "photos.olderFailed": {
+    "defaultMessage": "Couldn’t load older photos.",
+    "description": "Shown when Show older fails"
+  },
+  "photos.share": {
+    "defaultMessage": "Share a photo",
+    "description": "Picks a photo of King to share on its own, not with an entry"
+  },
+  "photos.shareFailed": {
+    "defaultMessage": "Your photo couldn’t be shared.",
+    "description": "Sharing failed; Retry follows"
+  },
+  "photos.shared": {
+    "defaultMessage": "Photo shared. Thank you!",
+    "description": "The shared photo was added to the page"
+  },
+  "photos.sharing": {
+    "defaultMessage": "Sharing your photo…",
+    "description": "Shown while a shared photo uploads"
+  },
+  "photos.showOlder": {
+    "defaultMessage": "Show older",
+    "description": "Loads the next, older photos"
+  },
+  "photos.title": {
+    "defaultMessage": "Photos of King",
+    "description": "Heading of the page with every photo of King"
+  },
+  "photos.tryAgain": {
+    "defaultMessage": "Try again",
+    "description": "Retry loading the photos"
   },
   "place.back": {
     "defaultMessage": "Back",
@@ -946,6 +1018,10 @@
   "title.home": {
     "defaultMessage": "King of Wees",
     "description": "Browser tab title of the home page"
+  },
+  "title.photos": {
+    "defaultMessage": "Photos · King of Wees",
+    "description": "Browser tab title of the page with every photo of King"
   },
   "title.privacy": {
     "defaultMessage": "Privacy · King of Wees",

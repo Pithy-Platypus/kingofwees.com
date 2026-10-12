@@ -283,6 +283,39 @@
     @apply size-6;
   }
 
+  /* A 48 px thumbnail: a comfortable tap target that opens the full size. */
+  .activity-photo {
+    @apply shrink-0 rounded-field focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content;
+  }
+
+  .activity-photo-image {
+    @apply size-12 rounded-field object-cover;
+  }
+
+  .home-links {
+    @apply flex flex-wrap gap-x-6;
+  }
+
+  .photo-share {
+    @apply flex flex-col gap-2;
+  }
+
+  .photo-grid {
+    @apply grid grid-cols-2 gap-3 sm:grid-cols-3;
+  }
+
+  .photo-grid-item {
+    @apply flex flex-col gap-2;
+  }
+
+  .photo-grid-link {
+    @apply block rounded-box focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content;
+  }
+
+  .photo-grid-image {
+    @apply aspect-square w-full rounded-box bg-base-200 object-cover;
+  }
+
   .activity-text {
     @apply flex min-w-0 flex-1 flex-col;
   }

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import { CameraIcon } from './icons';
+import { photoPhrases } from './messages';
 import type { PhotoFiles } from './photo';
 
 type Values = {
   add: NoMessageValues;
-  reading: NoMessageValues;
   pickedAlt: NoMessageValues;
   remove: NoMessageValues;
   unreadable: NoMessageValues;
@@ -14,13 +14,11 @@ type Values = {
   addedAlt: NoMessageValues;
   failedSighting: NoMessageValues;
   failedFeeding: NoMessageValues;
-  retry: NoMessageValues;
   tooLate: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
   add: { id: 'photo.add', defaultMessage: 'Add a photo', description: 'Picks a photo of King (camera or library) to add to the entry' },
-  reading: { id: 'photo.reading', defaultMessage: 'Getting your photo ready…', description: 'Shown while the picked photo is shrunk' },
   pickedAlt: { id: 'photo.pickedAlt', defaultMessage: 'The photo you picked', description: 'Alt text of the picked photo, before logging' },
   remove: { id: 'photo.remove', defaultMessage: 'Remove photo', description: 'Takes the picked photo back before logging' },
   unreadable: {
@@ -41,7 +39,6 @@ const m = defineMessages<Values>({
     defaultMessage: 'Your photo couldn’t be added. Your feeding is saved.',
     description: 'The upload failed after the feeding was logged; Retry follows',
   },
-  retry: { id: 'photo.retry', defaultMessage: 'Retry', description: 'Sends the same photo again' },
   tooLate: {
     id: 'photo.tooLate',
     defaultMessage: 'It’s too late to add a photo — photos can only be added for 10 minutes.',
@@ -69,9 +66,15 @@ function PhotoPreview({ blob, alt }: { blob: Blob; alt: string }) {
 }
 
 // A real file input (keyboard, camera or library on phones) drawn as a button; picking the same file twice still fires.
-type PickerProps = { unreadable: boolean; input: RefObject<HTMLInputElement | null>; onPick: (file: File) => void };
+type PickerProps = {
+  unreadable: boolean;
+  input?: RefObject<HTMLInputElement | null>;
+  onPick: (file: File) => void;
+  /** "Add a photo" unless said otherwise. */
+  label?: ReactNode;
+};
 
-function PhotoPicker({ unreadable, input, onPick }: PickerProps) {
+export function PhotoPicker({ unreadable, input, onPick, label = <FormattedMessage {...m.add} /> }: PickerProps) {
   return (
     <>
       {unreadable && (
@@ -92,7 +95,7 @@ function PhotoPicker({ unreadable, input, onPick }: PickerProps) {
           }}
         />
         <CameraIcon className="button-icon" />
-        <FormattedMessage {...m.add} />
+        {label}
       </label>
     </>
   );
@@ -122,7 +125,7 @@ export function DraftPhoto({ photo, onPick, onRemove }: DraftProps) {
   if (photo?.status === 'reading') {
     return (
       <p role="status" className="photo-status">
-        <FormattedMessage {...m.reading} />
+        <FormattedMessage {...photoPhrases.reading} />
       </p>
     );
   }
@@ -206,7 +209,7 @@ export function LoggedPhoto({ photo, kind, onPick, onRetry }: LoggedProps) {
               onRetry();
             }}
           >
-            <FormattedMessage {...m.retry} />
+            <FormattedMessage {...photoPhrases.retry} />
           </button>
         </>
       );

@@ -31,6 +31,31 @@ describe('MapView', () => {
     expect(bounds.contains([far.latitude, far.longitude])).toBe(true);
   });
 
+  it('a zoom-only map can’t be dragged or panned with the arrow keys, and zooms about its center however it’s zoomed', () => {
+    const create = vi.spyOn(L, 'map');
+
+    renderInEnglish(<MapView center={center} label="Map of King’s street" zoomOnly />);
+
+    const map = create.mock.results[0].value as L.Map;
+    expect(map.dragging.enabled()).toBe(false);
+    expect(map.options.keyboardPanDelta).toBe(0);
+    expect(map.options.scrollWheelZoom).toBe('center');
+    expect(map.options.doubleClickZoom).toBe('center');
+    expect(map.options.touchZoom).toBe('center');
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zoom out' })).toBeInTheDocument();
+  });
+
+  it('any other map can still be dragged and panned', () => {
+    const create = vi.spyOn(L, 'map');
+
+    renderInEnglish(<MapView center={center} label="Map of King’s street" />);
+
+    const map = create.mock.results[0].value as L.Map;
+    expect(map.dragging.enabled()).toBe(true);
+    expect(map.options.keyboardPanDelta).toBeGreaterThan(0);
+  });
+
   it('leaves the view alone when not asked to fit, so a picking map doesn’t jump', () => {
     const fitBounds = vi.spyOn(L.Map.prototype, 'fitBounds');
 

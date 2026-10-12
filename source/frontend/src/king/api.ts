@@ -24,7 +24,15 @@ export type KingEventView = {
 };
 /** A photo on an entry (`event`, shown as in history) or shared on its own (`event` null). */
 export type PhotoView = { id: string; postedAt: string; reporterName: string | null; event: KingEventView | null };
-export type KingStatus = { lastFed: KingEventView | null; lastSeen: KingEventView | null; recent: KingEventView[] };
+/** `latestPhoto` is the newest visible photo of any kind: Home's avatar. */
+export type KingStatus = {
+  lastFed: KingEventView | null;
+  lastSeen: KingEventView | null;
+  recent: KingEventView[];
+  latestPhoto: PhotoView | null;
+};
+/** `next` is the id to pass as `before` for the older page; null on the last page. */
+export type PhotosPage = { photos: PhotoView[]; next: string | null };
 export type HeatLayer = 'seen' | 'fed';
 export type HeatRange = 7 | 30 | 'all';
 export type HeatCell = { location: GeoPoint; count: number; spotName: string | null };
@@ -68,6 +76,9 @@ const photoForm = ({ photo, thumbnail }: PhotoFiles) => {
   return form;
 };
 
+/** Where a photo's files are served (only while visitors may see it). */
+export const photoUrl = (id: string, size: 'full' | 'thumb') => `/api/king/photos/${encodeURIComponent(id)}/${size}`;
+
 export const kingApi = {
   getStatus: () => request<KingStatus>('/api/king/status', undefined),
   logFeeding: (body: Reporter & { foods: Food[]; sawKing: boolean; spotId?: string }) =>
@@ -107,6 +118,15 @@ export const kingApi = {
       headers: { 'X-Reporter-Key': reporterKey },
       body: photoForm(files),
     }),
+  // A photo on its own, not tied to an entry: never a sighting.
+  sharePhoto: ({ reporterKey, reporterName }: Reporter, files: PhotoFiles) => {
+    const form = photoForm(files);
+    form.append('reporterKey', reporterKey);
+    if (reporterName) form.append('reporterName', reporterName);
+    return request<PhotoView>('/api/king/photos', { method: 'POST', body: form });
+  },
+  getPhotos: (before?: string) =>
+    request<PhotosPage>(`/api/king/photos${before === undefined ? '' : `?before=${encodeURIComponent(before)}`}`, undefined),
   undo: (id: string, reporterKey: string) =>
     request<void>(`/api/king/events/${encodeURIComponent(id)}`, {
       method: 'DELETE',

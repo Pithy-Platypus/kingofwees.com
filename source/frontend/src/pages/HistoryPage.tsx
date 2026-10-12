@@ -5,6 +5,8 @@ import type { GeoPoint } from '../king/location';
 import { HeatMapSection } from './HeatMapSection';
 import { HistoryLog } from './HistoryLog';
 import { PageShell } from './PageShell';
+import { common } from '../king/messages';
+import { Link } from '../routing/Link';
 
 const m = defineMessages({
   title: { id: 'history.title', defaultMessage: 'King’s history', description: 'Heading of the history page (heat map and every entry)' },
@@ -22,6 +24,9 @@ type Props = {
 export function HistoryPage({ api, spots, mapCenter, now, admin }: Props) {
   return (
     <PageShell title={<FormattedMessage {...m.title} />}>
+      <Link to="photos" className="history-link">
+        <FormattedMessage {...common.seePhotos} />
+      </Link>
       <HeatMapSection api={api} spots={spots} mapCenter={mapCenter} />
       <HistoryLog api={api} spots={spots} now={now} admin={admin} />
     </PageShell>

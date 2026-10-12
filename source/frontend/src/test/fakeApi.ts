@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotoView, SpotView } from '../king/api';
+import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotosPage, PhotoView, SpotView } from '../king/api';
 import type { ActivityPage, AdminApi, AdminSignIn, AdminSpot, DeviceView, HiddenDevice } from '../king/admin';
 import type { GeoPoint } from '../king/location';
 
@@ -27,18 +27,25 @@ export const photo = (overrides: Partial<PhotoView> = {}): PhotoView => ({
   ...overrides,
 });
 
-export const emptyStatus: KingStatus = { lastFed: null, lastSeen: null, recent: [] };
+export const emptyStatus: KingStatus = { lastFed: null, lastSeen: null, recent: [], latestPhoto: null };
 
 export const CENTER: GeoPoint = { latitude: 45.523, longitude: -122.677 };
 
 export const spot = (id: string, name: string): SpotView => ({ id, name, location: CENTER });
 
-type World = { map?: GeoPoint | null; spots?: SpotView[]; heat?: HeatCell[]; history?: HistoryPage; posting?: boolean };
+type World = {
+  map?: GeoPoint | null;
+  spots?: SpotView[];
+  heat?: HeatCell[];
+  history?: HistoryPage;
+  posting?: boolean;
+  photos?: PhotosPage;
+};
 
 // By default the site has no map and no spots, as on a fresh install, and this visitor may post.
 export function fakeApi(
   status: KingStatus = emptyStatus,
-  { map = null, spots = [], heat = [], history = { events: [], next: null }, posting = true }: World = {},
+  { map = null, spots = [], heat = [], history = { events: [], next: null }, posting = true, photos = { photos: [], next: null } }: World = {},
 ) {
   return {
     getMap: vi.fn<typeof kingApi.getMap>().mockResolvedValue(map),
@@ -51,6 +58,8 @@ export function fakeApi(
     ),
     logSighting: vi.fn<typeof kingApi.logSighting>().mockResolvedValue(event({ id: 'new-seen', kind: 'seen' })),
     addPhoto: vi.fn<typeof kingApi.addPhoto>().mockImplementation(async (id) => photo({ id: 'new-photo', event: event({ id }) })),
+    sharePhoto: vi.fn<typeof kingApi.sharePhoto>().mockImplementation(async (r) => photo({ id: 'shared-photo', reporterName: r.reporterName ?? null })),
+    getPhotos: vi.fn<typeof kingApi.getPhotos>().mockResolvedValue(photos),
     undo: vi.fn<typeof kingApi.undo>().mockResolvedValue(undefined),
     renameEvent: vi.fn<typeof kingApi.renameEvent>().mockResolvedValue(undefined),
     getHeat: vi.fn<typeof kingApi.getHeat>().mockResolvedValue(heat),

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { defineMessages, FormattedMessage, useIntl, type MessageTag, type NoMessageValues } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import type { AdminSession } from '../king/admin';
 import type { KingEventView, kingApi, SpotView } from '../king/api';
 import { ActivityItem } from '../king/ActivityItem';
 import { Link } from '../routing/Link';
 import { AdminEntryActions } from './AdminEntryActions';
+import { adminMessages } from './adminMessages';
 
 type Values = {
   heading: NoMessageValues;
@@ -16,7 +17,6 @@ type Values = {
   failed: NoMessageValues;
   olderFailed: NoMessageValues;
   tryAgain: NoMessageValues;
-  hidden: { admin: MessageTag };
 };
 
 const m = defineMessages<Values>({
@@ -29,11 +29,6 @@ const m = defineMessages<Values>({
   failed: { id: 'log.failed', defaultMessage: 'Couldn’t load King’s history.', description: 'Shown when the log cannot be loaded' },
   olderFailed: { id: 'log.olderFailed', defaultMessage: 'Couldn’t load older entries.', description: 'Shown when Show older fails' },
   tryAgain: { id: 'log.tryAgain', defaultMessage: 'Try again', description: 'Retry loading the log' },
-  hidden: {
-    id: 'log.hidden',
-    defaultMessage: 'Hidden. You can restore it on the <admin>admin page</admin>.',
-    description: 'Shown to an admin after hiding an entry or a poster; <admin> links to the admin page',
-  },
 });
 
 type Day = { key: string; date: Date; events: KingEventView[] };
@@ -186,7 +181,7 @@ export function HistoryLog({ api, spots, now, admin }: Props) {
       {hidCount > 0 && (
         <p ref={hiddenNotice} tabIndex={-1} role="status" className="screen-hint">
           <FormattedMessage
-            {...m.hidden}
+            {...adminMessages.hidden}
             values={{
               admin: (chunks) => (
                 <Link to="admin" className="text-link">

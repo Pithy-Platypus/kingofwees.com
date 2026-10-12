@@ -4,8 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { ApiError, type PhotoView } from './king/api';
 import type { PhotoFiles, PhotoResizer } from './king/photo';
+import { saveAdminSignIn } from './king/admin';
 import { saveNickname } from './king/reporter';
-import { fakeApi, NOW } from './test/fakeApi';
+import { fakeAdminApi, fakeApi, NOW, photo, SIGN_IN } from './test/fakeApi';
 import { memoryStorage } from './test/memoryStorage';
 import { renderInEnglish } from './test/render';
 
@@ -269,5 +270,34 @@ describe('App — the photo after the entry is logged', () => {
     await pickPhoto();
 
     expect(await screen.findByRole('button', { name: 'Retry' })).toHaveFocus();
+  });
+});
+
+describe('App — the photos page', () => {
+  it('reloads King’s status after a photo is shared there, so Home wears the new photo', async () => {
+    window.history.replaceState(null, '', '/photos');
+    const { api } = renderApp();
+    await screen.findByRole('heading', { level: 1, name: 'Photos of King' });
+    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(1));
+
+    await userEvent.upload(screen.getByLabelText('Share a photo'), picked());
+
+    await screen.findByText('Photo shared. Thank you!');
+    expect(api.getStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('reloads King’s status after an admin hides a photo there, so Home drops it', async () => {
+    window.history.replaceState(null, '', '/photos');
+    const api = fakeApi(undefined, { photos: { photos: [photo({ id: 'p1' })], next: null } });
+    const storage = memoryStorage();
+    saveAdminSignIn(storage, SIGN_IN);
+    renderInEnglish(<App api={api} adminApi={fakeAdminApi()} reporterKey={KEY} storage={storage} now={() => NOW} resize={async () => RESIZED} />);
+    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hide photo' }));
+
+    await screen.findByText(/Hidden\./);
+    expect(api.getStatus).toHaveBeenCalledTimes(2);
   });
 });

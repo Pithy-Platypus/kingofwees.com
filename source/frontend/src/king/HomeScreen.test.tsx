@@ -1,8 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import L from 'leaflet';
 import { HomeScreen } from './HomeScreen';
-import { at, CENTER, emptyStatus, event, NOW } from '../test/fakeApi';
+import { at, CENTER, emptyStatus, event, NOW, photo } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 
 const noop = () => {};
@@ -20,7 +21,7 @@ describe('HomeScreen', () => {
     const status = {
       lastFed: event({ id: 'f', kind: 'fed', occurredAt: at('2026-10-08T10:00:00Z').toISOString() }),
       lastSeen: event({ id: 's', kind: 'seen', occurredAt: at('2026-10-08T11:35:00Z').toISOString() }),
-      recent: [],
+      recent: [], latestPhoto: null,
     };
 
     renderInEnglish(<HomeScreen status={status} now={NOW} onFed={noop} onSeen={noop} />);
@@ -34,7 +35,7 @@ describe('HomeScreen', () => {
   it('shows one “Fed & seen” chip when the latest sighting is the feeding itself', () => {
     const feeding = event({ id: 'f', kind: 'fed', occurredAt: at('2026-10-08T10:00:00Z').toISOString() });
 
-    renderInEnglish(<HomeScreen status={{ lastFed: feeding, lastSeen: feeding, recent: [] }} now={NOW} onFed={noop} onSeen={noop} />);
+    renderInEnglish(<HomeScreen status={{ lastFed: feeding, lastSeen: feeding, recent: [], latestPhoto: null }} now={NOW} onFed={noop} onSeen={noop} />);
 
     const chips = within(screen.getByRole('list', { name: 'King’s status' })).getAllByRole('listitem');
     expect(chips.map((c) => c.textContent)).toEqual(['Fed & seen 2 hours ago']);
@@ -44,7 +45,7 @@ describe('HomeScreen', () => {
     const status = {
       lastFed: event({ id: 'f', kind: 'fed', sawKing: false, occurredAt: at('2026-10-08T11:00:00Z').toISOString() }),
       lastSeen: event({ id: 's', kind: 'seen', occurredAt: at('2026-10-08T09:00:00Z').toISOString() }),
-      recent: [],
+      recent: [], latestPhoto: null,
     };
 
     renderInEnglish(<HomeScreen status={status} now={NOW} onFed={noop} onSeen={noop} />);
@@ -120,7 +121,7 @@ describe('HomeScreen', () => {
       const status = {
         lastFed: event({ id: 'f', kind: 'fed', sawKing: false, spotName: 'Porch', location: porch }),
         lastSeen: event({ id: 's', kind: 'seen', location: corner }),
-        recent: [],
+        recent: [], latestPhoto: null,
       };
 
       renderInEnglish(<HomeScreen status={status} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
@@ -133,7 +134,7 @@ describe('HomeScreen', () => {
       const status = {
         lastFed: event({ id: 'f', kind: 'fed', sawKing: false, spotName: 'Porch', location: porch, occurredAt: at('2026-10-08T11:00:00Z').toISOString() }),
         lastSeen: event({ id: 's', kind: 'seen', location: corner, occurredAt: at('2026-10-08T09:00:00Z').toISOString() }),
-        recent: [],
+        recent: [], latestPhoto: null,
       };
 
       renderInEnglish(<HomeScreen status={status} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
@@ -150,7 +151,7 @@ describe('HomeScreen', () => {
       const feeding = event({ id: 'f', kind: 'fed', spotName: 'Porch', location: porch, occurredAt: at('2026-10-08T10:00:00Z').toISOString() });
 
       renderInEnglish(
-        <HomeScreen status={{ lastFed: feeding, lastSeen: feeding, recent: [] }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
+        <HomeScreen status={{ lastFed: feeding, lastSeen: feeding, recent: [], latestPhoto: null }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
       );
 
       expect(legend()).toEqual([['Fed & seen 2 hours ago · at Porch', 'fed']]);
@@ -159,7 +160,7 @@ describe('HomeScreen', () => {
     it('sits below the big buttons and above Lately', () => {
       const feeding = event({ id: 'f', kind: 'fed', location: porch });
       renderInEnglish(
-        <HomeScreen status={{ lastFed: feeding, lastSeen: null, recent: [feeding] }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
+        <HomeScreen status={{ lastFed: feeding, lastSeen: null, recent: [feeding], latestPhoto: null }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
       );
       const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 
@@ -172,14 +173,14 @@ describe('HomeScreen', () => {
       const feeding = event({ id: 'f', kind: 'fed', spotName: 'Porch', location: porch });
 
       renderInEnglish(
-        <HomeScreen status={{ lastFed: feeding, lastSeen: feeding, recent: [] }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
+        <HomeScreen status={{ lastFed: feeding, lastSeen: feeding, recent: [], latestPhoto: null }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
       );
 
       expect(mapRegion()!.querySelectorAll('.map-marker')).toHaveLength(1);
     });
 
     it('is left out when the site has no map, or nothing has a place yet', () => {
-      const placed = { lastFed: event({ id: 'f', kind: 'fed', location: porch }), lastSeen: null, recent: [] };
+      const placed = { lastFed: event({ id: 'f', kind: 'fed', location: porch }), lastSeen: null, recent: [], latestPhoto: null };
       const { unmount } = renderInEnglish(<HomeScreen status={placed} mapCenter={null} now={NOW} onFed={noop} onSeen={noop} />);
       expect(mapRegion()).not.toBeInTheDocument();
       unmount();
@@ -236,5 +237,62 @@ describe('HomeScreen', () => {
       expect(lately()[0]).toHaveTextContent('at Corner');
       expect(lately()[0]).not.toHaveTextContent('near');
     });
+  });
+});
+
+describe('HomeScreen — photos', () => {
+  const sighting = event({ id: 's', kind: 'seen', occurredAt: new Date('2026-10-08T11:30:00').toISOString(), reporterName: 'Sarah', photoId: 'p1' });
+
+  it('shows a line’s photo as a thumbnail that opens the full size, described like the line', () => {
+    renderInEnglish(<HomeScreen status={{ ...emptyStatus, recent: [sighting] }} now={NOW} onFed={noop} onSeen={noop} />);
+
+    const item = within(screen.getByRole('list', { name: 'Lately' })).getByRole('listitem');
+    const link = within(item).getByRole('link', { name: 'Photo from a sighting by Sarah, Oct 8, 2026, 11:30 AM' });
+    expect(link).toHaveAttribute('href', '/api/king/photos/p1/full');
+    expect(within(link).getByRole('img')).toHaveAttribute('src', '/api/king/photos/p1/thumb');
+    // Alt text is never shown on hover; the title is, on devices that hover.
+    expect(within(link).getByRole('img')).toHaveAttribute('title', 'Photo from a sighting by Sarah, Oct 8, 2026, 11:30 AM');
+  });
+
+  it('shows no thumbnail on a line without a photo', () => {
+    renderInEnglish(<HomeScreen status={{ ...emptyStatus, recent: [{ ...sighting, photoId: null }] }} now={NOW} onFed={noop} onSeen={noop} />);
+
+    expect(within(screen.getByRole('list', { name: 'Lately' })).queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('crowns the newest photo as King’s avatar, described by how it was added', () => {
+    const latestPhoto = photo({ id: 'p9', postedAt: new Date('2026-10-07T09:00:00').toISOString(), reporterName: 'Kael' });
+
+    renderInEnglish(<HomeScreen status={{ ...emptyStatus, latestPhoto }} now={NOW} onFed={noop} onSeen={noop} />);
+
+    expect(screen.getByRole('img', { name: 'Photo shared by Kael on Oct 7, 2026' })).toHaveAttribute('src', '/api/king/photos/p9/thumb');
+    expect(screen.getByRole('img', { name: 'Photo shared by Kael on Oct 7, 2026' })).toHaveAttribute('title', 'Photo shared by Kael on Oct 7, 2026');
+    expect(screen.queryByRole('img', { name: 'King, a fluffy grey long-haired cat' })).not.toBeInTheDocument();
+  });
+
+  it('keeps today’s picture of King until there is a photo', () => {
+    renderInEnglish(<HomeScreen status={emptyStatus} now={NOW} onFed={noop} onSeen={noop} />);
+
+    expect(screen.getByRole('img', { name: 'King, a fluffy grey long-haired cat' })).toHaveAttribute('src', '/king/king-sitting.jpg');
+  });
+
+  it('links to every photo under Lately', () => {
+    renderInEnglish(<HomeScreen status={emptyStatus} now={NOW} onFed={noop} onSeen={noop} />);
+
+    expect(screen.getByRole('link', { name: 'See every photo' })).toHaveAttribute('href', '/photos');
+  });
+});
+
+describe('HomeScreen — the “Last fed & seen” map', () => {
+  it('stays on the last feeding and sighting: zoom only, no dragging', () => {
+    const create = vi.spyOn(L, 'map');
+    const feeding = event({ id: 'f', kind: 'fed', location: CENTER });
+
+    renderInEnglish(<HomeScreen status={{ ...emptyStatus, lastFed: feeding, recent: [feeding] }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
+
+    const map = create.mock.results[0].value as L.Map;
+    expect(map.dragging.enabled()).toBe(false);
+    expect(map.options.scrollWheelZoom).toBe('center');
+    create.mockRestore();
   });
 });

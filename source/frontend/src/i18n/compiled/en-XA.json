@@ -1078,6 +1078,20 @@
       "value": "]"
     }
   ],
+  "admin.confirmSharedPhoto": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīḓḗḗ ŧħīş ƥħǿǿŧǿǿ ƒřǿǿḿ ḗḗṽḗḗřẏǿǿƞḗḗ?"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "admin.counting": [
     {
       "type": 0,
@@ -2423,6 +2437,20 @@
       "value": "]"
     }
   ],
+  "footer.photos": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "footer.privacy": [
     {
       "type": 0,
@@ -3191,6 +3219,20 @@
       "value": "]"
     }
   ],
+  "link.seePhotos": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şḗḗḗḗ ḗḗṽḗḗřẏ ƥħǿǿŧǿǿ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "log.empty": [
     {
       "type": 0,
@@ -3665,6 +3707,144 @@
       "value": "]"
     }
   ],
+  "photo.alt.entry": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿ ƒřǿǿḿ ȧȧ "
+    },
+    {
+      "type": 5,
+      "value": "kind",
+      "options": {
+        "fed": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "şīɠħŧīƞɠ"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.alt.entryAt": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿ ƒřǿǿḿ ȧȧ "
+    },
+    {
+      "type": 5,
+      "value": "kind",
+      "options": {
+        "fed": {
+          "value": [
+            {
+              "type": 0,
+              "value": "ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "şīɠħŧīƞɠ"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 0,
+      "value": " ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": " "
+    },
+    {
+      "type": 1,
+      "value": "place"
+    },
+    {
+      "type": 0,
+      "value": ", "
+    },
+    {
+      "type": 1,
+      "value": "when"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photo.alt.shared": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿ şħȧȧřḗḗḓ ƀẏ "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": " ǿǿƞ "
+    },
+    {
+      "type": 1,
+      "value": "day"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "photo.failedFeeding": [
     {
       "type": 0,
@@ -3785,6 +3965,174 @@
     {
       "type": 0,
       "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŭŭşḗḗ ŧħȧȧŧ ƥħǿǿŧǿǿ. Ŧřẏ ȧȧƞǿǿŧħḗḗř ǿǿƞḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.empty": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿ ƥħǿǿŧǿǿş ẏḗḗŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.failed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŀǿǿȧȧḓ ŧħḗḗ ƥħǿǿŧǿǿş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.loading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŀǿǿȧȧḓīƞɠ ƥħǿǿŧǿǿş…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.notASighting": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧ şħȧȧřḗḗḓ ƥħǿǿŧǿǿ īşƞ’ŧ ŀǿǿɠɠḗḗḓ ȧȧş ȧȧ şīɠħŧīƞɠ, şǿǿ īŧ ƈȧȧƞ ƀḗḗ ƒřǿǿḿ ȧȧƞẏ ḓȧȧẏ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.olderFailed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŀǿǿȧȧḓ ǿǿŀḓḗḗř ƥħǿǿŧǿǿş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.share": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħȧȧřḗḗ ȧȧ ƥħǿǿŧǿǿ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.shareFailed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ẏǿǿŭŭř ƥħǿǿŧǿǿ ƈǿǿŭŭŀḓƞ’ŧ ƀḗḗ şħȧȧřḗḗḓ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.shared": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿ şħȧȧřḗḗḓ. Ŧħȧȧƞķ ẏǿǿŭŭ!"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.sharing": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħȧȧřīƞɠ ẏǿǿŭŭř ƥħǿǿŧǿǿ…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.showOlder": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şħǿǿẇ ǿǿŀḓḗḗř"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.title": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿş ǿǿƒ Ķīƞɠ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "photos.tryAgain": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
     },
     {
       "type": 0,
@@ -4405,6 +4753,20 @@
     {
       "type": 0,
       "value": "Ķīƞɠ ǿǿƒ Ẇḗḗḗḗş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "title.photos": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƥħǿǿŧǿǿş · Ķīƞɠ ǿǿƒ Ẇḗḗḗḗş"
     },
     {
       "type": 0,
