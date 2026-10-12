@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { contactEmail } from '../site';
 import { renderInEnglish } from '../test/render';
@@ -118,8 +118,8 @@ describe('PrivacyPage', () => {
   it('says entries are kept for King’s history and can be removed by email', () => {
     renderInEnglish(<PrivacyPage />);
 
-    expect(screen.getByText(/kept as King’s history/)).toBeInTheDocument();
-    expect(contactLink()).toHaveAttribute('href', `mailto:${contactEmail}`);
+    const retention = screen.getByText(/kept as King’s history/);
+    expect(within(retention).getByRole('link', { name: contactEmail })).toHaveAttribute('href', `mailto:${contactEmail}`);
   });
 
   it('says the history and its map are public, and links to them', () => {
@@ -135,5 +135,25 @@ describe('PrivacyPage', () => {
     renderInEnglish(<PrivacyPage />);
 
     expect(screen.getByText(/kept as King’s history/)).toHaveTextContent('Entries that look like spam can be hidden by the site’s caretakers.');
+  });
+
+  it('says photos are public on the photos page, and that the place a phone saves in a photo is removed twice', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    const photos = screen.getByText(/Photos you add/);
+    expect(photos).toHaveTextContent(/everyone can see them/);
+    expect(photos).toHaveTextContent(/including the exact place it was taken/);
+    expect(photos).toHaveTextContent(/our server removes them again/);
+    expect(screen.getByRole('link', { name: 'photos page' })).toHaveAttribute('href', '/photos');
+  });
+
+  it('says how a photo goes away: undo deletes it, a takedown hides it, and hidden photos are kept', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    const removal = screen.getByText(/Undo takes a photo away/);
+    expect(removal).toHaveTextContent(/recovered for 30 days/);
+    expect(removal).toHaveTextContent(/the caretakers will hide it from everyone/);
+    expect(removal).toHaveTextContent(/Hidden photos are kept rather than deleted/);
+    expect(removal.querySelector(`a[href="mailto:${contactEmail}"]`)).not.toBeNull();
   });
 });

@@ -13,6 +13,8 @@ type Values = {
   storedName: NoMessageValues;
   storedLocation: NoMessageValues;
   storedSpots: NoMessageValues;
+  storedPhotos: { photos: MessageTag };
+  photoRemoval: { email: string; mail: MessageTag };
   storedCode: NoMessageValues;
   storedWhere: NoMessageValues;
   notTitle: NoMessageValues;
@@ -49,6 +51,18 @@ const m = defineMessages<Values>({
     id: 'privacy.stored.spots',
     defaultMessage: 'Feeding spots neighbors add: a name and a place (also rounded), which everyone can see.',
     description: 'Stored data: shared feeding spots are public',
+  },
+  storedPhotos: {
+    id: 'privacy.stored.photos',
+    defaultMessage:
+      'Photos you add: everyone can see them on the <photos>photos page</photos>, with the name you gave. Your browser shrinks each photo and removes the hidden details phones save in it, including the exact place it was taken, and our server removes them again before storing it.',
+    description: 'Stored data: photos are public; location and other metadata removed in the browser and again on the server; keep the <photos></photos> tags around the link text',
+  },
+  photoRemoval: {
+    id: 'privacy.stored.photoRemoval',
+    defaultMessage:
+      'Undo takes a photo away with its entry (a deleted photo can be recovered for 30 days, then it’s gone). Want a photo taken down later? Email <mail>{email}</mail> and the caretakers will hide it from everyone. Hidden photos are kept rather than deleted, in case the law requires it.',
+    description: 'How photos are removed: undo deletes (30-day recovery), takedown requests hide; hidden photos are kept for legal reasons; keep the <mail></mail> tags around {email}',
   },
   storedCode: {
     id: 'privacy.stored.code',
@@ -120,6 +134,24 @@ export function PrivacyPage() {
         </li>
         <li>
           <FormattedMessage {...m.storedSpots} />
+        </li>
+        <li>
+          <FormattedMessage
+            {...m.storedPhotos}
+            values={{
+              photos: (chunks) => (
+                <Link to="photos" className="text-link">
+                  {chunks}
+                </Link>
+              ),
+            }}
+          />
+        </li>
+        <li>
+          <FormattedMessage
+            {...m.photoRemoval}
+            values={{ email: contactEmail, mail: (chunks) => <MailLink>{chunks}</MailLink> }}
+          />
         </li>
         <li>
           <FormattedMessage {...m.storedCode} />
