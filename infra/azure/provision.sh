@@ -16,6 +16,10 @@ APP="kingofwees"
 DOMAIN="kingofwees.com" # and www.$DOMAIN; records at Cloudflare, DNS only (infra/README.md)
 STORAGE="kingofweesbackups"
 BACKUPS="backups"
+# Photos in their own account: soft delete is per account, and the backups' 30-day delete rule must never touch photos.
+PHOTOS_STORAGE="kingofweesphotos"
+PHOTOS="photos"
+PHOTOS_SOFT_DELETE_DAYS=30 # a deleted photo (an undo, a mistake) can be recovered this long; photos aren't in the nightly dump
 BACKUP_JOB="kingofwees-backup"
 # The stock image (mongodump, and mongosh for the upload), pinned so a new tag can't change what runs nightly.
 BACKUP_IMAGE="docker.io/library/mongo:8.0@sha256:d0d926f94df099bff534b7ee5b5986458131a22489dfff8664509af0c1e2ca9c"
@@ -101,6 +105,18 @@ az storage account management-policy create -g "$GROUP" --account-name "$STORAGE
     "filters": { "blobTypes": ["blockBlob"], "prefixMatch": ["'"$BACKUPS"'/"] },
     "actions": { "baseBlob": { "delete": { "daysAfterModificationGreaterThan": 30 } } } } }] }'
 
+echo "== Storage account $PHOTOS_STORAGE for photos (private, shared keys off, deleted photos recoverable for $PHOTOS_SOFT_DELETE_DAYS days)"
+if ! az storage account show -g "$GROUP" -n "$PHOTOS_STORAGE" -o none 2>/dev/null; then
+  az storage account create -g "$GROUP" -n "$PHOTOS_STORAGE" -l "$LOCATION" --sku Standard_LRS --kind StorageV2 --access-tier Hot \
+    --min-tls-version TLS1_2 --allow-blob-public-access false --allow-shared-key-access false -o none
+fi
+if ! az storage container-rm show -g "$GROUP" --storage-account "$PHOTOS_STORAGE" -n "$PHOTOS" -o none 2>/dev/null; then
+  az storage container-rm create -g "$GROUP" --storage-account "$PHOTOS_STORAGE" -n "$PHOTOS" --public-access off -o none
+fi
+az storage account blob-service-properties update -g "$GROUP" -n "$PHOTOS_STORAGE" \
+  --enable-delete-retention true --delete-retention-days "$PHOTOS_SOFT_DELETE_DAYS" -o none
+PHOTOS_SCOPE="$(az storage account show -g "$GROUP" -n "$PHOTOS_STORAGE" --query id -o tsv)/blobServices/default/containers/$PHOTOS"
+
 echo "== Budget $BUDGET: \$$BUDGET_AMOUNT a month on the resource group, emails at 80% actual and 100% forecast"
 BUDGET_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$GROUP/providers/Microsoft.Consumption/budgets/$BUDGET?api-version=2023-05-01"
 if ! az rest --method get --url "$BUDGET_URL" -o none 2>/dev/null; then
@@ -154,13 +170,13 @@ if az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" -o none 2>/dev/null; th
 else
   az containerapp job create -g "$GROUP" -n "$BACKUP_JOB" --yaml "$WORK/job.json" -o none
 fi
-# Write access to the backups container only, for the job; read access for whoever runs the restore drill.
-grant() { # principal-id principal-type role
-  [[ -n "$(az role assignment list --assignee "$1" --role "$3" --scope "$BACKUPS_SCOPE" --query "[0].id" -o tsv)" ]] \
-    || az role assignment create --assignee-object-id "$1" --assignee-principal-type "$2" --role "$3" --scope "$BACKUPS_SCOPE" -o none
+grant() { # principal-id principal-type role scope
+  [[ -n "$(az role assignment list --assignee "$1" --role "$3" --scope "$4" --query "[0].id" -o tsv)" ]] \
+    || az role assignment create --assignee-object-id "$1" --assignee-principal-type "$2" --role "$3" --scope "$4" -o none
 }
-grant "$(az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" --query identity.principalId -o tsv)" ServicePrincipal "Storage Blob Data Contributor"
-grant "$(az ad signed-in-user show --query id -o tsv)" User "Storage Blob Data Reader"
+# Write access to the backups container only, for the job; read access for whoever runs the restore drill.
+grant "$(az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" --query identity.principalId -o tsv)" ServicePrincipal "Storage Blob Data Contributor" "$BACKUPS_SCOPE"
+grant "$(az ad signed-in-user show --query id -o tsv)" User "Storage Blob Data Reader" "$BACKUPS_SCOPE"
 
 echo "== Alert $BACKUP_ALERT: email when a backup run fails"
 az monitor action-group create -g "$GROUP" -n "$ALERTS" --short-name kingofwees --action email owner "$EMAIL" -o none
@@ -174,11 +190,14 @@ fi
 echo "== Container app $APP"
 # Re-applying the definition without the bound domains would drop them, so they're carried over.
 APP_DOMAINS=$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.customDomains -o json 2>/dev/null || true)
-APP_DOMAINS="${APP_DOMAINS:-null}" APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAGE="$IMAGE" APP_LOCATION="$LOCATION" python3 -I - >"$WORK/app.json" <<'PY'
+APP_DOMAINS="${APP_DOMAINS:-null}" APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAGE="$IMAGE" APP_LOCATION="$LOCATION" \
+  APP_PHOTOS="Endpoint=https://$PHOTOS_STORAGE.blob.core.windows.net;ContainerName=$PHOTOS" python3 -I - >"$WORK/app.json" <<'PY'
 import json, os
 e = os.environ
 secrets = [{"name": "king-connection", "value": e["KING_CONN"]}]
 env = [{"name": "ConnectionStrings__king", "secretRef": "king-connection"},
+       # The blob address only, not a secret: the app signs in with its own identity (no storage key exists).
+       {"name": "ConnectionStrings__photos", "value": e["APP_PHOTOS"]},
        {"name": "King__Proxy__TrustForwardedFor", "value": "true"}]
 if e["ADMIN_KEY_HASH"]:
     secrets.append({"name": "admin-key-hash", "value": e["ADMIN_KEY_HASH"]})
@@ -195,6 +214,8 @@ probe = lambda kind, path: {"type": kind, "httpGet": {"path": path, "port": 8080
                             "periodSeconds": 10, "failureThreshold": 3, "timeoutSeconds": 5}
 print(json.dumps({
     "location": e["APP_LOCATION"],
+    # Its own identity, for the photos container; kept in the definition so a rerun doesn't drop it.
+    "identity": {"type": "SystemAssigned"},
     "properties": {
         "managedEnvironmentId": e["APP_ENVIRONMENT_ID"],
         "configuration": {
@@ -214,11 +235,18 @@ print(json.dumps({
 PY
 if [[ -n "$EXISTING_IMAGE" ]]; then
   az containerapp update -g "$GROUP" -n "$APP" --yaml "$WORK/app.json" -o none
-  # A secret change alone doesn't reach a running revision.
-  az containerapp revision restart -g "$GROUP" -n "$APP" \
-    --revision "$(az containerapp show -g "$GROUP" -n "$APP" --query properties.latestRevisionName -o tsv)" -o none
 else
   az containerapp create -g "$GROUP" -n "$APP" --yaml "$WORK/app.json" -o none
+fi
+# Also assigned explicitly (a no-op when the definition already did it): whether an update from the definition alone
+# adds the identity isn't checked. It reads and writes photos, in the photos container only.
+az containerapp identity assign -g "$GROUP" -n "$APP" --system-assigned -o none
+grant "$(az containerapp show -g "$GROUP" -n "$APP" --query identity.principalId -o tsv)" ServicePrincipal "Storage Blob Data Contributor" "$PHOTOS_SCOPE"
+if [[ -n "$EXISTING_IMAGE" ]]; then
+  # A secret change alone doesn't reach a running revision. After the grant, so the restarted app can reach its photos
+  # (a new role assignment can still take a few minutes to apply).
+  az containerapp revision restart -g "$GROUP" -n "$APP" \
+    --revision "$(az containerapp show -g "$GROUP" -n "$APP" --query properties.latestRevisionName -o tsv)" -o none
 fi
 
 echo "== Custom domains $DOMAIN and www.$DOMAIN (free managed certificates)"

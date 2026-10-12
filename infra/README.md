@@ -9,17 +9,18 @@ All in subscription "Playground", resource group `kingofwees.com`, East US.
 | Resource | What it is |
 |---|---|
 | `kingofwees-env` | Container Apps environment. Console logs aren't kept; its OpenTelemetry agent sends the app's traces and logs to `kingofwees-insights`. |
-| `kingofwees` | The app: one replica (min 1, max 1 — the rate limits live in memory, so a second replica would double them), 0.25 vCPU / 0.5 GiB, external HTTPS ingress on port 8080, readiness `/health` (database included), liveness `/alive` (app only). Settings are secrets: the DocumentDB connection string, the admin key hash, the map center; `King__Proxy__TrustForwardedFor=true` so rate limits see each visitor (never set it where the app is reachable without the ingress). Custom domains `kingofwees.com` and `www.kingofwees.com` with free managed certificates. |
+| `kingofwees` | The app: one replica (min 1, max 1 — the rate limits live in memory, so a second replica would double them), 0.25 vCPU / 0.5 GiB, external HTTPS ingress on port 8080, readiness `/health` (database included), liveness `/alive` (app only). A system-assigned identity with Storage Blob Data Contributor on `kingofweesphotos/photos` only; `ConnectionStrings__photos` is the blob address (not a secret — there's no storage key). Settings are secrets: the DocumentDB connection string, the admin key hash, the map center; `King__Proxy__TrustForwardedFor=true` so rate limits see each visitor (never set it where the app is reachable without the ingress). Custom domains `kingofwees.com` and `www.kingofwees.com` with free managed certificates. |
 | DocumentDB cluster | Free tier (MongoDB API, 32 GB), database `king`. Firewall rule "Allow Azure services": the app's outbound addresses are a shared pool of hundreds, so they can't be listed; connections still need the cluster's credentials over TLS. |
 | `kingofwees-backup` | Scheduled job, nightly at 08:00 UTC: `azure/backup.sh` in the stock `mongo:8.0` image (pinned by digest) dumps the database and uploads it with its own managed identity. |
 | `kingofweesbackups` | Storage account; private container `backups`, blobs deleted after 30 days, shared keys off. The job may write only there; the signed-in account may read it (for the drill). |
+| `kingofweesphotos` | Storage account for photos (Slice 6); private container `photos`, shared keys off, Hot, **blob soft delete 30 days**. Separate from backups: soft delete is per account, and the backups' delete rule must never touch photos. Only the app may read and write it. |
 | `kingofwees-insights`, `kingofwees-logs` | Application Insights and its Log Analytics workspace: traces and logs, 31 days, capped at 0.05 GB a day. |
 | `kingofwees-alerts`, `kingofwees-backup-failed` | Action group (email to the signed-in account) and the metric alert that uses it when a backup run fails. |
 | `kingofwees-monthly` | Budget: $25 a month on the resource group; emails at 80% actual and 100% forecast. |
 
 Images: `ghcr.io/pithy-platypus/kingofwees`, public (they hold no secrets), tagged with the commit.
 
-**Coming with photos (Slice 6 step 9, approved 2026-10-11, not created yet):** storage account `kingofweesphotos` (private container `photos`, shared keys off, **blob soft delete 30 days**), a system-assigned identity on `kingofwees` with Storage Blob Data Contributor on that container only, and the app setting `ConnectionStrings__photos` (the blob address — not a secret). **Photos are not in the nightly backup**, which dumps only the database: a deleted or overwritten photo file can be recovered for 30 days through soft delete, and nothing protects the files beyond that. Measured for photos (Slice 6 step 8, at 0.25 vCPU / 0.5 GiB): uploads settle the server at about 310–335 MiB, so the size stays.
+**Photos are not in the nightly backup**, which dumps only the database: a deleted or overwritten photo file can be recovered for 30 days through `kingofweesphotos`'s soft delete, and nothing protects the files beyond that. Measured for photos (Slice 6 step 8, at 0.25 vCPU / 0.5 GiB): uploads settle the server at about 310–335 MiB, so the size stays.
 
 ## Costs
 
@@ -51,6 +52,8 @@ The app creates one index itself: the audit log's 1-year expiry on the `adminLog
 ## Deploying
 
 Commit, then `infra/deploy.sh`. It takes a few minutes; the previous revision keeps serving until the new one is ready, and stays if the new one never becomes ready.
+
+A release that needs new Azure resources or settings runs `azure/provision.sh` **first**: the server refuses to start without a setting it needs (since Slice 6, `ConnectionStrings__photos`), so the new revision would never become ready. Photos went live this way: `provision.sh` (photo storage, the app's identity and role, the setting — the old image ignores it), then `deploy.sh`.
 
 ## Custom domains (Cloudflare)
 
