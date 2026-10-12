@@ -3,7 +3,7 @@ import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { SPOT_NAME_MAX_LENGTH } from './api';
 import { BackIcon, CheckIcon } from './icons';
 import { currentPosition, type GeoPoint, type Geolocator } from './location';
-import { MapView } from './MapView';
+import { MapView } from './LazyMapView';
 import { place } from './messages';
 
 const m = defineMessages({

@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+/* Tailwind scans every project file for class names: build tooling and docs aren't UI, and their words ("btn" in
+   CLAUDE.md) would otherwise become whole classes. */
+@source not '../build';
+@source not '../**/*.md';
 @import '@fontsource/fredoka/500.css';
 @import '@fontsource/fredoka/600.css';
 @import '@fontsource/fredoka/700.css';
@@ -59,6 +63,12 @@
     outline-offset: 3px;
   }
 
+  /* Headings and notices the app moves focus to (tabindex="-1") so screen readers start there: they aren't controls,
+     and a ring around them — ours or the browser's — reads as a stray black box. */
+  [tabindex='-1']:focus {
+    outline: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -70,6 +80,29 @@
 }
 
 @layer components {
+  /* daisyUI's button, once for every button-like class: `@apply btn` copies its whole stylesheet (~7 kB) into each
+     class that uses it, so each class below applies only its own variant and sizes. */
+  .big-action,
+  .choice-button,
+  .admin-button,
+  .admin-confirm-button,
+  .back-button,
+  .food-choice,
+  .log-button,
+  .photo-pick,
+  .photo-retry,
+  .undo-button,
+  .done-button,
+  .skip-button,
+  .where-now,
+  .where-tile,
+  .no-place-button,
+  .place-button,
+  .spot-choice,
+  .log-here-button {
+    @apply btn;
+  }
+
   .app-frame {
     @apply flex min-h-dvh flex-col;
   }
@@ -165,7 +198,7 @@
   }
 
   .big-action {
-    @apply btn h-auto min-h-32 flex-col gap-2 rounded-box font-display text-xl font-semibold;
+    @apply h-auto min-h-32 flex-col gap-2 rounded-box font-display text-xl font-semibold;
   }
 
   .big-action svg {
@@ -181,7 +214,7 @@
   }
 
   .choice-button {
-    @apply btn join-item btn-outline min-h-12 flex-1 border-primary text-base text-base-content;
+    @apply join-item btn-outline min-h-12 flex-1 border-primary text-base text-base-content;
   }
 
   .choice-button[aria-pressed='true'] {
@@ -243,11 +276,11 @@
   }
 
   .admin-button {
-    @apply btn btn-outline min-h-12 rounded-field text-base;
+    @apply btn-outline min-h-12 rounded-field text-base;
   }
 
   .admin-confirm-button {
-    @apply btn btn-secondary min-h-12 rounded-field text-base;
+    @apply btn-secondary min-h-12 rounded-field text-base;
   }
 
   .place-form {
@@ -330,7 +363,7 @@
   }
 
   .back-button {
-    @apply btn btn-ghost min-h-12 self-start text-base;
+    @apply btn-ghost min-h-12 self-start text-base;
   }
 
   .food-choices {
@@ -342,7 +375,7 @@
   }
 
   .food-choice {
-    @apply btn btn-outline h-auto min-h-24 rounded-box border-secondary font-display text-xl font-semibold text-base-content;
+    @apply btn-outline h-auto min-h-24 rounded-box border-secondary font-display text-xl font-semibold text-base-content;
   }
 
   /* Picked foods are filled and show a check mark, so the state never relies on color alone. */
@@ -360,12 +393,12 @@
   }
 
   .log-button {
-    @apply btn btn-primary mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
+    @apply btn-primary mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
   }
 
   /* "Add a photo": a real file input, hidden but focusable, inside a label drawn as a button (like the spot tiles). */
   .photo-pick {
-    @apply btn btn-outline min-h-14 rounded-field border-secondary text-lg text-base-content;
+    @apply btn-outline min-h-14 rounded-field border-secondary text-lg text-base-content;
   }
 
   .photo-pick:has(:focus-visible) {
@@ -389,7 +422,7 @@
   }
 
   .photo-retry {
-    @apply btn btn-outline min-h-14 rounded-field text-lg;
+    @apply btn-outline min-h-14 rounded-field text-lg;
   }
 
   .logged-screen {
@@ -405,11 +438,11 @@
   }
 
   .undo-button {
-    @apply btn btn-outline min-h-14 rounded-field text-lg;
+    @apply btn-outline min-h-14 rounded-field text-lg;
   }
 
   .done-button {
-    @apply btn btn-secondary min-h-14 rounded-field text-lg;
+    @apply btn-secondary min-h-14 rounded-field text-lg;
   }
 
   .logging-as {
@@ -433,12 +466,12 @@
   }
 
   .skip-button {
-    @apply btn btn-outline mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
+    @apply btn-outline mt-auto min-h-16 rounded-field font-display text-xl font-semibold;
   }
 
   /* "Where" answers are as big as the food tiles, so a quick glance can't miss them. */
   .where-now {
-    @apply btn btn-primary h-auto min-h-24 rounded-box font-display text-xl font-semibold;
+    @apply btn-primary h-auto min-h-24 rounded-box font-display text-xl font-semibold;
   }
 
   .where-tiles {
@@ -446,7 +479,7 @@
   }
 
   .where-tile {
-    @apply btn btn-outline h-auto min-h-20 w-full rounded-box border-secondary font-display text-lg font-semibold text-base-content;
+    @apply btn-outline h-auto min-h-20 w-full rounded-box border-secondary font-display text-lg font-semibold text-base-content;
   }
 
   /* Feed's spot choices: native radios (arrow keys, one pick) drawn as tiles; the check mark shows the pick without color. */
@@ -477,11 +510,11 @@
 
   /* Deliberately quieter than every "where" answer: it still logs, so it must never read as the main action. */
   .no-place-button {
-    @apply btn btn-ghost mt-auto min-h-12 self-center text-base underline underline-offset-4;
+    @apply btn-ghost mt-auto min-h-12 self-center text-base underline underline-offset-4;
   }
 
   .place-button {
-    @apply btn btn-outline min-h-14 rounded-field border-secondary text-lg text-base-content;
+    @apply btn-outline min-h-14 rounded-field border-secondary text-lg text-base-content;
   }
 
   .place-status {
@@ -493,7 +526,7 @@
   }
 
   .spot-choice {
-    @apply btn btn-outline min-h-14 w-full justify-start rounded-field border-secondary text-lg text-base-content;
+    @apply btn-outline min-h-14 w-full justify-start rounded-field border-secondary text-lg text-base-content;
   }
 
   .map-block {
@@ -547,7 +580,7 @@
   }
 
   .log-here-button {
-    @apply btn btn-primary min-h-16 rounded-field font-display text-xl font-semibold;
+    @apply btn-primary min-h-16 rounded-field font-display text-xl font-semibold;
   }
 
   /* Leaflet draws markers as SVG paths; these classes color them from the theme. */

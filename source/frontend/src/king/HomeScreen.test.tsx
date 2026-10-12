@@ -111,13 +111,15 @@ describe('HomeScreen', () => {
   describe('map', () => {
     const porch = { latitude: 45.524, longitude: -122.676 };
     const corner = { latitude: 45.522, longitude: -122.678 };
-    const mapRegion = () => screen.queryByRole('region', { name: 'Last fed & seen' });
+    // The map loads on demand, so wait for it; absence is checked on the section's heading, which renders at once.
+    const loadedMap = () => screen.findByRole('region', { name: 'Last fed & seen' });
+    const mapSection = () => screen.queryByRole('heading', { name: 'Last fed & seen' });
     const legend = () =>
       within(screen.getByRole('list', { name: 'Map key' }))
         .getAllByRole('listitem')
         .map((item) => [item.textContent, item.querySelector('.legend-dot')?.classList.contains('legend-dot-fed') ? 'fed' : 'seen']);
 
-    it('marks where King was last fed and last seen, when the site has a map', () => {
+    it('marks where King was last fed and last seen, when the site has a map', async () => {
       const status = {
         lastFed: event({ id: 'f', kind: 'fed', sawKing: false, spotName: 'Porch', location: porch }),
         lastSeen: event({ id: 's', kind: 'seen', location: corner }),
@@ -126,11 +128,12 @@ describe('HomeScreen', () => {
 
       renderInEnglish(<HomeScreen status={status} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
 
-      expect(mapRegion()!.querySelectorAll('.map-marker-fed')).toHaveLength(1);
-      expect(mapRegion()!.querySelectorAll('.map-marker-seen')).toHaveLength(1);
+      const map = await loadedMap();
+      expect(map.querySelectorAll('.map-marker-fed')).toHaveLength(1);
+      expect(map.querySelectorAll('.map-marker-seen')).toHaveLength(1);
     });
 
-    it('says in words what it shows, with a key that names each marker', () => {
+    it('says in words what it shows, with a key that names each marker', async () => {
       const status = {
         lastFed: event({ id: 'f', kind: 'fed', sawKing: false, spotName: 'Porch', location: porch, occurredAt: at('2026-10-08T11:00:00Z').toISOString() }),
         lastSeen: event({ id: 's', kind: 'seen', location: corner, occurredAt: at('2026-10-08T09:00:00Z').toISOString() }),
@@ -140,7 +143,7 @@ describe('HomeScreen', () => {
       renderInEnglish(<HomeScreen status={status} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
 
       expect(screen.getByRole('heading', { name: 'Last fed & seen' })).toBeVisible();
-      expect(mapRegion()).toBeInTheDocument();
+      expect(await loadedMap()).toBeInTheDocument();
       expect(legend()).toEqual([
         ['Fed 1 hour ago · at Porch', 'fed'],
         ['Seen 3 hours ago', 'seen'],
@@ -157,36 +160,37 @@ describe('HomeScreen', () => {
       expect(legend()).toEqual([['Fed & seen 2 hours ago · at Porch', 'fed']]);
     });
 
-    it('sits below the big buttons and above Lately', () => {
+    it('sits below the big buttons and above Lately', async () => {
       const feeding = event({ id: 'f', kind: 'fed', location: porch });
       renderInEnglish(
         <HomeScreen status={{ lastFed: feeding, lastSeen: null, recent: [feeding], latestPhoto: null }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
       );
       const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 
-      expect(follows(screen.getByRole('button', { name: 'I fed King' }), mapRegion()!)).toBe(true);
-      expect(follows(mapRegion()!, screen.getByRole('heading', { name: 'Lately' }))).toBe(true);
-      expect(follows(screen.getByRole('heading', { name: 'Last fed & seen' }), mapRegion()!)).toBe(true);
+      const map = await loadedMap();
+      expect(follows(screen.getByRole('button', { name: 'I fed King' }), map)).toBe(true);
+      expect(follows(map, screen.getByRole('heading', { name: 'Lately' }))).toBe(true);
+      expect(follows(screen.getByRole('heading', { name: 'Last fed & seen' }), map)).toBe(true);
     });
 
-    it('marks the spot once when the feeding is also the last sighting', () => {
+    it('marks the spot once when the feeding is also the last sighting', async () => {
       const feeding = event({ id: 'f', kind: 'fed', spotName: 'Porch', location: porch });
 
       renderInEnglish(
         <HomeScreen status={{ lastFed: feeding, lastSeen: feeding, recent: [], latestPhoto: null }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />,
       );
 
-      expect(mapRegion()!.querySelectorAll('.map-marker')).toHaveLength(1);
+      expect((await loadedMap()).querySelectorAll('.map-marker')).toHaveLength(1);
     });
 
     it('is left out when the site has no map, or nothing has a place yet', () => {
       const placed = { lastFed: event({ id: 'f', kind: 'fed', location: porch }), lastSeen: null, recent: [], latestPhoto: null };
       const { unmount } = renderInEnglish(<HomeScreen status={placed} mapCenter={null} now={NOW} onFed={noop} onSeen={noop} />);
-      expect(mapRegion()).not.toBeInTheDocument();
+      expect(mapSection()).not.toBeInTheDocument();
       unmount();
 
       renderInEnglish(<HomeScreen status={emptyStatus} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
-      expect(mapRegion()).not.toBeInTheDocument();
+      expect(mapSection()).not.toBeInTheDocument();
     });
   });
 
@@ -273,7 +277,7 @@ describe('HomeScreen — photos', () => {
   it('keeps today’s picture of King until there is a photo', () => {
     renderInEnglish(<HomeScreen status={emptyStatus} now={NOW} onFed={noop} onSeen={noop} />);
 
-    expect(screen.getByRole('img', { name: 'King, a fluffy grey long-haired cat' })).toHaveAttribute('src', '/king/king-sitting.jpg');
+    expect(screen.getByRole('img', { name: 'King, a fluffy grey long-haired cat' })).toHaveAttribute('src', '/king/king-avatar.jpg');
   });
 
   it('links to every photo under Lately', () => {
@@ -284,11 +288,12 @@ describe('HomeScreen — photos', () => {
 });
 
 describe('HomeScreen — the “Last fed & seen” map', () => {
-  it('stays on the last feeding and sighting: zoom only, no dragging', () => {
+  it('stays on the last feeding and sighting: zoom only, no dragging', async () => {
     const create = vi.spyOn(L, 'map');
     const feeding = event({ id: 'f', kind: 'fed', location: CENTER });
 
     renderInEnglish(<HomeScreen status={{ ...emptyStatus, lastFed: feeding, recent: [feeding] }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
+    await screen.findByRole('region', { name: 'Last fed & seen' });
 
     const map = create.mock.results[0].value as L.Map;
     expect(map.dragging.enabled()).toBe(false);

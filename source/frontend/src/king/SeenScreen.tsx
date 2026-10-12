@@ -3,7 +3,7 @@ import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 
 import type { SpotView } from './api';
 import { BackIcon, EyeIcon } from './icons';
 import { currentPosition, type GeoPoint, type Geolocator } from './location';
-import { MapView } from './MapView';
+import { MapView } from './LazyMapView';
 import { place } from './messages';
 import { useSpotsByName } from './useSpotsByName';
 

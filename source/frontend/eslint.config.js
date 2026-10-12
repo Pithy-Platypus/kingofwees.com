@@ -24,6 +24,19 @@ export default defineConfig(
         'warn',
         { allowConstantExport: true },
       ],
+      // Leaflet loads on demand: a direct import puts ~150 kB back into every visit, and nothing else fails.
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '(^|/)MapView$',
+              allowTypeImports: true,
+              message: 'Import MapView from LazyMapView, so Leaflet loads only when a map shows.',
+            },
+          ],
+        },
+      ],
       'no-restricted-syntax': [
         'error',
         {
@@ -41,5 +54,10 @@ export default defineConfig(
         },
       ],
     },
+  },
+  {
+    // The wrapper itself, and tests of MapView, load it directly.
+    files: ['src/king/LazyMapView.tsx', 'src/king/MapView.test.tsx', 'src/i18n/catalog.test.tsx'],
+    rules: { '@typescript-eslint/no-restricted-imports': 'off' },
   },
 );

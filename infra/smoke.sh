@@ -21,4 +21,20 @@ expect 200 /health Healthy        # the database is reachable (the SPA would ans
 expect 200 /api/king/status
 expect 401 /api/admin/check       # 404 here means no admin key hash is set
 expect 200 /api/king/posting '{"allowed":true}'  # run from the US: this Mac must still be allowed to post
+
+# The page's main script arrives brotli-compressed and cached for good; the page itself is rechecked every visit.
+# Without the build's .br copies the server quietly sends the plain file, so this is where a broken build shows.
+header() { tr -d '\r' | grep -i "^$1:" | cut -d' ' -f2- ; } # header <name> < headers
+page=$(curl -sS --max-time 15 -D - -o /dev/null "$BASE/") || page=""
+script=$(curl -sS --max-time 15 "$BASE/" | grep -o '/assets/index-[^"]*\.js' | head -1)
+if [[ -z "$script" ]]; then
+  echo "FAIL /: no main script found in the page"; FAILED=1
+else
+  headers=$(curl -sS --max-time 15 -D - -o /dev/null -H 'Accept-Encoding: gzip, br' "$BASE$script")
+  encoding=$(header content-encoding <<< "$headers"); cache=$(header cache-control <<< "$headers")
+  if [[ "$encoding" == "br" && "$cache" == *immutable* ]]; then echo "ok   $script br, $cache"
+  else echo "FAIL $script: content-encoding '$encoding', cache-control '$cache' (expected br, immutable)"; FAILED=1; fi
+fi
+if [[ "$(header cache-control <<< "$page")" == "no-cache" ]]; then echo "ok   / no-cache"
+else echo "FAIL /: cache-control '$(header cache-control <<< "$page")' (expected no-cache)"; FAILED=1; fi
 exit $FAILED

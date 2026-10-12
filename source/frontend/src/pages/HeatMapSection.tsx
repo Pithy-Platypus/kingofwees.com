@@ -4,7 +4,8 @@ import type { HeatCell, HeatLayer, HeatRange, kingApi, SpotView } from '../king/
 import { describeCell, heatLevel, mergeNearSpots } from '../king/heat';
 import { CheckIcon } from '../king/icons';
 import type { GeoPoint } from '../king/location';
-import { MapView, type MapMarker } from '../king/MapView';
+import { MapView } from '../king/LazyMapView';
+import type { MapMarker } from '../king/MapView';
 
 type Values = {
   heading: NoMessageValues;

@@ -1,3 +1,4 @@
+using KingOfWees.Server;
 using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
 using KingOfWees.Server.Photos;
@@ -69,9 +70,8 @@ app.MapKingEndpoints();
 app.MapAdminEndpoints();
 app.MapDefaultEndpoints();
 
-app.UseFileServer();
-// Deep links like /about load the SPA; unknown /api routes must stay 404s, not return the page.
+// Unknown /api routes must stay 404s, not return the page.
 app.MapFallback("/api/{**rest}", () => Results.NotFound());
-app.MapFallbackToFile("index.html");
+app.MapSpaFiles();
 
 app.Run();

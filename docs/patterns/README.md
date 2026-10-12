@@ -13,4 +13,5 @@ Why the rules in the `CLAUDE.md` files exist: the decision, the incident, the me
 | [admin-key.md](admin-key.md) | Admin key stored as a hash; admin routes only in `/api/admin`, unmapped without a hash; hidden entries and devices filtered in every store read; every admin action recorded in the audit log (`source/KingOfWees.Server/CLAUDE.md`) |
 | [photos.md](photos.md) | Uploaded photos stored only after the server strips their metadata; upload forms bind through properties; body size limits (`source/KingOfWees.Server/CLAUDE.md`) |
 | [hosting.md](hosting.md) | Hosting on Azure Container Apps: one always-warm replica (rate limits in memory), DocumentDB free tier, Cloudflare DNS only, our own deploy script; telemetry and backups (`infra/README.md`) |
+| [site-size.md](site-size.md) | Scripts and styles compressed once at build and cached for good, pages rechecked; Leaflet on demand (lint-enforced); one shared `@apply btn` (`source/frontend/CLAUDE.md`) |
 | [mutation-testing.md](mutation-testing.md) | StrykerJS with `--force` after any test change: the command runner makes incremental mode reuse stale results (`source/frontend/CLAUDE.md`) |

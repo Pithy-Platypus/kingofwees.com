@@ -5,7 +5,8 @@ import { BowlIcon, CrownIcon, EyeIcon } from './icons';
 import { ActivityItem } from './ActivityItem';
 import type { GeoPoint } from './location';
 import { Link } from '../routing/Link';
-import { MapView, type MapMarker } from './MapView';
+import { MapView } from './LazyMapView';
+import type { MapMarker } from './MapView';
 import { common, formatWhen, photoAlt, placeOf } from './messages';
 import { kingMood } from './time';
 
@@ -136,7 +137,7 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
           {latest ? (
             <img src={photoUrl(latest.photo.id, 'thumb')} alt={latest.description} title={latest.description} className="king-avatar" />
           ) : (
-            <img src="/king/king-sitting.jpg" alt={intl.formatMessage(m.photoAlt)} className="king-avatar" />
+            <img src="/king/king-avatar.jpg" alt={intl.formatMessage(m.photoAlt)} className="king-avatar" />
           )}
           <CrownIcon className="avatar-crown" />
         </div>

@@ -391,6 +391,28 @@ public sealed partial class KingFlowTests(AppFixture app)
     }
 
     [Fact]
+    public async Task A_page_s_heading_takes_focus_without_a_ring_but_controls_reached_by_keyboard_keep_theirs()
+    {
+        var page = await app.NewPageAsync();
+        await page.GotoAsync("/");
+        await Assertions.Expect(Button(page, "I fed King")).ToBeVisibleAsync();
+
+        // Opened with the keyboard, so the browser shows focus where it can: the heading still takes focus (screen
+        // readers start there) but, being no control, draws no ring (Wallie saw a black box around it).
+        await page.GetByRole(AriaRole.Contentinfo).GetByRole(AriaRole.Link, new() { Name = "History", Exact = true }).FocusAsync();
+        await page.Keyboard.PressAsync("Enter");
+        var heading = page.GetByRole(AriaRole.Heading, new() { Level = 1, Name = "King’s history" });
+        await Assertions.Expect(heading).ToBeFocusedAsync();
+        Assert.Equal("none", await heading.EvaluateAsync<string>("h => getComputedStyle(h).outlineStyle"));
+
+        await page.Keyboard.PressAsync("Shift+Tab");
+        var back = page.GetByRole(AriaRole.Link, new() { Name = "Back to King" });
+        await Assertions.Expect(back).ToBeFocusedAsync();
+        Assert.Equal("solid", await back.EvaluateAsync<string>("a => getComputedStyle(a).outlineStyle"));
+        Assert.NotEqual("0px", await back.EvaluateAsync<string>("a => getComputedStyle(a).outlineWidth"));
+    }
+
+    [Fact]
     public async Task A_shared_link_to_the_privacy_page_opens_it_directly()
     {
         var page = await app.NewPageAsync();

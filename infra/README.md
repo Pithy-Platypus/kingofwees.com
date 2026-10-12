@@ -19,9 +19,11 @@ All in subscription "Playground", resource group `kingofwees.com`, East US.
 
 Images: `ghcr.io/pithy-platypus/kingofwees`, public (they hold no secrets), tagged with the commit.
 
+**Coming with photos (Slice 6 step 9, approved 2026-10-11, not created yet):** storage account `kingofweesphotos` (private container `photos`, shared keys off, **blob soft delete 30 days**), a system-assigned identity on `kingofwees` with Storage Blob Data Contributor on that container only, and the app setting `ConnectionStrings__photos` (the blob address — not a secret). **Photos are not in the nightly backup**, which dumps only the database: a deleted or overwritten photo file can be recovered for 30 days through soft delete, and nothing protects the files beyond that. Measured for photos (Slice 6 step 8, at 0.25 vCPU / 0.5 GiB): uploads settle the server at about 310–335 MiB, so the size stays.
+
 ## Costs
 
-About $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1), the database $0 (free tier), backups cents, telemetry $0 inside the 5 GB a month free per billing account (at most about $4 if that allowance is used elsewhere — the daily cap bounds it), the alert and its emails $0 (free allowance), certificates $0.
+About $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1; still enough with photos, Slice 6 step 8), photo storage cents (~0.8 GB a year at 5 photos a day), the database $0 (free tier), backups cents, telemetry $0 inside the 5 GB a month free per billing account (at most about $4 if that allowance is used elsewhere — the daily cap bounds it), the alert and its emails $0 (free allowance), certificates $0.
 
 ## Scripts (run from Wallie's Mac)
 
@@ -30,7 +32,7 @@ About $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1), 
 | `azure/provision.sh [image]` | Creates or brings up to date everything in the table above, from the settings below. Binds each custom domain once its Cloudflare records resolve (it says which are missing otherwise). Safe to rerun: re-applies the app's settings (keeping its bound domains) and restarts it. Refuses an image GHCR won't serve anonymously and a connection string without a database name. |
 | `deploy.sh` | Refuses a dirty tree; builds the image tagged with the commit — the SPA plus this month's DB-IP Country Lite file (US-only posting; `King__Posting__CountryDatabase` set in the image, so no Azure setting) downloaded at each deploy; pushes it to GHCR; rolls the app onto it, waits until the new revision is ready, then runs `smoke.sh` against `https://kingofwees.com` once it's bound (else the Container Apps address). |
 | `restore-drill.sh [archive]` | Restores the newest backup (or a downloaded one, its `.log` beside it) into a throwaway local `mongo:8.0` container; fails unless every collection holds exactly what mongodump logged dumping and every `adminLog` time is a date. Restores data only: DocumentDB's index and collection options don't load into plain Mongo. Shows production's counts beside them (they drift as people post). Needs Docker and `az login`. |
-| `smoke.sh https://host` | `/health` answers `Healthy`, `/api/king/status` 200, `/api/admin/check` 401 without a key, `/api/king/posting` allows this machine (run it from the US) — over HTTPS with a valid certificate. |
+| `smoke.sh https://host` | `/health` answers `Healthy`, `/api/king/status` 200, `/api/admin/check` 401 without a key, `/api/king/posting` allows this machine (run it from the US), the page's main script arrives brotli-compressed and cached `immutable` and the page itself `no-cache` (a build that stopped writing the compressed copies shows here) — over HTTPS with a valid certificate. |
 
 Mongo tools print the whole connection string, password included, when they fail: every script passes it in a `--config` file and scrubs their output. Keep that for any new mongo tool call.
 

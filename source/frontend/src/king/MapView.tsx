@@ -25,7 +25,7 @@ const OSM_LINK = '<a href="https://www.openstreetmap.org/copyright">OpenStreetMa
 
 export type MapMarker = { point: GeoPoint; kind: 'fed' | 'seen' } | { point: GeoPoint; kind: 'heat'; level: HeatLevel };
 
-type Props = {
+export type MapViewProps = {
   center: GeoPoint;
   label: string;
   markers?: MapMarker[];
@@ -70,7 +70,7 @@ export function MapView({
   fit = false,
   zoomOnly = false,
   className = '',
-}: Props) {
+}: MapViewProps) {
   const intl = useIntl();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);

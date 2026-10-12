@@ -50,7 +50,7 @@ describe('HistoryPage — heat map', () => {
       'Near Porch3 sightings',
       'About 0.5 mi from Porch2 sightings',
     ]);
-    const map = screen.getByRole('region', { name: 'Map of where King is seen' });
+    const map = await screen.findByRole('region', { name: 'Map of where King is seen' });
     await waitFor(() => expect(map.querySelectorAll('.map-marker-heat')).toHaveLength(2));
   });
 
@@ -97,7 +97,7 @@ describe('HistoryPage — heat map', () => {
     const heat = [cell(CENTER.latitude, 4), cell(CENTER.latitude + 0.001, 1)];
     renderInEnglish(<HistoryPage api={fakeApi(undefined, { heat })} spots={[]} mapCenter={CENTER} now={NOW} />);
 
-    const map = screen.getByRole('region', { name: 'Map of where King is seen' });
+    const map = await screen.findByRole('region', { name: 'Map of where King is seen' });
     await waitFor(() => expect(map.querySelectorAll('.map-marker-heat')).toHaveLength(2));
     expect(map.querySelectorAll('.map-heat-4')).toHaveLength(1);
     expect(map.querySelectorAll('.map-heat-1')).toHaveLength(1);
