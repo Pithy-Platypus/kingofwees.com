@@ -113,6 +113,20 @@ describe('PhotosPage', () => {
     expect(screen.queryByRole('button', { name: 'Show older' })).not.toBeInTheDocument();
   });
 
+  it('says so when older photos can’t be loaded, and still offers Show older', async () => {
+    const api = fakeApi();
+    api.getPhotos.mockImplementation(async (before) => {
+      if (before === undefined) return { photos: [shared], next: 'p-shared' };
+      throw new ApiError(503);
+    });
+    renderPage({ api });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Show older' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t load older photos.');
+    expect(screen.getByRole('button', { name: 'Show older' })).toBeEnabled();
+  });
+
   it('says a shared photo isn’t a sighting', () => {
     renderPage();
 
@@ -129,7 +143,11 @@ describe('PhotosPage — sharing a photo', () => {
 
     await waitFor(() => expect(api.sharePhoto).toHaveBeenCalledWith({ reporterKey: KEY, reporterName: 'Sunny' }, RESIZED));
     expect(await screen.findByText('Photo shared. Thank you!')).toHaveFocus();
-    expect(grid().getAllByRole('link')[0]).toHaveAttribute('href', '/api/king/photos/shared-photo/full');
+    expect(grid().getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual([
+      '/api/king/photos/shared-photo/full',
+      '/api/king/photos/p-shared/full',
+      '/api/king/photos/p-seen/full',
+    ]);
   });
 
   it('shares without a name when this device has none', async () => {
@@ -181,6 +199,17 @@ describe('PhotosPage — sharing a photo', () => {
     expect(share()).toBeInTheDocument();
   });
 
+  it('keeps sharing open after an ordinary failure: only a refusal from outside the US closes it', async () => {
+    const api = fakeApi();
+    api.sharePhoto.mockRejectedValue(new ApiError(503));
+    const { onPostingRefused } = renderPage({ api });
+
+    await pick();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your photo couldn’t be shared.');
+    expect(onPostingRefused).not.toHaveBeenCalled();
+  });
+
   it('offers no sharing to a visitor outside the US', () => {
     renderPage({ postingAllowed: false });
 
@@ -230,7 +259,7 @@ describe('PhotosPage — admin', () => {
     expect(adminApi.hidePhoto).toHaveBeenCalledWith(SIGN_IN, 'p-shared', 'other', 'a thumb over the lens');
     expect(await screen.findByRole('status')).toHaveTextContent('Hidden. You can restore it on the admin page.');
     expect(screen.getByRole('status')).toHaveFocus();
-    expect(grid().getAllByRole('link')).toHaveLength(1);
+    expect(grid().getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/api/king/photos/p-seen/full']);
   });
 
   it('says the entry stays when hiding a photo on an entry', async () => {

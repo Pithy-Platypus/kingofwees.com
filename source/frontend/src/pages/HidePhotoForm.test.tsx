@@ -51,6 +51,15 @@ describe('HidePhotoForm', () => {
     expect(onHide).toHaveBeenCalledWith('notKing', null);
   });
 
+  it('shows the picked reason as picked, and only that one', async () => {
+    renderForm();
+
+    await userEvent.click(reasons().getByRole('radio', { name: 'Rude or off-topic' }));
+
+    expect(reasons().getByRole('radio', { name: 'Rude or off-topic' })).toBeChecked();
+    expect(reasons().getAllByRole('radio').filter((r) => (r as HTMLInputElement).checked)).toHaveLength(1);
+  });
+
   it('sends the note trimmed', async () => {
     const { onHide } = renderForm();
 
