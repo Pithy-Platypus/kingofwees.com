@@ -133,6 +133,6 @@ Writes go through the `CanPost` policy (open today; the switch for invite-only p
 
 ## Packages
 
-- .NET versions live only in `Directory.Packages.props` (Central Package Management); shared build settings in `Directory.Build.props` (warnings are errors).
+- .NET versions live only in `Directory.Packages.props` (Central Package Management, with transitive pinning: a `PackageVersion` there also sets the version of that package when it comes in indirectly); shared build settings in `Directory.Build.props` (warnings are errors).
 - **Leaflet** (+ `@types/leaflet`) is the one map dependency, used directly in `MapView.tsx` — no `react-leaflet`. Markers are SVG circle markers, so no marker images need bundling. Tiles come from `tile.openstreetmap.org` (disclosed on the Privacy page); e2e tests stub them.
 - Bun installs exact versions, refuses releases newer than 7 days (`bunfig.toml`) and runs no dependency install scripts (`"trustedDependencies": []`).
