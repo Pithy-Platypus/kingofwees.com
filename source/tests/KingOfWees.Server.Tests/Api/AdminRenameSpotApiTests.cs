@@ -138,9 +138,22 @@ public sealed class AdminRenameSpotApiTests : IAsyncLifetime
         Assert.Equal(["Porch"], await SpotNames());
     }
 
+    // "Corner" with a zero-width space would look like a second Corner.
+    [Fact]
+    public async Task A_new_name_is_judged_and_stored_without_invisible_characters()
+    {
+        var porch = await AddSpot("Porch");
+        await AddSpot("Corner");
+
+        Assert.Equal(["name.taken"], await ErrorCodes(await Rename(_admin, porch, "Corner\u200B"), "name"));
+        Assert.Equal(HttpStatusCode.NoContent, (await Rename(_admin, porch, "\u202EFront porch")).StatusCode);
+        Assert.Equal(["Front porch", "Corner"], await SpotNames());
+    }
+
     [Theory]
     [InlineData("", "name.required")]
     [InlineData("   ", "name.required")]
+    [InlineData("\u200B\u202E", "name.required")]
     [InlineData("12345678901234567890123456789012345678901", "name.tooLong")]
     public async Task An_empty_or_too_long_name_is_refused(string name, string code)
     {

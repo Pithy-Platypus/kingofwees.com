@@ -183,6 +183,7 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
         { """{"reason":"NotKing"}""", ["reason.unknown"] },
         { """{"reason":"other"}""", ["note.required"] },
         { """{"reason":"other","note":"   "}""", ["note.required"] },
+        { """{"reason":"other","note":"\u200B\u202E"}""", ["note.required"] },
         { $$"""{"reason":"rude","note":"{{new string('x', 201)}}"}""", ["note.tooLong"] },
     };
 
@@ -208,7 +209,8 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
         _factory.Clock.Advance(TimeSpan.FromHours(2));
         var hiddenAt = _factory.Clock.GetUtcNow();
 
-        Assert.Equal(HttpStatusCode.NoContent, (await Hide(photo.Id, new { reason = "unlawful", note = "  reported to NCMEC  " })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await Hide(photo.Id, new { reason = "unlawful", note = "  reported\u200B to NCMEC\u202E  " })).StatusCode);
 
         var hidden = (await _admin.GetFromJsonAsync<JsonElement>("/api/admin/hidden-photos", Ct))[0].GetProperty("hidden");
         Assert.Equal("unlawful", hidden.GetProperty("reason").GetString());

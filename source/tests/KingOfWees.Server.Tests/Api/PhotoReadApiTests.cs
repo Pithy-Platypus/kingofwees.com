@@ -65,6 +65,7 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
         Assert.Equal(TestJpeg.Make(bytes), await response.Content.ReadAsByteArrayAsync(Ct));
         Assert.Equal("image/jpeg", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("same-origin", response.Headers.GetValues("Cross-Origin-Resource-Policy").Single());
         Assert.True(response.Headers.CacheControl?.Private);
         Assert.Equal(TimeSpan.FromHours(1), response.Headers.CacheControl?.MaxAge);
     }

@@ -186,6 +186,7 @@ public sealed class AdminMergeSpotsApiTests : IAsyncLifetime
     [InlineData("duplicate-merge-ids", "mergeIds", "mergeIds.invalid")]
     [InlineData("merge-unknown", "mergeIds", "mergeIds.unknown")]
     [InlineData("blank-name", "name", "name.required")]
+    [InlineData("invisible-name", "name", "name.required")]
     [InlineData("long-name", "name", "name.tooLong")]
     public async Task Bad_merges_are_refused_and_nothing_changes(string problem, string field, string code)
     {
@@ -199,6 +200,7 @@ public sealed class AdminMergeSpotsApiTests : IAsyncLifetime
             "duplicate-merge-ids" => (porch, [steps, steps], null),
             "merge-unknown" => (porch, [steps, "nope"], null),
             "blank-name" => (porch, [steps], "   "),
+            "invisible-name" => (porch, [steps], "\u200B\u202E"),
             _ => (porch, [steps], new string('a', 41)),
         };
 

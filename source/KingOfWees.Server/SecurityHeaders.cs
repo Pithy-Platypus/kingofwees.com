@@ -23,6 +23,8 @@ internal static class SecurityHeaders
                 headers.XContentTypeOptions = "nosniff";
                 // OpenStreetMap's tile policy requires a Referer naming the site.
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                // No other site may load the site's files, such as showing King's photos in its own <img>.
+                headers["Cross-Origin-Resource-Policy"] = "same-origin";
                 return Task.CompletedTask;
             });
             return next(context);

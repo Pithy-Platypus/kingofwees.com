@@ -18,6 +18,12 @@ Phone photos carry the exact GPS point (and often the time and the phone's make)
 
 Minimal APIs bind a `[FromForm]` record's constructor parameters as **required**, nullable or not: a form without `reporterName` failed binding with a bare 400 — no error codes for the page to translate — and before the endpoint filters ran, so a request from outside the US got that 400 instead of the US check's 403 (`PostingCountryTests` caught it). With `init` properties a missing field binds as null and FluentValidation reports it with a code.
 
+## The device key in a header, never a form field
+
+**Decided:** 2026-10-19, from the second security review. A shared photo used to carry its device key as a form field. A `multipart/form-data` POST is one any web page can make a visitor's browser send to another site without asking first, so a hostile page could have every US visitor's browser upload its pictures: past the US-only check and spread over many addresses' write limits. The response stays unreadable to that page, but the photo is posted. Both uploads now take the key from `X-Reporter-Key`, as undo, rename and delete do: a custom header makes the browser send a preflight first, and with no CORS policy on the server the browser stops there. The JSON writes were never exposed this way: they need `Content-Type: application/json`, which also forces a preflight.
+
+Rejected: checking `Origin` or `Sec-Fetch-Site` on writes — more code, and a rule for the clients that send neither; accepting both places for a while — that keeps the hole open. A page opened before the change and never reloaded can't share a photo until it is (pages are `no-cache`, so a reload fetches the new script).
+
 ## Size limits
 
 The browser sends a ~1600 px photo and a thumbnail, so limits are 1 MB and 100 KB per file (validator: `photo.tooLarge`), and the whole request may be at most both plus 64 KB. Every other request body is capped at 64 KB (`request-limits.md`); the uploads' limit is endpoint metadata that raises it (`RequestSizeLimitAttribute` for Kestrel, plus the form reader's multipart limit): Kestrel answers **413 before reading** a larger body (checked by hand: 5 MB → 413), so an oversized upload never fills the server's memory. The test server doesn't enforce request limits, so a test checks that both upload endpoints carry them.

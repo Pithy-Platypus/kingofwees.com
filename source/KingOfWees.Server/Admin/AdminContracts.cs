@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentValidation;
 using KingOfWees.Server.King;
 using KingOfWees.Server.Photos;
+using KingOfWees.Server.Validation;
 
 namespace KingOfWees.Server.Admin;
 
@@ -21,7 +22,10 @@ public sealed record HiddenDeviceView(
 public sealed record AdminSpotView(string Id, string Name, bool HiddenPoster, int Feedings);
 
 // The spot's id travels in the body so the validator can tell "taken by another place" from "this place's own name".
-public sealed record RenameSpotRequest(string SpotId, string Name);
+public sealed record RenameSpotRequest(string SpotId, string Name)
+{
+    public string? CleanName => DisplayText.Clean(Name);
+}
 
 public sealed class RenameSpotRequestValidator : AbstractValidator<RenameSpotRequest>
 {
@@ -30,16 +34,20 @@ public sealed class RenameSpotRequestValidator : AbstractValidator<RenameSpotReq
         RuleFor(r => r.SpotId)
             .MustAsync(async (id, ct) => await spots.FindAsync(id, ct) is not null)
             .WithErrorCode("spotId.unknown");
-        RuleFor(r => r.Name)
+        RuleFor(r => r.CleanName)
             .NotEmpty().WithErrorCode("name.required")
             .MaximumLength(AddSpotRequestValidator.MaxNameLength).WithErrorCode("name.tooLong")
-            .MustAsync(async (request, name, ct) => !await spots.NameTakenAsync(name.Trim(), [request.SpotId], ct))
-            .WithErrorCode("name.taken");
+            .MustAsync(async (request, name, ct) => !await spots.NameTakenAsync(name!, [request.SpotId], ct))
+            .WithErrorCode("name.taken")
+            .OverridePropertyName(nameof(RenameSpotRequest.Name));
     }
 }
 
 // Merge MergeIds into KeepId (its pin stays); Name, when given, renames the kept place.
-public sealed record MergeSpotsRequest(string KeepId, IReadOnlyList<string> MergeIds, string? Name);
+public sealed record MergeSpotsRequest(string KeepId, IReadOnlyList<string> MergeIds, string? Name)
+{
+    public string? CleanName => DisplayText.Clean(Name);
+}
 
 // Name rules as for renaming, except the merged places' own names don't count as taken ("Porch" + "porch" → "Porch").
 public sealed class MergeSpotsRequestValidator : AbstractValidator<MergeSpotsRequest>
@@ -62,14 +70,15 @@ public sealed class MergeSpotsRequestValidator : AbstractValidator<MergeSpotsReq
                 return true;
             })
             .WithErrorCode("mergeIds.unknown");
-        RuleFor(r => r.Name!)
+        RuleFor(r => r.CleanName)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithErrorCode("name.required")
             .MaximumLength(AddSpotRequestValidator.MaxNameLength).WithErrorCode("name.tooLong")
             .MustAsync(async (request, name, ct) =>
-                !await spots.NameTakenAsync(name.Trim(), [request.KeepId, .. request.MergeIds ?? []], ct))
+                !await spots.NameTakenAsync(name!, [request.KeepId, .. request.MergeIds ?? []], ct))
             .WithErrorCode("name.taken")
-            .When(r => r.Name is not null);
+            .When(r => r.Name is not null)
+            .OverridePropertyName(nameof(MergeSpotsRequest.Name));
     }
 }
 
@@ -101,8 +110,8 @@ public sealed record HidePhotoRequest(string? Reason, string? Note)
 
     public HideReason ParsedReason => Reasons[Reason!];
 
-    /// <summary>The note trimmed; null when there's nothing in it.</summary>
-    public string? TrimmedNote => string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
+    /// <summary>The note without invisible characters, trimmed; null when there's nothing in it.</summary>
+    public string? CleanNote => DisplayText.Clean(Note);
 }
 
 public sealed class HidePhotoRequestValidator : AbstractValidator<HidePhotoRequest>
@@ -113,11 +122,11 @@ public sealed class HidePhotoRequestValidator : AbstractValidator<HidePhotoReque
             .NotEmpty().WithErrorCode("reason.required")
             .Must(reason => HidePhotoRequest.Reasons.ContainsKey(reason!)).WithErrorCode("reason.unknown")
             .When(r => !string.IsNullOrEmpty(r.Reason), ApplyConditionTo.CurrentValidator);
-        RuleFor(r => r.TrimmedNote)
+        RuleFor(r => r.CleanNote)
             .NotEmpty().WithErrorCode("note.required")
             .When(r => r.Reason == "other")
             .OverridePropertyName(nameof(HidePhotoRequest.Note));
-        RuleFor(r => r.TrimmedNote)
+        RuleFor(r => r.CleanNote)
             .MaximumLength(HidePhotoRequest.MaxNoteLength).WithErrorCode("note.tooLong")
             .OverridePropertyName(nameof(HidePhotoRequest.Note));
     }

@@ -79,7 +79,7 @@ public static class AdminEndpoints
         KingMetrics metrics, TimeProvider clock, HttpContext context, CancellationToken cancellationToken)
     {
         var photo = await photos.FindAsync(id, cancellationToken);
-        var hiding = new PhotoHiding(request.ParsedReason, request.TrimmedNote, clock.GetUtcNow(), AdminAudit.NameOf(context.Request));
+        var hiding = new PhotoHiding(request.ParsedReason, request.CleanNote, clock.GetUtcNow(), AdminAudit.NameOf(context.Request));
         if (photo is null || !await photos.HideAsync(id, hiding, cancellationToken)) return TypedResults.NotFound();
         metrics.Hidden("photo");
         var touched = await Described(photo, store, spots, cancellationToken) with { Reason = hiding.Reason, Note = hiding.Note };
@@ -158,7 +158,7 @@ public static class AdminEndpoints
         CancellationToken cancellationToken)
     {
         var spot = await spots.FindAsync(request.SpotId, cancellationToken);
-        var name = request.Name.Trim();
+        var name = request.CleanName!;
         if (spot is null || !await spots.RenameAsync(request.SpotId, name, cancellationToken)) return TypedResults.NotFound();
         metrics.Renamed("spot");
         await audit.RecordAsync(context, AdminAction.RenamePlace, new(PlaceName: spot.Name, NewName: name), cancellationToken);
@@ -179,7 +179,7 @@ public static class AdminEndpoints
         }
         var moved = await store.MoveFeedingsAsync(request.MergeIds, kept.Id, cancellationToken);
         await spots.DeleteAsync(request.MergeIds, cancellationToken);
-        var name = request.Name?.Trim();
+        var name = request.CleanName;
         if (name is not null) await spots.RenameAsync(kept.Id, name, cancellationToken);
         metrics.Merged("spot");
         await audit.RecordAsync(

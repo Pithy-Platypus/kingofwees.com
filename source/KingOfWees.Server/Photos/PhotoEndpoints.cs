@@ -58,7 +58,9 @@ public static class PhotoEndpoints
     }
 
     // Called only on the /api/king writes group (KingEndpoints), which carries CanPost, the write limit and the US check.
-    // No antiforgery: the site has no cookies to ride on. The size limits stop an oversized body before it's read.
+    // No antiforgery tokens: the site has no cookies to ride on. What stops another site making visitors' browsers post
+    // here (through their US addresses) is the X-Reporter-Key header both uploads require. The size limits stop an
+    // oversized body before it's read.
     public static void MapPhotoWrites(this RouteGroupBuilder writes)
     {
         writes.MapPost("/events/{id}/photo", AddPhoto).WithPhotoUploadLimits();
@@ -68,6 +70,7 @@ public static class PhotoEndpoints
 
     private static RouteHandlerBuilder WithPhotoUploadLimits(this RouteHandlerBuilder endpoint) =>
         endpoint.DisableAntiforgery()
+            .WithMetadata(PhotoUploadEndpoint.Instance)
             .WithMetadata(new RequestSizeLimitAttribute(PhotoRules.MaxRequestBytes))
             .WithFormOptions(multipartBodyLengthLimit: PhotoRules.MaxRequestBytes);
 
@@ -102,11 +105,11 @@ public static class PhotoEndpoints
 
     // A photo on its own: never an entry, so never a sighting.
     private static async Task<Created<PhotoView>> SharePhoto(
-        [FromForm] SharePhotoForm form, IPhotoStore photos, IPhotoBlobStore files, TimeProvider clock, KingMetrics metrics,
+        [AsParameters] SharePhotoForm form, IPhotoStore photos, IPhotoBlobStore files, TimeProvider clock, KingMetrics metrics,
         CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
-        var photo = new Photo(Guid.CreateVersion7(now).ToString(), null, now, form.ReporterKey!, form.ReporterName);
+        var photo = new Photo(Guid.CreateVersion7(now).ToString(), null, now, form.ReporterKey!, form.CleanReporterName);
         await StoreAsync(photo, form.Photo!, form.Thumbnail!, photos, files, cancellationToken);
         metrics.PhotoPosted("shared");
         return TypedResults.Created((string?)null, new PhotoView(photo.Id, photo.PostedAt, photo.ReporterName, Event: null));

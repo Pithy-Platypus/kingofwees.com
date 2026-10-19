@@ -8,6 +8,7 @@ using KingOfWees.Server.King;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
@@ -195,6 +196,53 @@ public sealed class KingApiTests : IAsyncLifetime
         var names = JsonDocument.Parse(list).RootElement.EnumerateArray().Select(s => s.GetProperty("name").GetString());
         Assert.Equal(["First", "Second"], names);
         Assert.DoesNotContain(DeviceKey, list);
+    }
+
+    // Direction overrides and zero-width characters could make a name read backwards or pass for another neighbor's.
+    [Fact]
+    public async Task Nicknames_and_place_names_are_stored_without_invisible_or_direction_characters()
+    {
+        var feeding = await Json(await LogFeeding(new { reporterKey = DeviceKey, reporterName = " \u202ESarah\u200B " }));
+        var sighting = await Json(await LogSighting(new { reporterKey = DeviceKey, reporterName = "\u200EKael" }));
+        var spot = await Json(await AddSpot(
+            new { reporterKey = DeviceKey, name = "Por\u200Bch\u2066", location = new { latitude = 45.5, longitude = -122.6 } }));
+
+        Assert.Equal("Sarah", feeding.GetProperty("reporterName").GetString());
+        Assert.Equal("Sarah", (await _factory.Store.FindAsync(feeding.GetProperty("id").GetString()!, Ct))?.ReporterName);
+        Assert.Equal("Kael", (await _factory.Store.FindAsync(sighting.GetProperty("id").GetString()!, Ct))?.ReporterName);
+        Assert.Equal("Porch", spot.GetProperty("name").GetString());
+        Assert.Equal(["Porch"], (await _factory.Spots.ListAsync(Ct)).Select(s => s.Name));
+    }
+
+    [Fact]
+    public async Task A_nickname_of_only_invisible_characters_is_no_name_and_they_do_not_count_towards_its_length()
+    {
+        var unnamed = await Json(await LogFeeding(new { reporterKey = DeviceKey, reporterName = "\u200B\u202E" }));
+        var full = await LogFeeding(new { reporterKey = DeviceKey, reporterName = new string('a', 40) + "\u200B\u200B" });
+
+        Assert.Equal(JsonValueKind.Null, unnamed.GetProperty("reporterName").ValueKind);
+        Assert.Equal(HttpStatusCode.Created, full.StatusCode);
+        Assert.Equal(new string('a', 40), (await Json(full)).GetProperty("reporterName").GetString());
+    }
+
+    [Fact]
+    public async Task A_spot_named_only_with_invisible_characters_is_rejected()
+    {
+        var response = await AddSpot(new { reporterKey = DeviceKey, name = "\u200B\u202E", location = new { latitude = 45.5, longitude = -122.6 } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("name.required", ErrorCodes(await Json(response)));
+        Assert.Empty(await _factory.Spots.ListAsync(Ct));
+    }
+
+    [Fact]
+    public async Task A_new_name_is_stored_without_invisible_or_direction_characters()
+    {
+        var id = await LoggedFeedingId();
+
+        Assert.Equal(HttpStatusCode.NoContent, (await Rename(id, DeviceKey, new { reporterName = "\u202EKael" })).StatusCode);
+
+        Assert.Equal("Kael", (await _factory.Store.FindAsync(id, Ct))?.ReporterName);
     }
 
     [Fact]
@@ -458,12 +506,19 @@ public sealed class KingApiTests : IAsyncLifetime
     public void Every_request_body_and_query_type_has_a_FluentValidation_validator()
     {
         var endpoints = _factory.Services.GetRequiredService<EndpointDataSource>().Endpoints;
-        var bodyTypes = endpoints.Select(e => e.Metadata.GetMetadata<IAcceptsMetadata>()?.RequestType).OfType<Type>();
         // Minimal APIs put the handler's MethodInfo in endpoint metadata; [AsParameters] records are the query types.
-        var queryTypes = endpoints
-            .SelectMany(e => e.Metadata.GetMetadata<MethodInfo>()?.GetParameters() ?? [])
+        IEnumerable<Type> AsParameterTypes(Endpoint e) =>
+            (e.Metadata.GetMetadata<MethodInfo>()?.GetParameters() ?? [])
             .Where(p => p.GetCustomAttribute<AsParametersAttribute>() is not null)
             .Select(p => p.ParameterType);
+        // A form field of an [AsParameters] record (SharePhotoForm) is reported as the request type; the record is checked.
+        bool IsFormFieldOfRecord(Endpoint e, Type type) => AsParameterTypes(e).Any(record => record.GetProperties()
+            .Any(p => p.PropertyType == type && p.GetCustomAttribute<FromFormAttribute>() is not null));
+        var bodyTypes = endpoints
+            .Select(e => (Endpoint: e, Type: e.Metadata.GetMetadata<IAcceptsMetadata>()?.RequestType))
+            .Where(b => b.Type is not null && !IsFormFieldOfRecord(b.Endpoint, b.Type))
+            .Select(b => b.Type!);
+        var queryTypes = endpoints.SelectMany(AsParameterTypes);
         var requestTypes = bodyTypes.Concat(queryTypes).Distinct().ToList();
 
         Assert.NotEmpty(requestTypes);

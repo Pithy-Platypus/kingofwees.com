@@ -14,6 +14,7 @@ The admin key is kept in `localStorage` (`admin-key.md`), so any script running 
 | `Strict-Transport-Security` | `max-age=31536000` | A year. No `includeSubDomains`: other names under the domain live at Cloudflare and aren't ours to promise HTTPS for. No `preload` (hard to undo). Sent over plain HTTP too: behind the ingress every request reaches the app as HTTP, and browsers ignore the header unless it arrives over HTTPS |
 | `X-Content-Type-Options` | `nosniff` | Everywhere now (it was on photo files only) |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | The browsers' default, stated. **Never `no-referrer`:** OpenStreetMap's tile usage policy requires a Referer naming the site, and tiles may be refused without one |
+| `Cross-Origin-Resource-Policy` | `same-origin` | Added 2026-10-19 (second security review). Another site can't load the site's files into its own page — King's photos in its `<img>` (hotlinking), a script or a JSON response read as a script. The site's own pages load everything from their own origin, so nothing of theirs is refused; `kingofwees.com` and `www.` each load from themselves. It doesn't touch navigation: opening a photo's link still works. Not `same-site`: no other name under the domain needs the files |
 
 Kestrel no longer sends `Server: Kestrel`.
 

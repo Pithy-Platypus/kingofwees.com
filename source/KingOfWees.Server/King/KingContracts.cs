@@ -1,18 +1,32 @@
 using FluentValidation;
 using KingOfWees.Server.Photos;
+using KingOfWees.Server.Validation;
 
 namespace KingOfWees.Server.King;
 
 // SawKing omitted means he was seen: a feeding counts as a sighting unless the feeder only left food out.
+// Clean* is what is validated and stored: the typed text without invisible characters (DisplayText).
 public sealed record LogFeedingRequest(
-    string ReporterKey, string? ReporterName, IReadOnlyList<Food>? Foods, bool? SawKing = null, string? SpotId = null);
+    string ReporterKey, string? ReporterName, IReadOnlyList<Food>? Foods, bool? SawKing = null, string? SpotId = null)
+{
+    public string? CleanReporterName => DisplayText.Clean(ReporterName);
+}
 
-public sealed record LogSightingRequest(string ReporterKey, string? ReporterName, GeoPoint? Location = null);
+public sealed record LogSightingRequest(string ReporterKey, string? ReporterName, GeoPoint? Location = null)
+{
+    public string? CleanReporterName => DisplayText.Clean(ReporterName);
+}
 
 // Null (or omitted) clears the name, so the entry reads "a neighbor"; the device key travels in X-Reporter-Key, as for undo.
-public sealed record RenameEventRequest(string? ReporterName);
+public sealed record RenameEventRequest(string? ReporterName)
+{
+    public string? CleanReporterName => DisplayText.Clean(ReporterName);
+}
 
-public sealed record AddSpotRequest(string ReporterKey, string Name, GeoPoint? Location);
+public sealed record AddSpotRequest(string ReporterKey, string Name, GeoPoint? Location)
+{
+    public string? CleanName => DisplayText.Clean(Name);
+}
 
 public sealed record SpotView(string Id, string Name, GeoPoint Location)
 {
@@ -66,7 +80,7 @@ public sealed class LogFeedingRequestValidator : AbstractValidator<LogFeedingReq
             .MustAsync(async (id, ct) => await spots.FindAsync(id!, ct) is not null)
             .When(r => r.SpotId is not null)
             .WithErrorCode("spotId.unknown");
-        RuleFor(r => r.ReporterName).ValidReporterName();
+        RuleFor(r => r.CleanReporterName).ValidReporterName().OverridePropertyName(nameof(LogFeedingRequest.ReporterName));
         RuleForEach(r => r.Foods).IsInEnum().WithErrorCode("food.invalid");
         RuleFor(r => r.Foods)
             .Must(foods => foods is null || foods.Distinct().Count() == foods.Count)
@@ -79,14 +93,15 @@ public sealed class LogSightingRequestValidator : AbstractValidator<LogSightingR
     public LogSightingRequestValidator()
     {
         RuleFor(r => r.ReporterKey).ValidReporterKey();
-        RuleFor(r => r.ReporterName).ValidReporterName();
+        RuleFor(r => r.CleanReporterName).ValidReporterName().OverridePropertyName(nameof(LogSightingRequest.ReporterName));
         RuleFor(r => r.Location).ValidLocation();
     }
 }
 
 public sealed class RenameEventRequestValidator : AbstractValidator<RenameEventRequest>
 {
-    public RenameEventRequestValidator() => RuleFor(r => r.ReporterName).ValidReporterName();
+    public RenameEventRequestValidator() =>
+        RuleFor(r => r.CleanReporterName).ValidReporterName().OverridePropertyName(nameof(RenameEventRequest.ReporterName));
 }
 
 public sealed class AddSpotRequestValidator : AbstractValidator<AddSpotRequest>
@@ -96,9 +111,10 @@ public sealed class AddSpotRequestValidator : AbstractValidator<AddSpotRequest>
     public AddSpotRequestValidator()
     {
         RuleFor(r => r.ReporterKey).ValidReporterKey();
-        RuleFor(r => r.Name)
+        RuleFor(r => r.CleanName)
             .NotEmpty().WithErrorCode("name.required")
-            .MaximumLength(MaxNameLength).WithErrorCode("name.tooLong");
+            .MaximumLength(MaxNameLength).WithErrorCode("name.tooLong")
+            .OverridePropertyName(nameof(AddSpotRequest.Name));
         RuleFor(r => r.Location).NotNull().WithErrorCode("location.required").ValidLocation();
     }
 }

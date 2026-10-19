@@ -121,12 +121,16 @@ export const kingApi = {
       headers: { 'X-Reporter-Key': reporterKey },
       body: photoForm(files),
     }),
-  // A photo on its own, not tied to an entry: never a sighting.
+  // A photo on its own, not tied to an entry: never a sighting. The key goes in the header, as for addPhoto: the server
+  // refuses it in the form, which any other site could make a browser post.
   sharePhoto: ({ reporterKey, reporterName }: Reporter, files: PhotoFiles) => {
     const form = photoForm(files);
-    form.append('reporterKey', reporterKey);
     if (reporterName) form.append('reporterName', reporterName);
-    return request<PhotoView>('/api/king/photos', { method: 'POST', body: form });
+    return request<PhotoView>('/api/king/photos', {
+      method: 'POST',
+      headers: { 'X-Reporter-Key': reporterKey },
+      body: form,
+    });
   },
   getPhotos: (before?: string) =>
     request<PhotosPage>(`/api/king/photos${before === undefined ? '' : `?before=${encodeURIComponent(before)}`}`, undefined),

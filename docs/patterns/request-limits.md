@@ -21,6 +21,17 @@ Every limit is per address, a one-minute fixed window, in memory (so one replica
 - **Shared addresses:** visitors behind one carrier's NAT share a bucket, as they already did for writes. At a street's traffic that's unlikely to bite; if it does, raise the setting.
 - Static files, `/health` and `/alive` aren't limited: they're cheap, and the ingress probes them.
 
+## Photo uploads at once, every visitor together
+
+**Decided:** 2026-10-19, from the second security review (Wallie: 4, no queue, a setting). The per-visitor limits bound how often, not how many at a time: each upload is read into memory more than once (the validator strips it to check it's a JPEG, the handler strips it again to store it — a few MB per upload), the app has 0.5 GiB, and 20 uploads a minute from each of a handful of addresses could all be in flight together. So at most **4** uploads run at once across the whole site (`RateLimiting:PhotoUploadsAtOnce`); a fifth gets **429** straight away. Reads, other writes and the photo files are untouched.
+
+- **A global limiter** (`RateLimiterOptions.GlobalLimiter`, in `KingServices`), not an endpoint policy: the innermost endpoint policy *replaces* the outer one (above), so a concurrency policy on the uploads would have dropped them out of the `writes` limit. The global limiter runs before, and as well as, the endpoint's. It applies to endpoints carrying `PhotoUploadEndpoint` metadata, which `WithPhotoUploadLimits` adds — so a new upload endpoint that uses it is covered too.
+- **Before the body is read:** the rate limiter middleware runs before the endpoint, and the lease lasts the whole request — reading the form, both strips, storing both files.
+- **No queue:** four neighbors uploading in the same second is unlikely on one street, and a queue would add a setting and a waiting state; a refused upload shows the page's usual upload error with Retry.
+- **The setting is read at the first upload** (the limiter is made once); a changed value applies after a restart. In Container Apps, changing an environment variable makes a new revision, so it applies as soon as it's set (`infra/README.md` → Settings).
+- **Not done:** reading each file once instead of twice. It would mean handing the validator's stripped bytes to the handler through request state; with the limit in place it only shrinks each upload's share, not the bound.
+- **Tests** hold uploads while their files are being stored (`PhotoUploadLimitTests`): the test server hands a request to the app only once its whole body has been sent, so holding the body open holds nothing.
+
 ## One read for a page of photos
 
 `PhotoEndpoints.PhotoViews` used to look up each photo's entry one by one, so `/api/king/photos?limit=100` cost 100+ database reads, anonymously. `IKingEventStore.FindManyAsync` reads them all at once. Like `FindAsync`, it doesn't leave out hidden entries: `/admin`'s hidden photos are described through the same code, and their entries may be hidden.

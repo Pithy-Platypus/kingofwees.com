@@ -48,6 +48,8 @@ Files in `~/.kingofwees/` (outside the repo, `chmod 600`), read by `provision.sh
 | `admin-key.hash` | Optional (no admin routes without it). The admin key's hash only, from `dotnet run source/tools/new-admin-key.cs`. Production deliberately uses the same key as development — Wallie's choice, 2026-10-11; rotate it (below) if that key may have been seen. |
 | `map-center` | Optional (no maps without it): `latitude,longitude`. |
 
+Rate limits run on the server's defaults (`docs/patterns/request-limits.md`). One can be changed without a code change or a new image, e.g. the photo uploads allowed at once (default 4): `az containerapp update -g kingofwees.com -n kingofwees --set-env-vars RateLimiting__PhotoUploadsAtOnce=6` — a new revision starts with it. **The next `provision.sh` run sets the app's whole environment list again and drops it**, so change it again after one (or add it to `provision.sh`).
+
 The app creates one index itself: the audit log's 1-year expiry on the `adminLog` collection, on the first admin sign-in or change. A restore into plain Mongo can't bring it back (DocumentDB stores it with an option plain Mongo refuses); the app recreates it on its first admin sign-in or change after starting, and records that already exist then expire too.
 
 ## Deploying

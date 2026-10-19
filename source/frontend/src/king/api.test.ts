@@ -156,7 +156,7 @@ describe('kingApi', () => {
     expect((form.get('photo') as File).name).toMatch(/\.jpg$/);
   });
 
-  it('shares a photo as a form with the reporter key, the name when there is one, and both JPEGs', async () => {
+  it('shares a photo as a form with the name when there is one and both JPEGs, the reporter key in a header', async () => {
     respond(201, { id: 'p1', postedAt: '2026-10-08T12:00:00Z', reporterName: 'Kael', event: null });
     respond(201, { id: 'p2', postedAt: '2026-10-08T12:00:00Z', reporterName: null, event: null });
     const files = { photo: new Blob(['full']), thumbnail: new Blob(['thumb']) };
@@ -167,8 +167,10 @@ describe('kingApi', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/king/photos');
     expect(init.method).toBe('POST');
+    // A header, never a form field: a custom header makes another site's page ask first, and the server says no.
+    expect(init.headers).toEqual({ 'X-Reporter-Key': 'k' });
     const named = init.body as FormData;
-    expect(named.get('reporterKey')).toBe('k');
+    expect(named.has('reporterKey')).toBe(false);
     expect(named.get('reporterName')).toBe('Kael');
     expect(await (named.get('photo') as File).text()).toBe('full');
     expect(await (named.get('thumbnail') as File).text()).toBe('thumb');

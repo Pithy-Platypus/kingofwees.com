@@ -20,6 +20,16 @@
 - Validators are registered by assembly scan (`AddValidatorsFromAssemblyContaining`).
 - Guard test: `Every_request_body_and_query_type_has_a_FluentValidation_validator` — body types from `IAcceptsMetadata`, query types from the handler's `[AsParameters]` parameters (minimal APIs put the handler `MethodInfo` in endpoint metadata). Loose query parameters (`int? limit`) are invisible to both the guard and `ValidationFilter`, which validates whole arguments; that is why queries bind through a record.
 
+## Names are cleaned before they're checked
+
+**Decided:** 2026-10-19, from the second security review. Nicknames, place names, the admin's typed name and a hide note are shown to other people, and Unicode has characters that show nothing: a right-to-left override (U+202E) makes the rest of a name read backwards, and a zero-width space makes "Porch" and "Porch" plus one invisible character two different places that look the same — a second Porch, or a name passing for a neighbor's. `DisplayText.Clean` removes control characters (`Cc`), format characters (`Cf`) except the zero-width joiner and non-joiner, and the line and paragraph separators, then trims. Each request record has a `Clean*` property (`CleanReporterName`, `CleanName`, `CleanNote`): its validator checks that property (with `OverridePropertyName`, so the code still names the typed field) and its handler stores it, so length, "required" and "taken" judge what will be stored. New writes only: names already stored keep what they have (Wallie's choice).
+
+- **Removed, not refused:** phones and copy-paste slip a direction mark or a zero-width space into names by accident; refusing would turn a harmless nickname into an error the page has to explain.
+- **Whole categories, not a list:** a hand-made list misses characters, and new ones join the categories.
+- **Kept:** the zero-width joiner holds emoji sequences together (a family emoji), and the zero-width non-joiner is part of how Persian and several Indic scripts are written. Variation selectors are marks, not format characters, so a red heart keeps its colour.
+- **Cost:** England's, Scotland's and Wales's flags are built from tag characters (`Cf`), so they arrive as a plain black flag.
+- **Rejected:** a JSON converter that cleans every string — it would miss the form field (a shared photo's name) and the header (the admin's typed name), and clean device keys and ids it has no business touching.
+
 ## Incident found while switching
 
 `JsonStringEnumConverter` accepts integers by default, so `"food": 7` was stored as an invalid `Food`. Enum fields need `.IsInEnum()`; covered by `Numeric_food_outside_the_known_values_is_rejected_with_an_error_code`.

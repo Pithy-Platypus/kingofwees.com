@@ -1,5 +1,6 @@
 using System.Globalization;
 using KingOfWees.Server.King;
+using KingOfWees.Server.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.Extensions.Options;
@@ -19,13 +20,13 @@ public sealed class AdminAudit(IAdminLogStore log, TimeProvider clock)
             cancellationToken);
     }
 
-    // Header values must be ASCII, so the page sends the name URL-encoded. Trimmed and capped like a nickname;
-    // missing or blank is "no name". Only ever stored here — never logged or tagged.
+    // Header values must be ASCII, so the page sends the name URL-encoded. Cleaned (DisplayText) and capped like a
+    // nickname; missing or blank is "no name". Only ever stored here — never logged or tagged.
     /// <summary>The name typed at sign-in, as recorded in the log (trimmed, cut to a nickname's length); null when none.</summary>
     public static string? NameOf(HttpRequest request)
     {
-        var name = Uri.UnescapeDataString(request.Headers[NameHeader].ToString()).Trim();
-        if (name.Length == 0) return null;
+        var name = DisplayText.Clean(Uri.UnescapeDataString(request.Headers[NameHeader].ToString()));
+        if (name is null) return null;
         var text = new StringInfo(name);
         return text.LengthInTextElements <= ReporterRules.MaxNameLength
             ? name

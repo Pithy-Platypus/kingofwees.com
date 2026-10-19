@@ -124,6 +124,8 @@ public sealed class AdminActivityApiTests : IAsyncLifetime
     [InlineData("  Wallie  ", "Wallie")]
     [InlineData("Jos%C3%A9", "José")] // headers are ASCII, so the page sends the name URL-encoded
     [InlineData("   ", null)]
+    [InlineData("%E2%80%AEWallie%E2%80%8B", "Wallie")] // no direction override or zero-width space survives
+    [InlineData("%E2%80%8B", null)]
     public async Task The_typed_name_is_decoded_and_trimmed_and_an_empty_one_is_no_name(string sent, string? recorded)
     {
         await Client(AdminKey, sent).GetAsync("/api/admin/check", Ct);

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using FluentValidation;
+using KingOfWees.Server.Photos;
 using OpenTelemetry.Metrics;
 
 namespace KingOfWees.Server.King;
@@ -14,6 +15,8 @@ public static class KingPolicies
     public const string Reads = "reads";
     // Apart from other reads: one page of /photos is 50 thumbnails.
     public const string PhotoFiles = "photo-files";
+    // Uploads at once, every visitor together (the global limiter).
+    public const string PhotoUploads = "photo-uploads";
 }
 
 public static class KingServices
@@ -21,6 +24,7 @@ public static class KingServices
     private const int DefaultWritesPerMinute = 20;
     private const int DefaultReadsPerMinute = 120;
     private const int DefaultPhotoFilesPerMinute = 600;
+    private const int DefaultPhotoUploadsAtOnce = 4;
 
     public static IServiceCollection AddKing(this IServiceCollection services)
     {
@@ -52,6 +56,18 @@ public static class KingServices
             options.AddPolicy(KingPolicies.Reads, context => PerVisitor(context, "RateLimiting:ReadsPerMinute", DefaultReadsPerMinute));
             options.AddPolicy(KingPolicies.PhotoFiles,
                 context => PerVisitor(context, "RateLimiting:PhotoFilesPerMinute", DefaultPhotoFilesPerMinute));
+            // Each upload is held in memory (a few MB) on a 0.5 GiB app, so only a few run at once across every visitor;
+            // no queue, the next one gets 429. The global limiter runs before, and as well as, each endpoint's own policy.
+            // Read at the first upload: a changed setting applies after a restart (in Container Apps, a new revision).
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                context.GetEndpoint()?.Metadata.GetMetadata<PhotoUploadEndpoint>() is null
+                    ? RateLimitPartition.GetNoLimiter(string.Empty)
+                    : RateLimitPartition.GetConcurrencyLimiter(KingPolicies.PhotoUploads, _ => new ConcurrencyLimiterOptions
+                    {
+                        PermitLimit = context.RequestServices.GetRequiredService<IConfiguration>()
+                            .GetValue("RateLimiting:PhotoUploadsAtOnce", DefaultPhotoUploadsAtOnce),
+                        QueueLimit = 0,
+                    }));
         });
 
         return services;

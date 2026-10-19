@@ -115,7 +115,7 @@ public static class KingEndpoints
     {
         var now = clock.GetUtcNow();
         // The validator guarantees a location; GeoPoint has already rounded it.
-        var spot = new Spot(Guid.CreateVersion7(now).ToString(), request.Name.Trim(), request.Location!, now, request.ReporterKey);
+        var spot = new Spot(Guid.CreateVersion7(now).ToString(), request.CleanName!, request.Location!, now, request.ReporterKey);
         await spots.AddAsync(spot, cancellationToken);
         return TypedResults.Created((string?)null, SpotView.From(spot));
     }
@@ -128,7 +128,7 @@ public static class KingEndpoints
         // The validator has already checked that the spot exists.
         var spot = request.SpotId is null ? null : await spots.FindAsync(request.SpotId, cancellationToken);
         return await Log(
-            KingEventKind.Fed, request.ReporterKey, request.ReporterName, request.Foods ?? [], request.SawKing ?? true,
+            KingEventKind.Fed, request.ReporterKey, request.CleanReporterName, request.Foods ?? [], request.SawKing ?? true,
             spot, location: null, store, clock, cancellationToken);
     }
 
@@ -137,7 +137,7 @@ public static class KingEndpoints
     {
         metrics.SightingLogged();
         return Log(
-            KingEventKind.Seen, request.ReporterKey, request.ReporterName, foods: [], sawKing: true,
+            KingEventKind.Seen, request.ReporterKey, request.CleanReporterName, foods: [], sawKing: true,
             spot: null, request.Location, store, clock, cancellationToken);
     }
 
@@ -169,7 +169,7 @@ public static class KingEndpoints
         string id, RenameEventRequest request, [FromHeader(Name = ReporterKeyHeader)] string reporterKey,
         IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken) =>
         ChangeOwnRecent(
-            id, reporterKey, store, clock, () => store.RenameAsync(id, request.ReporterName, cancellationToken), cancellationToken);
+            id, reporterKey, store, clock, () => store.RenameAsync(id, request.CleanReporterName, cancellationToken), cancellationToken);
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> ChangeOwnRecent(
         string id, string reporterKey, IKingEventStore store, TimeProvider clock, Func<Task> change,

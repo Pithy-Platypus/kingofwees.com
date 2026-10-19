@@ -1,10 +1,13 @@
 using FluentValidation;
 using KingOfWees.Server.King;
+using KingOfWees.Server.Validation;
+using Microsoft.AspNetCore.Mvc;
 
 namespace KingOfWees.Server.Photos;
 
-// Multipart forms: the browser sends a resized photo and its thumbnail, both JPEG. The device key of a photo on an
-// entry travels in X-Reporter-Key, as for undo; a shared photo carries it in the form, as entries do in their body.
+// Multipart forms: the browser sends a resized photo and its thumbnail, both JPEG. The device key travels in
+// X-Reporter-Key, as for undo: any site can make a browser post a form, but a custom header makes it ask first, and
+// with no CORS policy the answer is no. A key in a form field would let other sites post through visitors' addresses.
 // Properties, not constructor parameters: form binding treats every constructor parameter as required (a missing one
 // is a 400 with no error codes, before the US check runs), while a missing property binds as null for the validator.
 public sealed record AddPhotoForm
@@ -13,12 +16,22 @@ public sealed record AddPhotoForm
     public IFormFile? Thumbnail { get; init; }
 }
 
+// Bound with [AsParameters]: the key from the header, the rest from the form.
 public sealed record SharePhotoForm
 {
+    [FromHeader(Name = KingEndpoints.ReporterKeyHeader)]
     public string? ReporterKey { get; init; }
+
+    [FromForm]
     public string? ReporterName { get; init; }
+
+    [FromForm]
     public IFormFile? Photo { get; init; }
+
+    [FromForm]
     public IFormFile? Thumbnail { get; init; }
+
+    public string? CleanReporterName => DisplayText.Clean(ReporterName);
 }
 
 // Event is the entry the photo belongs to, or null for a shared photo. Never the device key.
@@ -32,6 +45,16 @@ public sealed record PhotosQuery(string? Before, int? Limit)
 }
 
 public sealed record PhotosPage(IReadOnlyList<PhotoView> Photos, string? Next);
+
+// Endpoint metadata on both uploads (WithPhotoUploadLimits): what the uploads-at-once limit (KingServices) applies to.
+public sealed class PhotoUploadEndpoint
+{
+    public static readonly PhotoUploadEndpoint Instance = new();
+
+    private PhotoUploadEndpoint()
+    {
+    }
+}
 
 public static class PhotoFiles
 {
@@ -91,7 +114,7 @@ public sealed class SharePhotoFormValidator : AbstractValidator<SharePhotoForm>
     {
         RuleFor(f => f.ReporterKey).NotEmpty().WithErrorCode("reporterKey.required")
             .MaximumLength(ReporterRules.MaxKeyLength).WithErrorCode("reporterKey.tooLong");
-        RuleFor(f => f.ReporterName).ValidReporterName();
+        RuleFor(f => f.CleanReporterName).ValidReporterName().OverridePropertyName(nameof(SharePhotoForm.ReporterName));
         RuleFor(f => f.Photo).ValidJpeg("photo", PhotoRules.MaxPhotoBytes);
         RuleFor(f => f.Thumbnail).ValidJpeg("thumbnail", PhotoRules.MaxThumbnailBytes);
     }

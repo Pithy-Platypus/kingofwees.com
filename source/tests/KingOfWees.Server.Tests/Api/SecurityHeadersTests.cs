@@ -49,6 +49,8 @@ public sealed class SecurityHeadersTests : IAsyncLifetime
         Assert.Equal("nosniff", Single(response, "X-Content-Type-Options"));
         // OpenStreetMap's tile policy requires a Referer naming the site; never no-referrer.
         Assert.Equal("strict-origin-when-cross-origin", Single(response, "Referrer-Policy"));
+        // No other site may load the site's files (King's photos in its <img>, say); the site's own pages still do.
+        Assert.Equal("same-origin", Single(response, "Cross-Origin-Resource-Policy"));
     }
 
     [Fact]

@@ -63,12 +63,16 @@ public sealed class PhotoApiTests : IAsyncLifetime
     private Task<HttpResponseMessage> AddPhoto(string eventId, string key = DeviceKey) =>
         AddPhoto(eventId, Files(TestJpeg.Make(withExif: true), TestJpeg.Make(32, withExif: true)), key);
 
-    private Task<HttpResponseMessage> SharePhoto(string? reporterKey = DeviceKey, string? reporterName = "Sarah", byte[]? photo = null)
+    // The device key travels in X-Reporter-Key: a custom header makes a cross-site page's browser ask first (and be refused).
+    private Task<HttpResponseMessage> SharePhoto(
+        string? reporterKey = DeviceKey, string? reporterName = "Sarah", byte[]? photo = null, string? formReporterKey = null)
     {
         var form = Files(photo ?? TestJpeg.Make(withExif: true), TestJpeg.Make(32, withExif: true));
-        if (reporterKey is not null) form.Add(new StringContent(reporterKey), "reporterKey");
+        if (formReporterKey is not null) form.Add(new StringContent(formReporterKey), "reporterKey");
         if (reporterName is not null) form.Add(new StringContent(reporterName), "reporterName");
-        return _client.PostAsync("/api/king/photos", form, Ct);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/king/photos") { Content = form };
+        if (reporterKey is not null) request.Headers.Add(ReporterKeyHeader, reporterKey);
+        return _client.SendAsync(request, Ct);
     }
 
     private Task<HttpResponseMessage> DeletePhoto(string id, string key = DeviceKey)
@@ -233,6 +237,15 @@ public sealed class PhotoApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_shared_photo_s_name_is_stored_without_invisible_or_direction_characters()
+    {
+        var view = await Json(await SharePhoto(reporterName: "\u202ESarah\u200B"));
+
+        Assert.Equal("Sarah", view.GetProperty("reporterName").GetString());
+        Assert.Equal("Sarah", (await _factory.Photos.FindAsync(view.GetProperty("id").GetString()!, Ct))?.ReporterName);
+    }
+
+    [Fact]
     public async Task A_shared_photo_is_never_a_sighting()
     {
         await SharePhoto();
@@ -242,8 +255,19 @@ public sealed class PhotoApiTests : IAsyncLifetime
         Assert.Empty(status.GetProperty("recent").EnumerateArray());
     }
 
+    // A form field is something any site can make a browser send without asking; only the header counts.
+    [Fact]
+    public async Task A_shared_photo_s_device_key_in_the_form_is_not_enough()
+    {
+        var response = await SharePhoto(reporterKey: null, formReporterKey: DeviceKey);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(["reporterKey.required"], ErrorCodes(await Json(response)));
+    }
+
     [Theory]
     [InlineData(null, "Sarah", "reporterKey.required")]
+    [InlineData("a device key that is far longer than sixty-four characters, which no browser sends", "Sarah", "reporterKey.tooLong")]
     [InlineData("k", "a name that is far longer than forty characters", "reporterName.tooLong")]
     public async Task A_shared_photo_needs_a_device_key_and_a_short_name(string? reporterKey, string? reporterName, string code)
     {
