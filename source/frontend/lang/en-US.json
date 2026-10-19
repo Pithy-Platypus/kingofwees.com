@@ -47,6 +47,26 @@
     "defaultMessage": "About King",
     "description": "About page heading"
   },
+  "about.version.page": {
+    "defaultMessage": "This page: {version}",
+    "description": "The version of the page running in this browser tab; {version} is like 2026.10.18+f349dc1e5d2a — never translate it"
+  },
+  "about.version.server": {
+    "defaultMessage": "Server: {version}",
+    "description": "The version of the server; {version} is like 2026.10.18+f349dc1e5d2a — never translate it"
+  },
+  "about.version.server.checking": {
+    "defaultMessage": "Server: checking…",
+    "description": "While the server’s version loads"
+  },
+  "about.version.server.failed": {
+    "defaultMessage": "Server: couldn’t check",
+    "description": "When the server’s version could not be loaded"
+  },
+  "about.version.title": {
+    "defaultMessage": "Version",
+    "description": "Heading over the version lines, for testers"
+  },
   "activity.leftOut": {
     "defaultMessage": "left food out",
     "description": "Activity detail for a feeding where the feeder only left food out and didn’t see King"

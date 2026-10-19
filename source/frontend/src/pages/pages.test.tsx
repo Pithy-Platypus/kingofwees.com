@@ -1,16 +1,18 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { contactEmail } from '../site';
+import { fakeApi } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 import { AboutPage } from './AboutPage';
 import { PrivacyPage } from './PrivacyPage';
 
 const NOW = new Date(2026, 9, 12);
 const contactLink = () => screen.getByRole('link', { name: contactEmail });
+const renderAbout = (now = NOW, api = fakeApi()) => renderInEnglish(<AboutPage now={now} api={api} />);
 
 describe('AboutPage', () => {
   it('tells King’s story and why the site exists', () => {
-    renderInEnglish(<AboutPage now={NOW} />);
+    renderAbout();
 
     expect(
       screen.getByText(
@@ -20,13 +22,13 @@ describe('AboutPage', () => {
   });
 
   it('gives King’s age from his birth year, with the right article', () => {
-    renderInEnglish(<AboutPage now={new Date(2027, 0, 1)} />);
+    renderAbout(new Date(2027, 0, 1));
 
     expect(screen.getByText(/^King is a 12-year-old long-haired grey cat/)).toBeInTheDocument();
   });
 
   it('shows King as a kitten, linked to the full-size photo', () => {
-    renderInEnglish(<AboutPage now={NOW} />);
+    renderAbout();
 
     const link = screen.getByRole('link', { name: 'King as a tiny grey kitten on an orange toy (full-size photo)' });
     expect(link).toHaveAttribute('href', '/king/king-kitten.jpg');
@@ -35,14 +37,14 @@ describe('AboutPage', () => {
   });
 
   it('explains the honor system and what happens if spam appears', () => {
-    renderInEnglish(<AboutPage now={NOW} />);
+    renderAbout();
 
     expect(screen.getByText(/Anyone can post/)).toBeInTheDocument();
     expect(screen.getByText(/neighborhood code or sign-in/)).toBeInTheDocument();
   });
 
   it('says spam can be hidden by the caretakers, and a code comes only if it keeps showing up', () => {
-    renderInEnglish(<AboutPage now={NOW} />);
+    renderAbout();
 
     expect(screen.getByText(/Anyone can post/)).toHaveTextContent(
       'Entries that look like spam can be hidden by the site’s caretakers. If spam keeps showing up,',
@@ -50,9 +52,33 @@ describe('AboutPage', () => {
   });
 
   it('offers an email link for questions', () => {
-    renderInEnglish(<AboutPage now={NOW} />);
+    renderAbout();
 
     expect(contactLink()).toHaveAttribute('href', `mailto:${contactEmail}`);
+  });
+
+  it('shows this page’s version, as source/version.sh prints it', () => {
+    renderAbout();
+
+    expect(import.meta.env.VITE_APP_VERSION).toMatch(/^\d{4}\.[1-9]\d?\.[1-9]\d?\+[0-9a-f]{12}(\.dirty)?$/);
+    expect(screen.getByText(`This page: ${import.meta.env.VITE_APP_VERSION}`)).toBeInTheDocument();
+  });
+
+  it('shows the server’s version once it has loaded', async () => {
+    const api = fakeApi();
+    api.getVersion.mockResolvedValue({ server: { version: '2026.10.19+0123456789ab' }, frontend: { version: null } });
+    renderAbout(NOW, api);
+
+    expect(screen.getByText('Server: checking…')).toBeInTheDocument();
+    expect(await screen.findByText('Server: 2026.10.19+0123456789ab')).toBeInTheDocument();
+  });
+
+  it('says when the server’s version couldn’t be checked', async () => {
+    const api = fakeApi();
+    api.getVersion.mockRejectedValue(new Error('offline'));
+    renderAbout(NOW, api);
+
+    expect(await screen.findByText('Server: couldn’t check')).toBeInTheDocument();
   });
 });
 

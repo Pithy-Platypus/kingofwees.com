@@ -228,6 +228,84 @@
       "value": "]"
     }
   ],
+  "about.version.page": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧħīş ƥȧȧɠḗḗ: "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "about.version.server": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şḗḗřṽḗḗř: "
+    },
+    {
+      "type": 1,
+      "value": "version"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "about.version.server.checking": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şḗḗřṽḗḗř: ƈħḗḗƈķīƞɠ…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "about.version.server.failed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şḗḗřṽḗḗř: ƈǿǿŭŭŀḓƞ’ŧ ƈħḗḗƈķ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "about.version.title": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ṽḗḗřşīǿǿƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
   "activity.leftOut": [
     {
       "type": 0,

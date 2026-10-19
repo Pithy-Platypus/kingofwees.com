@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type MessageTag, type NoMessageValues } from 'react-intl';
+import { kingApi } from '../king/api';
 import { kingAge } from '../king/time';
 import { contactEmail } from '../site';
 import { MailLink } from './MailLink';
@@ -17,6 +19,11 @@ type Values = {
   honorTitle: NoMessageValues;
   honor: NoMessageValues;
   contact: { email: string; mail: MessageTag };
+  versionTitle: NoMessageValues;
+  versionPage: { version: string };
+  versionServer: { version: string };
+  versionServerChecking: NoMessageValues;
+  versionServerFailed: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -62,12 +69,37 @@ const m = defineMessages<Values>({
   defaultMessage: 'Questions or ideas? Email <mail>{email}</mail>.',
   description: 'Contact line; keep the <mail></mail> tags around {email}',
   },
+  versionTitle: { id: 'about.version.title', defaultMessage: 'Version', description: 'Heading over the version lines, for testers' },
+  versionPage: {
+    id: 'about.version.page',
+    defaultMessage: 'This page: {version}',
+    description: 'The version of the page running in this browser tab; {version} is like 2026.10.18+f349dc1e5d2a — never translate it',
+  },
+  versionServer: {
+    id: 'about.version.server',
+    defaultMessage: 'Server: {version}',
+    description: 'The version of the server; {version} is like 2026.10.18+f349dc1e5d2a — never translate it',
+  },
+  versionServerChecking: { id: 'about.version.server.checking', defaultMessage: 'Server: checking…', description: 'While the server’s version loads' },
+  versionServerFailed: { id: 'about.version.server.failed', defaultMessage: 'Server: couldn’t check', description: 'When the server’s version could not be loaded' },
 });
 
 // Rich text: <mail>…</mail> becomes the email link, wherever the translation puts it.
 
-export function AboutPage({ now }: { now: Date }) {
+type Props = { now: Date; api?: Pick<typeof kingApi, 'getVersion'> };
+
+// The version lines let a tester say exactly which build they saw: this tab's (bundled at build time) and the
+// server's, which differ when the tab was opened before a deploy.
+export function AboutPage({ now, api = kingApi }: Props) {
   const intl = useIntl();
+  const [server, setServer] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    api.getVersion().then(
+      (info) => setServer(info.server.version),
+      () => setFailed(true),
+    );
+  }, [api]);
   return (
     <PageShell title={<FormattedMessage {...m.title} />}>
       <p>
@@ -107,6 +139,23 @@ export function AboutPage({ now }: { now: Date }) {
       <p>
         <FormattedMessage {...m.contact} values={{ email: contactEmail, mail: (chunks) => <MailLink>{chunks}</MailLink> }} />
       </p>
+      <h2 className="section-title">
+        <FormattedMessage {...m.versionTitle} />
+      </h2>
+      <ul className="page-list">
+        <li>
+          <FormattedMessage {...m.versionPage} values={{ version: import.meta.env.VITE_APP_VERSION }} />
+        </li>
+        <li>
+          {server !== null ? (
+            <FormattedMessage {...m.versionServer} values={{ version: server }} />
+          ) : failed ? (
+            <FormattedMessage {...m.versionServerFailed} />
+          ) : (
+            <FormattedMessage {...m.versionServerChecking} />
+          )}
+        </li>
+      </ul>
     </PageShell>
   );
 }

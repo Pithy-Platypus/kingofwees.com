@@ -10,6 +10,8 @@ Rules stay *in* CLAUDE.md files; references point outward to elaboration only. A
 
 **Treat compiler warnings as part of the change.** After a refactor that renames symbols, fully-qualifies names, removes call sites or deletes a method, run `(cd ~/repos/kingofwees.com/source && dotnet clean && dotnet build)` OR the react/vite equivalent and resolve every new warning. Each phase lands warning-free; don't batch cleanup. When removing a method from an interface or public type, build **before** touching tests: the compiler errors reveal every cross-cutting caller.
 
+**The site's version comes only from `source/version.sh`** (server build, frontend build, `infra/deploy.sh`). A version worked out anywhere else — `git describe`, `package.json`'s `version`, the build or deploy date, zero-padded dates — builds and shows a plausible string that disagrees with the other half and with `/api/version`, and `deploy.sh`'s check fails only after the new revision is live. Why → `docs/patterns/versioning.md`.
+
 Update in the same commit as the change:
 
 - **`PLAN.md`** — flip a step's status marker when it starts and when it finishes, and rewrite the handoff prompt at every stop. Wallie reads it to see what's done; a stale marker reads as true.

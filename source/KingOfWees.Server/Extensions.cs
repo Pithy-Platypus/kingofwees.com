@@ -1,3 +1,4 @@
+using KingOfWees.Server;
 using KingOfWees.Server.Telemetry;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace Microsoft.Extensions.Hosting;
@@ -54,6 +56,8 @@ public static class Extensions
         });
 
         builder.Services.AddOpenTelemetry()
+            // Only the version: the service name stays what the environment sets, which the portal already shows.
+            .ConfigureResource(resource => resource.AddAttributes([new("service.version", AppVersion.Server)]))
             .WithMetrics(metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation()

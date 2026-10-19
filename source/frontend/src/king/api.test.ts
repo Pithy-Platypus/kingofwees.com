@@ -21,6 +21,14 @@ describe('kingApi', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/king/status', undefined);
   });
 
+  it('gets the server’s and the served frontend’s versions', async () => {
+    const versions = { server: { version: '2026.10.18+f349dc1e5d2a' }, frontend: { version: null } };
+    respond(200, versions);
+
+    await expect(kingApi.getVersion()).resolves.toEqual(versions);
+    expect(fetchMock).toHaveBeenCalledWith('/api/version', undefined);
+  });
+
   it.each([
     ['seen', 30, '/api/king/heat?layer=seen&days=30'],
     ['fed', 7, '/api/king/heat?layer=fed&days=7'],

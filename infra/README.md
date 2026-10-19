@@ -19,7 +19,7 @@ All in subscription "Playground", resource group `kingofwees.com`, East US.
 | `kingofwees-king-seen-or-fed`, `kingofwees-photo-posted` | Log search alerts on `kingofwees-logs`, every 15 minutes, emailing through `kingofwees-alerts` when a sighting or feeding, or a photo, was posted. |
 | `kingofwees-monthly` | Budget: $25 a month on the resource group; emails at 80% actual and 100% forecast. |
 
-Images: `ghcr.io/pithy-platypus/kingofwees`, public (they hold no secrets), tagged with the commit.
+Images: `ghcr.io/pithy-platypus/kingofwees`, public (they hold no secrets), tagged with the commit (a version's `+` isn't allowed in a tag) and labelled `org.opencontainers.image.version` with the full version.
 
 **Photos are not in the nightly backup**, which dumps only the database: a deleted or overwritten photo file can be recovered for 30 days through `kingofweesphotos`'s soft delete, and nothing protects the files beyond that. Measured for photos (Slice 6 step 8, at 0.25 vCPU / 0.5 GiB): uploads settle the server at about 310–335 MiB, so the size stays.
 
@@ -32,7 +32,7 @@ About $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1; s
 | Script | Does |
 |---|---|
 | `azure/provision.sh [image]` | Creates or brings up to date everything in the table above, from the settings below. Binds each custom domain once its Cloudflare records resolve (it says which are missing otherwise). Safe to rerun: re-applies the app's settings (keeping its bound domains) and restarts it. Refuses an image GHCR won't serve anonymously and a connection string without a database name. |
-| `deploy.sh` | Refuses a dirty tree; builds the image tagged with the commit — the SPA plus this month's DB-IP Country Lite file (US-only posting; `King__Posting__CountryDatabase` set in the image, so no Azure setting) downloaded at each deploy; pushes it to GHCR; rolls the app onto it, waits until the new revision is ready, then runs `smoke.sh` against `https://kingofwees.com` once it's bound (else the Container Apps address). |
+| `deploy.sh` | Refuses a dirty tree; works out the version with `source/version.sh`; builds the image tagged with the commit — the SPA plus this month's DB-IP Country Lite file (US-only posting; `King__Posting__CountryDatabase` set in the image, so no Azure setting) downloaded at each deploy; pushes it to GHCR; rolls the app onto it, waits until the new revision is ready, then runs `smoke.sh` against `https://kingofwees.com` once it's bound (else the Container Apps address), and fails unless `/api/version` there reports this version for both halves. |
 | `restore-drill.sh [archive]` | Restores the newest backup (or a downloaded one, its `.log` beside it) into a throwaway local `mongo:8.0` container; fails unless every collection holds exactly what mongodump logged dumping and every `adminLog` time is a date. Restores data only: DocumentDB's index and collection options don't load into plain Mongo. Shows production's counts beside them (they drift as people post). Needs Docker and `az login`. |
 | `smoke.sh https://host` | `/health` answers `Healthy`, `/api/king/status` 200, `/api/admin/check` 401 without a key, `/api/king/posting` allows this machine (run it from the US), the page's main script arrives brotli-compressed and cached `immutable` and the page itself `no-cache` (a build that stopped writing the compressed copies shows here) — over HTTPS with a valid certificate. |
 
@@ -52,7 +52,7 @@ The app creates one index itself: the audit log's 1-year expiry on the `adminLog
 
 ## Deploying
 
-Commit, then `infra/deploy.sh`. It takes a few minutes; the previous revision keeps serving until the new one is ready, and stays if the new one never becomes ready.
+Commit, then `infra/deploy.sh`. It takes a few minutes; the previous revision keeps serving until the new one is ready, and stays if the new one never becomes ready. It prints the version it deploys (`source/version.sh`, e.g. `2026.10.18+f349dc1e5d2a`), and after the smoke test checks that `https://kingofwees.com/api/version` reports it for both the server and the frontend; a tester sees the same on the About page.
 
 A release that needs new Azure resources or settings runs `azure/provision.sh` **first**: the server refuses to start without a setting it needs (since Slice 6, `ConnectionStrings__photos`), so the new revision would never become ready. Photos went live this way: `provision.sh` (photo storage, the app's identity and role, the setting — the old image ignores it), then `deploy.sh`.
 

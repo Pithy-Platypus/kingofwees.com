@@ -12,8 +12,10 @@ ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || { echo "Commit or stash first: the image is tagged with the commit." >&2; exit 1; }
 TAG=$(git -C "$ROOT" rev-parse --short=12 HEAD)
 IMAGE="$REPOSITORY:$TAG"
+# The version both builds stamp (they run the same script); its "+" can't go in an image tag, so the tag stays the commit.
+VERSION=$("$ROOT/source/version.sh")
 
-echo "== Building $IMAGE (linux/amd64)"
+echo "== Building $IMAGE ($VERSION, linux/amd64)"
 (cd "$ROOT/source/frontend" && bun run build)
 dotnet publish "$ROOT/source/KingOfWees.Server" -c Release -r linux-x64 -t:PublishContainer \
   -p:ContainerRepository=kingofwees-server -p:ContainerImageTag="$TAG"
@@ -31,6 +33,7 @@ done
 # The server refuses to start if the setting names a file it can't read, so a bad layer shows at deploy.
 docker build --platform linux/amd64 -t "$IMAGE" \
   --label org.opencontainers.image.source=https://github.com/Pithy-Platypus/kingofwees.com \
+  --label org.opencontainers.image.version="$VERSION" \
   -f - "$STAGE" <<EOF
 FROM kingofwees-server:$TAG
 COPY wwwroot /app/wwwroot/
@@ -61,4 +64,10 @@ ready || { echo "$REVISION never became ready (/health failing?); the previous r
 
 # The public domain once it's bound (that checks its certificate too), else the Container Apps address.
 HOST=$(az containerapp show -g "$GROUP" -n "$APP" --query "properties.configuration.ingress.customDomains[?name=='kingofwees.com'].name | [0]" -o tsv)
-"$ROOT/infra/smoke.sh" "https://${HOST:-$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv)}"
+URL="https://${HOST:-$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv)}"
+"$ROOT/infra/smoke.sh" "$URL"
+
+# The live server and the frontend it serves are both this build.
+curl -fsS "$URL/api/version" | jq -e --arg v "$VERSION" '.server.version == $v and .frontend.version == $v' >/dev/null \
+  || { echo "$URL/api/version doesn't report $VERSION for both the server and the frontend." >&2; exit 1; }
+echo "== Live: $VERSION"

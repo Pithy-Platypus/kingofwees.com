@@ -3,7 +3,15 @@
   <PropertyGroup>
     <!-- Holds King:Map:Center in development; see source/README.md. -->
     <UserSecretsId>36988aa0-ee8c-43eb-a734-7acedc835366</UserSecretsId>
+    <!-- The version comes whole from source/version.sh; the SDK would add the full commit id after it. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
+
+  <Target Name="SetKingVersion" BeforeTargets="GetAssemblyVersion">
+    <Exec Command="&quot;$(MSBuildThisFileDirectory)../version.sh&quot;" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="InformationalVersion" />
+    </Exec>
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Azure.Storage.Blobs" />

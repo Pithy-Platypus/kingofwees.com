@@ -30,6 +30,8 @@ export const photo = (overrides: Partial<PhotoView> = {}): PhotoView => ({
 /** A hidden photo as /api/admin/hidden-photos lists it; `hidden` null = hidden before reasons existed. */
 export const hiddenPhoto = (overrides: Partial<HiddenPhotoView> = {}): HiddenPhotoView => ({ ...photo(), hidden: null, ...overrides });
 
+export const VERSIONS = { server: { version: '2026.10.18+f349dc1e5d2a' }, frontend: { version: '2026.10.18+f349dc1e5d2a' } };
+
 export const emptyStatus: KingStatus = { lastFed: null, lastSeen: null, recent: [], latestPhoto: null };
 
 export const CENTER: GeoPoint = { latitude: 45.523, longitude: -122.677 };
@@ -56,6 +58,7 @@ export function fakeApi(
     listSpots: vi.fn<typeof kingApi.listSpots>().mockResolvedValue(spots),
     addSpot: vi.fn<typeof kingApi.addSpot>().mockImplementation(async (s) => ({ id: 'new-spot', name: s.name, location: s.location })),
     getStatus: vi.fn<typeof kingApi.getStatus>().mockResolvedValue(status),
+    getVersion: vi.fn<typeof kingApi.getVersion>().mockResolvedValue(VERSIONS),
     logFeeding: vi.fn<typeof kingApi.logFeeding>().mockImplementation(async (r) =>
       event({ id: 'new-fed', kind: 'fed', foods: r.foods, sawKing: r.sawKing }),
     ),

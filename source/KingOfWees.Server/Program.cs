@@ -76,6 +76,7 @@ app.UseAuthorization();
 
 app.MapKingEndpoints();
 app.MapAdminEndpoints();
+app.MapVersion();
 app.MapDefaultEndpoints();
 
 // Unknown /api routes must stay 404s, not return the page.

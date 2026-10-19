@@ -39,6 +39,8 @@ export type HeatCell = { location: GeoPoint; count: number; spotName: string | n
 /** `next` is the id to pass as `before` for the older page; null on the last page. */
 export type HistoryPage = { events: KingEventView[]; next: string | null };
 export type Reporter = { reporterKey: string; reporterName?: string | null };
+/** `/api/version`: the server's build and the frontend build it serves (null where it serves none, as in development). */
+export type VersionInfo = { server: { version: string }; frontend: { version: string | null } };
 
 export class ApiError extends Error {
   readonly status: number;
@@ -81,6 +83,7 @@ export const photoUrl = (id: string, size: 'full' | 'thumb') => `/api/king/photo
 
 export const kingApi = {
   getStatus: () => request<KingStatus>('/api/king/status', undefined),
+  getVersion: () => request<VersionInfo>('/api/version', undefined),
   logFeeding: (body: Reporter & { foods: Food[]; sawKing: boolean; spotId?: string }) =>
     postJson<KingEventView>('/api/king/feedings', body),
   // Locations are rounded here, the one place every coordinate leaves the browser (frontend CLAUDE.md).
