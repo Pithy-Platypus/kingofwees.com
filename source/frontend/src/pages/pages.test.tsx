@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { contactEmail } from '../site';
+import { contactEmail, sourceUrl } from '../site';
 import { fakeApi } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 import { AboutPage } from './AboutPage';
@@ -8,6 +8,8 @@ import { PrivacyPage } from './PrivacyPage';
 
 const NOW = new Date(2026, 9, 12);
 const contactLink = () => screen.getByRole('link', { name: contactEmail });
+// This build's commit on GitHub, as the version names it.
+const THIS_COMMIT = /^https:\/\/github\.com\/Pithy-Platypus\/kingofwees\.com\/tree\/[0-9a-f]{12}$/;
 const renderAbout = (now = NOW, api = fakeApi()) => renderInEnglish(<AboutPage now={now} api={api} />);
 
 describe('AboutPage', () => {
@@ -57,6 +59,15 @@ describe('AboutPage', () => {
     expect(contactLink()).toHaveAttribute('href', `mailto:${contactEmail}`);
   });
 
+  it('links to the exact code of this page', () => {
+    renderAbout();
+
+    const link = screen.getByRole('link', { name: 'Its code is public' });
+    expect(link).toHaveAttribute('href', sourceUrl);
+    expect(sourceUrl).toMatch(THIS_COMMIT);
+    expect(sourceUrl).toContain(import.meta.env.VITE_APP_VERSION.split('+')[1].slice(0, 12));
+  });
+
   it('shows this page’s version, as source/version.sh prints it', () => {
     renderAbout();
 
@@ -83,6 +94,13 @@ describe('AboutPage', () => {
 });
 
 describe('PrivacyPage', () => {
+  it('invites anyone to check the exact code of this page', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    expect(screen.getByRole('link', { name: 'check that it does what this page says' })).toHaveAttribute('href', sourceUrl);
+    expect(screen.getByText(/Don’t just take our word for it/)).toBeInTheDocument();
+  });
+
   it('promises no accounts, ads, trackers or cookies', () => {
     renderInEnglish(<PrivacyPage />);
 

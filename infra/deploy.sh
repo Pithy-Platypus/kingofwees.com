@@ -10,6 +10,9 @@ REPOSITORY="ghcr.io/pithy-platypus/kingofwees"
 ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 
 [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || { echo "Commit or stash first: the image is tagged with the commit." >&2; exit 1; }
+# The About and Privacy pages link to this commit on GitHub; unpushed, that link is a 404.
+git -C "$ROOT" fetch --quiet origin
+[[ -n "$(git -C "$ROOT" branch -r --contains HEAD)" ]] || { echo "Push first: the About and Privacy pages link to this commit on GitHub." >&2; exit 1; }
 TAG=$(git -C "$ROOT" rev-parse --short=12 HEAD)
 IMAGE="$REPOSITORY:$TAG"
 # The version both builds stamp (they run the same script); its "+" can't go in an image tag, so the tag stays the commit.

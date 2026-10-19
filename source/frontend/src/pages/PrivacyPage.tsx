@@ -3,6 +3,7 @@ import { Link } from '../routing/Link';
 import { contactEmail } from '../site';
 import { MailLink } from './MailLink';
 import { PageShell } from './PageShell';
+import { SourceLink } from './SourceLink';
 
 // Every sentence here is a promise the code must keep; change them together.
 type Values = {
@@ -22,6 +23,7 @@ type Values = {
   notFonts: NoMessageValues;
   notMaps: { policy: MessageTag };
   notIp: NoMessageValues;
+  source: { code: MessageTag };
   parents: NoMessageValues;
   retention: { email: string; mail: MessageTag; history: MessageTag };
 };
@@ -98,6 +100,11 @@ const m = defineMessages<Values>({
     defaultMessage:
       'Your internet address is used for about a minute to stop spam (it limits how often entries can be posted) and to check that posts come from the United States, and isn’t stored — except when someone signs in to the caretakers’ admin page, or tries to: then it’s kept with that sign-in and what they change there, for a year. We remove it from our technical logs.',
     description: 'IP addresses: used briefly for rate limiting and the US-only posting check, stripped from telemetry; kept a year only in the admin activity log',
+  },
+  source: {
+    id: 'privacy.source',
+    defaultMessage: 'Don’t just take our word for it: the site’s code is public, so anyone can <code>check that it does what this page says</code>.',
+    description: 'Invites people to read the site’s code; the link goes to the exact code of this page on GitHub. Keep the <code></code> tags around the link text',
   },
   parents: {
     id: 'privacy.parents',
@@ -186,6 +193,9 @@ export function PrivacyPage() {
           <FormattedMessage {...m.notIp} />
         </li>
       </ul>
+      <p>
+        <FormattedMessage {...m.source} values={{ code: (chunks) => <SourceLink>{chunks}</SourceLink> }} />
+      </p>
       <p>
         <FormattedMessage
           {...m.retention}

@@ -39,6 +39,10 @@
     "defaultMessage": "This site helps us share the job: when he last ate, what he had, and where he was last seen — so nobody has to guess.",
     "description": "Why the site exists"
   },
+  "about.source": {
+    "defaultMessage": "Curious how the site works? <code>Its code is public</code> for anyone to read.",
+    "description": "Points to the site’s code; the link goes to the exact code of this page on GitHub. Keep the <code></code> tags around the link text"
+  },
   "about.story": {
     "defaultMessage": "King is {age, plural, =8 {an 8} =11 {an 11} =18 {an 18} other {a #}}-year-old long-haired grey cat who did not make the move with his previous owner a few years ago, so the neighborhood decided to look after him together.",
     "description": "King’s story, first paragraph of the About page; {age} is his age in years, worked out from his birth year; the plural only picks “a” or “an”"
@@ -970,6 +974,10 @@
   "privacy.retention": {
     "defaultMessage": "Entries are kept as King’s history, which everyone can see on the <history>history page</history>: every entry with its name, and a map of the places (never more exact than a block). Entries that look like spam can be hidden by the site’s caretakers. Want one removed? Email <mail>{email}</mail>.",
     "description": "Retention, the public history page, and removal requests; keep the <history></history> tags around the link text and the <mail></mail> tags around {email}"
+  },
+  "privacy.source": {
+    "defaultMessage": "Don’t just take our word for it: the site’s code is public, so anyone can <code>check that it does what this page says</code>.",
+    "description": "Invites people to read the site’s code; the link goes to the exact code of this page on GitHub. Keep the <code></code> tags around the link text"
   },
   "privacy.stored.code": {
     "defaultMessage": "A random code saved in your browser, so you can undo your own entries. It isn’t linked to who you are.",

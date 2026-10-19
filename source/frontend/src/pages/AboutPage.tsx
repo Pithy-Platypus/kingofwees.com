@@ -5,6 +5,7 @@ import { kingAge } from '../king/time';
 import { contactEmail } from '../site';
 import { MailLink } from './MailLink';
 import { PageShell } from './PageShell';
+import { SourceLink } from './SourceLink';
 
 type Values = {
   title: NoMessageValues;
@@ -19,6 +20,7 @@ type Values = {
   honorTitle: NoMessageValues;
   honor: NoMessageValues;
   contact: { email: string; mail: MessageTag };
+  source: { code: MessageTag };
   versionTitle: NoMessageValues;
   versionPage: { version: string };
   versionServer: { version: string };
@@ -68,6 +70,11 @@ const m = defineMessages<Values>({
   id: 'about.contact',
   defaultMessage: 'Questions or ideas? Email <mail>{email}</mail>.',
   description: 'Contact line; keep the <mail></mail> tags around {email}',
+  },
+  source: {
+    id: 'about.source',
+    defaultMessage: 'Curious how the site works? <code>Its code is public</code> for anyone to read.',
+    description: 'Points to the site’s code; the link goes to the exact code of this page on GitHub. Keep the <code></code> tags around the link text',
   },
   versionTitle: { id: 'about.version.title', defaultMessage: 'Version', description: 'Heading over the version lines, for testers' },
   versionPage: {
@@ -135,6 +142,9 @@ export function AboutPage({ now, api = kingApi }: Props) {
       </h2>
       <p>
         <FormattedMessage {...m.honor} />
+      </p>
+      <p>
+        <FormattedMessage {...m.source} values={{ code: (chunks) => <SourceLink>{chunks}</SourceLink> }} />
       </p>
       <p>
         <FormattedMessage {...m.contact} values={{ email: contactEmail, mail: (chunks) => <MailLink>{chunks}</MailLink> }} />

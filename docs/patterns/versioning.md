@@ -9,7 +9,8 @@ One version for the whole site: **`<commit date, UTC, year.month.day>+<12-charac
 | `GET /api/version` | `{ server: { version }, frontend: { version } }` — the server's own, and the one in `wwwroot/version.json` (`null` where there is none, as in development). |
 | Telemetry | The OpenTelemetry resource attribute `service.version` (only that attribute is added; the service name stays what the environment sets, which the portal already shows). |
 | About page | "This page: …" (the bundled version of the tab you're looking at) and "Server: …" (from `/api/version`). |
-| `infra/deploy.sh` | Prints it, labels the image `org.opencontainers.image.version`, and after the smoke test fails unless the live `/api/version` reports it for both halves. |
+| Source link | `sourceUrl` in `src/site.ts`: the About and Privacy pages link to `github.com/Pithy-Platypus/kingofwees.com/tree/<commit>`, the commit taken from the bundled version (`.dirty` dropped), so a reader sees the exact code of the page in front of them, not whatever `main` holds now. |
+| `infra/deploy.sh` | Refuses a commit that isn't on GitHub yet (the source link would be a 404), prints it, labels the image `org.opencontainers.image.version`, and after the smoke test fails unless the live `/api/version` reports it for both halves. |
 
 ## Why this shape (decided 2026-10-18 with Wallie)
 
