@@ -12,6 +12,13 @@ const renderUndo = (what: 'fed' | 'seen' | 'photo' = 'fed', confirm = vi.fn(asyn
 };
 
 describe('UndoOwnPost', () => {
+  it('takes no focus and says nothing until asked', () => {
+    renderUndo('fed');
+
+    expect(screen.getByRole('button', { name: 'Undo' })).not.toHaveFocus();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('asks in place before undoing, and undoes only on yes', async () => {
     const { confirm, onDone } = renderUndo('fed');
 

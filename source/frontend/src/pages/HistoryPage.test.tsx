@@ -403,7 +403,9 @@ describe('HistoryPage — undoing one’s own entries', () => {
     const onUndone = vi.fn();
     renderInEnglish(<HistoryPage api={api} spots={[]} mapCenter={null} now={NOW} own={own} onUndone={onUndone} />);
 
-    await userEvent.click((await entries())[0].getByRole('button', { name: 'Undo' }));
+    const [mine] = await entries();
+    expect(screen.queryByText('Your entry was undone.')).not.toBeInTheDocument();
+    await userEvent.click(mine.getByRole('button', { name: 'Undo' }));
     expect(screen.getByText('Undo this feeding?')).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
 

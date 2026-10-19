@@ -319,6 +319,7 @@ describe('HomeScreen — undoing one’s own entries', () => {
     const own = fakeOwnUndo(['mine']);
     const onUndone = vi.fn();
     renderInEnglish(<HomeScreen status={status} now={NOW} onFed={noop} onSeen={noop} own={own} onUndone={onUndone} />);
+    expect(screen.queryByText('Your entry was undone.')).not.toBeInTheDocument();
 
     await userEvent.click(within(lately()[0]).getByRole('button', { name: 'Undo' }));
     await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));

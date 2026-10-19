@@ -328,13 +328,15 @@ describe('PhotosPage — removing one’s own photo', () => {
   it('removes it after asking, then says so and lets Home load again', async () => {
     const own = fakeOwnUndo(['p-shared']);
     const { onPhotosChanged } = renderPage({ own });
+    const [mine] = await shown('listitem');
+    expect(screen.queryByText('Your photo was removed.')).not.toBeInTheDocument();
 
-    await userEvent.click(within((await shown('listitem'))[0]).getByRole('button', { name: 'Remove' }));
+    await userEvent.click(within(mine).getByRole('button', { name: 'Remove' }));
     expect(screen.getByText('Remove this photo?')).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
 
     expect(own.removePhoto).toHaveBeenCalledWith('p-shared');
-    expect(grid().getAllByRole('listitem')).toHaveLength(1);
+    expect(grid().getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/api/king/photos/p-seen/full']);
     expect(onPhotosChanged).toHaveBeenCalledOnce();
     expect(screen.getByText('Your photo was removed.')).toHaveFocus();
   });

@@ -741,6 +741,18 @@ describe('App — undo from Lately, the history page and Photos', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
 
+  it('loads Home’s status again after an undo on the history page', async () => {
+    const api = renderAt({ now: NOW });
+    await logThenHome(api);
+    await openHistory();
+    const loads = api.getStatus.mock.calls.length;
+
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
+
+    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(loads + 1));
+  });
+
   it('offers nothing more for an entry already undone on the confirmation screen', async () => {
     const api = renderAt({ now: NOW });
     await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));

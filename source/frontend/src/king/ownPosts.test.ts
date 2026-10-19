@@ -30,6 +30,16 @@ describe('ownPosts', () => {
     expect(ownPosts(storage).isUndoable('e1', after(5))).toBe(true);
   });
 
+  it('forgets only the post that was undone', () => {
+    const own = ownPosts(memoryStorage());
+    own.remember('e1', POSTED);
+    own.remember('e2', POSTED);
+
+    own.forget('e1');
+
+    expect(own.isUndoable('e2', after(1))).toBe(true);
+  });
+
   it('forgets a post once it is undone', () => {
     const storage = memoryStorage();
     const own = ownPosts(storage);
@@ -46,9 +56,13 @@ describe('ownPosts', () => {
     const own = ownPosts(storage);
     own.remember('old', POSTED);
 
+    own.remember('recent', after(1).toISOString());
+    own.remember('edge', after(5).toISOString());
+
     own.remember('new', after(11).toISOString());
 
-    expect(JSON.parse(storage.getItem('kingofwees.ownPosts')!)).toEqual([{ id: 'new', at: after(11).toISOString() }]);
+    // "old" is 11 minutes before the newest, "recent" 10 (still undoable, as on the server), "edge" 6.
+    expect(JSON.parse(storage.getItem('kingofwees.ownPosts')!).map((p: { id: string }) => p.id)).toEqual(['recent', 'edge', 'new']);
   });
 
   it('works for the open page when storage is blocked', () => {
