@@ -233,10 +233,22 @@ describe('kingApi', () => {
     expect((error as ApiError).codes).toEqual([]);
   });
 
+  it('deletes one’s own photo with the reporter key header and an encoded id', async () => {
+    respond(204);
+
+    await kingApi.deletePhoto('a/b', 'k');
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/king/photos/a%2Fb', {
+      method: 'DELETE',
+      headers: { 'X-Reporter-Key': 'k' },
+    });
+  });
+
   it.each([
     ['getStatus', () => kingApi.getStatus()],
     ['logFeeding', () => kingApi.logFeeding({ reporterKey: 'k', foods: [], sawKing: true })],
     ['undo', () => kingApi.undo('e1', 'k')],
+    ['deletePhoto', () => kingApi.deletePhoto('p1', 'k')],
     ['getMap', () => kingApi.getMap()],
   ])('%s throws ApiError carrying the status on failure', async (_name, call) => {
     respond(409, { type: 'undo.expired' });

@@ -7,6 +7,7 @@ import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
 import { LoggedScreen } from './king/LoggedScreen';
 import { NicknameScreen } from './king/NicknameScreen';
+import { ownPosts, type OwnUndo } from './king/ownPosts';
 import { resizePhoto, type PhotoFiles, type PhotoResizer } from './king/photo';
 import { DraftPhoto, LoggedPhoto, type PhotoState } from './king/PhotoSlot';
 import type { GeoPoint, Geolocator } from './king/location';
@@ -90,6 +91,7 @@ function App({
   const [photo, setPhoto] = useState<PhotoState | null>(null);
   const [postingAllowed, setPostingAllowed] = useState(true);
   const [adminSignIn, setAdminSignIn] = useState(() => loadAdminSignIn(storage));
+  const [mine] = useState(() => ownPosts(storage));
   const [, setTick] = useState(0);
   const route = useRoute();
   const intl = useIntl();
@@ -137,6 +139,20 @@ function App({
     () => (adminSignIn ? { signIn: adminSignIn, api: adminApi, onRejected: () => changeAdminSignIn(null) } : undefined),
     [adminSignIn, adminApi, changeAdminSignIn],
   );
+
+  // This device's entries and shared photos of the last 10 minutes get Undo / Remove wherever they're listed.
+  const own: OwnUndo = {
+    canUndo: (id) => mine.isUndoable(id, now()),
+    remember: mine.remember,
+    undoEntry: async (id) => {
+      await api.undo(id, reporterKey);
+      mine.forget(id);
+    },
+    removePhoto: async (id) => {
+      await api.deletePhoto(id, reporterKey);
+      mine.forget(id);
+    },
+  };
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -202,6 +218,7 @@ function App({
   // The entry is posted first and shown at once; its photo follows, and a failed photo never takes the entry with it.
   const showLogged = async (event: KingEventView) => {
     const files = event.sawKing && photo?.status === 'picked' ? photo.files : null;
+    mine.remember(event.id, event.occurredAt);
     setPhoto(null);
     setScreen({ name: 'logged', event });
     if (files) await sendPhoto(event, files);
@@ -253,7 +270,7 @@ function App({
   const undo = (event: KingEventView) =>
     run(async () => {
       try {
-        await api.undo(event.id, reporterKey);
+        await own.undoEntry(event.id);
       } catch {
         setUndoFailed(true);
         return;
@@ -268,7 +285,9 @@ function App({
   let content: ReactElement;
   let withFooter = true;
   if (route === 'history') {
-    content = <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} />;
+    content = (
+      <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} own={own} onUndone={() => void load()} />
+    );
   } else if (route === 'photos') {
     content = (
       <Suspense fallback={null}>
@@ -282,6 +301,7 @@ function App({
           onPhotosChanged={() => void load()}
           resize={resize}
           admin={admin}
+          own={own}
         />
       </Suspense>
     );
@@ -408,6 +428,8 @@ function App({
         postingAllowed={postingAllowed}
         onFed={startFeeding}
         onSeen={startSighting}
+        own={own}
+        onUndone={() => void load()}
       />
     );
   }

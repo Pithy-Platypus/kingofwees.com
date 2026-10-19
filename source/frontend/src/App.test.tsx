@@ -690,3 +690,79 @@ describe('App — feeding spots', () => {
     });
   });
 });
+
+describe('App — undo from Lately, the history page and Photos', () => {
+  const justSeen = event({ id: 'new-seen', kind: 'seen' });
+  const minutesLater = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000);
+  const renderAt = (clock: { now: Date }, api = fakeApi()) => {
+    renderInEnglish(
+      <App api={api} reporterKey={KEY} storage={deviceNamed('')} now={() => clock.now} resize={vi.fn(async () => RESIZED)} />,
+    );
+    return api;
+  };
+  const RESIZED = { photo: new Blob(['full']), thumbnail: new Blob(['thumb']) };
+  // Logs a sighting, then Done: Home's Lately now lists it, as the server would.
+  const logThenHome = async (api: ReturnType<typeof fakeApi>) => {
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
+    api.getStatus.mockResolvedValue({ ...emptyStatus, recent: [justSeen] });
+    api.getHistory.mockResolvedValue({ events: [justSeen], next: null });
+    await userEvent.click(await screen.findByRole('button', { name: 'Done' }));
+  };
+  const lately = async () => within(await screen.findByRole('list', { name: 'Lately' }));
+  const openHistory = async () => {
+    await userEvent.click(screen.getByRole('link', { name: 'History' }));
+    await screen.findByText('Seen by a neighbor');
+  };
+
+  it('offers Undo in Lately on the entry just logged, and undoes it with this device key', async () => {
+    const api = renderAt({ now: NOW });
+    await logThenHome(api);
+
+    await userEvent.click((await lately()).getByRole('button', { name: 'Undo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
+
+    expect(api.undo).toHaveBeenCalledWith('new-seen', KEY);
+    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(3));
+  });
+
+  it('offers it on the history page too, until 10 minutes have passed', async () => {
+    const clock = { now: NOW };
+    const api = renderAt(clock);
+    await logThenHome(api);
+
+    clock.now = minutesLater(9);
+    await openHistory();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('link', { name: 'About' }));
+    clock.now = minutesLater(11);
+    await openHistory();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('offers nothing more for an entry already undone on the confirmation screen', async () => {
+    const api = renderAt({ now: NOW });
+    await userEvent.click(await screen.findByRole('button', { name: 'I saw King' }));
+    await skipWhere();
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    api.getHistory.mockResolvedValue({ events: [justSeen], next: null });
+    await screen.findByRole('button', { name: 'I saw King' });
+
+    await openHistory();
+
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('offers Remove on a photo just shared on Photos, and removes it with this device key', async () => {
+    const api = renderAt({ now: NOW });
+    await screen.findByRole('button', { name: 'I saw King' });
+    await userEvent.click(screen.getByRole('link', { name: 'Photos' }));
+    await userEvent.upload(await screen.findByLabelText('Share a photo'), new File(['camera'], 'IMG_2.jpg', { type: 'image/jpeg' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
+
+    expect(api.deletePhoto).toHaveBeenCalledWith('shared-photo', KEY);
+  });
+});

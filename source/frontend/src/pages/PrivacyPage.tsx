@@ -63,8 +63,8 @@ const m = defineMessages<Values>({
   photoRemoval: {
     id: 'privacy.stored.photoRemoval',
     defaultMessage:
-      'Undo takes a photo away with its entry (a deleted photo can be recovered for 30 days, then it’s gone). Want a photo taken down later? Email <mail>{email}</mail> and the caretakers will hide it from everyone. Hidden photos are kept rather than deleted, in case the law requires it.',
-    description: 'How photos are removed: undo deletes (30-day recovery), takedown requests hide; hidden photos are kept for legal reasons; keep the <mail></mail> tags around {email}',
+      'Undo takes a photo away with its entry, and a photo you shared on its own can be removed on the photos page for 10 minutes (a deleted photo can be recovered for 30 days, then it’s gone). Want a photo taken down later? Email <mail>{email}</mail> and the caretakers will hide it from everyone. Hidden photos are kept rather than deleted, in case the law requires it.',
+    description: 'How photos are removed: undo, or removing a just-shared photo, deletes (30-day recovery), takedown requests hide; hidden photos are kept for legal reasons; keep the <mail></mail> tags around {email}',
   },
   storedCode: {
     id: 'privacy.stored.code',

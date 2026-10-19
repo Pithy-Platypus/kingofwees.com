@@ -3,6 +3,9 @@ import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 
 import type { AdminSession } from '../king/admin';
 import type { KingEventView, kingApi, SpotView } from '../king/api';
 import { ActivityItem } from '../king/ActivityItem';
+import type { OwnUndo } from '../king/ownPosts';
+import { ownMessages } from '../king/ownMessages';
+import { UndoOwnPost } from '../king/UndoOwnPost';
 import { Link } from '../routing/Link';
 import { AdminEntryActions } from './AdminEntryActions';
 import { adminMessages } from './adminMessages';
@@ -48,9 +51,18 @@ function byDay(events: KingEventView[]): Day[] {
   return days;
 }
 
-type Props = { api: Pick<typeof kingApi, 'getHistory'>; spots: SpotView[]; now: Date; admin?: AdminSession };
+type Props = {
+  api: Pick<typeof kingApi, 'getHistory'>;
+  spots: SpotView[];
+  now: Date;
+  admin?: AdminSession;
+  /** This device's own recent entries get Undo. */
+  own?: OwnUndo;
+  /** An entry was undone here: Home's status should load again. */
+  onUndone?: () => void;
+};
 
-export function HistoryLog({ api, spots, now, admin }: Props) {
+export function HistoryLog({ api, spots, now, admin, own, onUndone }: Props) {
   const intl = useIntl();
   const [events, setEvents] = useState<KingEventView[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
@@ -62,6 +74,8 @@ export function HistoryLog({ api, spots, now, admin }: Props) {
   const firstNew = useRef<HTMLLIElement>(null);
   const [hidCount, setHidCount] = useState(0);
   const hiddenNotice = useRef<HTMLParagraphElement>(null);
+  const [undoneCount, setUndoneCount] = useState(0);
+  const undoneNotice = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     setFailed(false);
@@ -81,6 +95,15 @@ export function HistoryLog({ api, spots, now, admin }: Props) {
   useEffect(() => {
     if (hidCount > 0) hiddenNotice.current?.focus();
   }, [hidCount]);
+  useEffect(() => {
+    if (undoneCount > 0) undoneNotice.current?.focus();
+  }, [undoneCount]);
+
+  const afterUndoing = () => {
+    setUndoneCount((n) => n + 1);
+    setAttempt((a) => a + 1);
+    onUndone?.();
+  };
 
   // Reload from the newest: hiding a poster can take entries from any page.
   const afterHiding = () => {
@@ -146,16 +169,29 @@ export function HistoryLog({ api, spots, now, admin }: Props) {
               {dayName(day.date)}
             </h3>
             <ul className="activity-list" aria-labelledby={`day-${day.key}`}>
-              {day.events.map((e) => (
-                <ActivityItem
-                  key={e.id}
-                  event={e}
-                  spots={spots}
-                  time={timeOf(e)}
-                  ref={e.id === focusId ? firstNew : undefined}
-                  actions={admin && <AdminEntryActions event={e} admin={admin} onHidden={afterHiding} />}
-                />
-              ))}
+              {day.events.map((e) => {
+                const undo = own?.canUndo(e.id) && (
+                  <UndoOwnPost what={e.kind} onConfirm={() => own.undoEntry(e.id)} onDone={afterUndoing} />
+                );
+                const hide = admin && <AdminEntryActions event={e} admin={admin} onHidden={afterHiding} />;
+                return (
+                  <ActivityItem
+                    key={e.id}
+                    event={e}
+                    spots={spots}
+                    time={timeOf(e)}
+                    ref={e.id === focusId ? firstNew : undefined}
+                    actions={
+                      (undo || hide) && (
+                        <>
+                          {undo}
+                          {hide}
+                        </>
+                      )
+                    }
+                  />
+                );
+              })}
             </ul>
           </div>
         ))}
@@ -178,6 +214,11 @@ export function HistoryLog({ api, spots, now, admin }: Props) {
       <h2 id="log-heading" className="section-title">
         <FormattedMessage {...m.heading} />
       </h2>
+      {undoneCount > 0 && (
+        <p ref={undoneNotice} tabIndex={-1} role="status" className="screen-hint">
+          <FormattedMessage {...ownMessages.undone} values={{ what: 'entry' }} />
+        </p>
+      )}
       {hidCount > 0 && (
         <p ref={hiddenNotice} tabIndex={-1} role="status" className="screen-hint">
           <FormattedMessage

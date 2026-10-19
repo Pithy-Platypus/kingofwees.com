@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import L from 'leaflet';
 import { HomeScreen } from './HomeScreen';
-import { at, CENTER, emptyStatus, event, NOW, photo } from '../test/fakeApi';
+import { at, CENTER, emptyStatus, event, fakeOwnUndo, NOW, photo } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 
 const noop = () => {};
@@ -300,5 +300,31 @@ describe('HomeScreen — the “Last fed & seen” map', () => {
     expect(map.dragging.enabled()).toBe(false);
     expect(map.options.scrollWheelZoom).toBe('center');
     create.mockRestore();
+  });
+});
+
+describe('HomeScreen — undoing one’s own entries', () => {
+  const recent = [event({ id: 'mine', kind: 'seen', reporterName: 'Sunny' }), event({ id: 'theirs', reporterName: 'Sarah' })];
+  const status = { ...emptyStatus, recent };
+  const lately = () => within(screen.getByRole('list', { name: 'Lately' })).getAllByRole('listitem');
+
+  it('offers Undo in Lately only on this device’s own recent entries', () => {
+    renderInEnglish(<HomeScreen status={status} now={NOW} onFed={noop} onSeen={noop} own={fakeOwnUndo(['mine'])} />);
+
+    expect(within(lately()[0]).getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(within(lately()[1]).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('undoes after asking, then says so and lets Home load again', async () => {
+    const own = fakeOwnUndo(['mine']);
+    const onUndone = vi.fn();
+    renderInEnglish(<HomeScreen status={status} now={NOW} onFed={noop} onSeen={noop} own={own} onUndone={onUndone} />);
+
+    await userEvent.click(within(lately()[0]).getByRole('button', { name: 'Undo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
+
+    expect(own.undoEntry).toHaveBeenCalledWith('mine');
+    expect(onUndone).toHaveBeenCalledOnce();
+    expect(screen.getByText('Your entry was undone.')).toHaveFocus();
   });
 });

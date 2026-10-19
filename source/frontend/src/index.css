@@ -86,6 +86,8 @@
   .choice-button,
   .admin-button,
   .admin-confirm-button,
+  .own-button,
+  .own-confirm-button,
   .back-button,
   .food-choice,
   .log-button,
@@ -335,6 +337,23 @@
   }
 
   .admin-question {
+    @apply font-bold;
+  }
+
+  /* Undo on one's own entry or shared photo, within 10 minutes: the admin buttons' shape. */
+  .own-buttons {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .own-button {
+    @apply btn-outline min-h-12 rounded-field text-base;
+  }
+
+  .own-confirm-button {
+    @apply btn-secondary min-h-12 rounded-field text-base;
+  }
+
+  .own-question {
     @apply font-bold;
   }
 

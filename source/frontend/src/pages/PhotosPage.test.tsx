@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError, type PhotosPage as PhotosPageData } from '../king/api';
 import type { AdminSession } from '../king/admin';
 import type { PhotoFiles, PhotoResizer } from '../king/photo';
-import { event, fakeAdminApi, fakeApi, photo, SIGN_IN } from '../test/fakeApi';
+import { event, fakeAdminApi, fakeApi, fakeOwnUndo, photo, SIGN_IN } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 import { PhotosPage } from './PhotosPage';
 
@@ -27,6 +27,7 @@ type Options = {
   postingAllowed?: boolean;
   resize?: PhotoResizer;
   admin?: AdminSession;
+  own?: ReturnType<typeof fakeOwnUndo>;
 };
 
 const renderPage = ({
@@ -36,8 +37,10 @@ const renderPage = ({
   postingAllowed = true,
   resize = vi.fn(async () => RESIZED),
   admin,
+  own,
 }: Options = {}) => {
   const onPostingRefused = vi.fn();
+  const onPhotosChanged = vi.fn();
   renderInEnglish(
     <PhotosPage
       api={api}
@@ -46,12 +49,13 @@ const renderPage = ({
       nickname={nickname}
       postingAllowed={postingAllowed}
       onPostingRefused={onPostingRefused}
-      onPhotosChanged={() => {}}
+      onPhotosChanged={onPhotosChanged}
       resize={resize}
       admin={admin}
+      own={own}
     />,
   );
-  return { api, onPostingRefused };
+  return { api, onPostingRefused, onPhotosChanged };
 };
 
 const grid = () => within(screen.getByRole('list', { name: 'Photos of King' }));
@@ -299,5 +303,39 @@ describe('PhotosPage — admin', () => {
     await userEvent.click(within(first).getByRole('radio', { name: 'Rude or off-topic' }));
     await userEvent.click(within(first).getByRole('button', { name: 'Hide photo' }));
     await waitFor(() => expect(admin.onRejected).toHaveBeenCalled());
+  });
+});
+
+describe('PhotosPage — removing one’s own photo', () => {
+  it('remembers a photo this device shares, with the server’s time for it', async () => {
+    const own = fakeOwnUndo();
+    renderPage({ own });
+    await shown('link');
+
+    await pick();
+
+    await waitFor(() => expect(own.remember).toHaveBeenCalledWith('shared-photo', expect.any(String)));
+  });
+
+  it('offers Remove only on a photo this device shared in the last 10 minutes', async () => {
+    renderPage({ own: fakeOwnUndo(['p-shared']) });
+
+    const [mine, onSighting] = (await shown('listitem')).map((li) => within(li));
+    expect(mine.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
+    expect(onSighting.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('removes it after asking, then says so and lets Home load again', async () => {
+    const own = fakeOwnUndo(['p-shared']);
+    const { onPhotosChanged } = renderPage({ own });
+
+    await userEvent.click(within((await shown('listitem'))[0]).getByRole('button', { name: 'Remove' }));
+    expect(screen.getByText('Remove this photo?')).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
+
+    expect(own.removePhoto).toHaveBeenCalledWith('p-shared');
+    expect(grid().getAllByRole('listitem')).toHaveLength(1);
+    expect(onPhotosChanged).toHaveBeenCalledOnce();
+    expect(screen.getByText('Your photo was removed.')).toHaveFocus();
   });
 });

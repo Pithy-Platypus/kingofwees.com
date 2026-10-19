@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import { photoUrl, type KingEventView, type KingStatus, type SpotView } from './api';
 import { BowlIcon, CrownIcon, EyeIcon } from './icons';
@@ -7,7 +7,10 @@ import type { GeoPoint } from './location';
 import { MapView } from './LazyMapView';
 import type { MapMarker } from './MapView';
 import { common, formatWhen, photoAlt, placeOf } from './messages';
+import type { OwnUndo } from './ownPosts';
 import { kingAge, kingMood } from './time';
+import { ownMessages } from './ownMessages';
+import { UndoOwnPost } from './UndoOwnPost';
 
 // Placeholder types are declared so a missing or misspelled {value} fails the type-check.
 type Values = {
@@ -82,6 +85,10 @@ type Props = {
   postingAllowed?: boolean;
   onFed: () => void;
   onSeen: () => void;
+  /** This device's own recent entries get Undo in Lately. */
+  own?: OwnUndo;
+  /** An entry was undone here: the status should load again. */
+  onUndone?: () => void;
 };
 
 type Placed = { marker: MapMarker; event: KingEventView; fedAndSeen: boolean };
@@ -95,8 +102,25 @@ function placedFor({ lastFed, lastSeen }: KingStatus): Placed[] {
   return placed;
 }
 
-export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = false, postingAllowed = true, onFed, onSeen }: Props) {
+export function HomeScreen({
+  status,
+  spots = [],
+  mapCenter = null,
+  now,
+  busy = false,
+  postingAllowed = true,
+  onFed,
+  onSeen,
+  own,
+  onUndone,
+}: Props) {
   const intl = useIntl();
+  const [undoneCount, setUndoneCount] = useState(0);
+  const undoneNotice = useRef<HTMLParagraphElement>(null);
+  // The undone entry's buttons are gone, so focus moves to what happened.
+  useEffect(() => {
+    if (undoneCount > 0) undoneNotice.current?.focus();
+  }, [undoneCount]);
   const hungry = kingMood(status.lastFed && new Date(status.lastFed.occurredAt), now) === 'hungry';
   const when = (e: KingEventView) => formatWhen(intl, new Date(e.occurredAt), now);
   // The server's lastSeen can be the feeding itself (a feeder sees him); then one chip says both.
@@ -206,6 +230,11 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
         <h2 id="lately-heading" className="section-title">
           <FormattedMessage {...m.lately} />
         </h2>
+        {undoneCount > 0 && (
+          <p ref={undoneNotice} tabIndex={-1} role="status" className="screen-hint">
+            <FormattedMessage {...ownMessages.undone} values={{ what: 'entry' }} />
+          </p>
+        )}
         {status.recent.length === 0 ? (
           <p className="activity-detail">
             <FormattedMessage {...m.nothingYet} />
@@ -213,7 +242,24 @@ export function HomeScreen({ status, spots = [], mapCenter = null, now, busy = f
         ) : (
           <ul className="activity-list" aria-labelledby="lately-heading">
             {status.recent.map((e) => (
-              <ActivityItem key={e.id} event={e} spots={spots} time={when(e)} />
+              <ActivityItem
+                key={e.id}
+                event={e}
+                spots={spots}
+                time={when(e)}
+                actions={
+                  own?.canUndo(e.id) && (
+                    <UndoOwnPost
+                      what={e.kind}
+                      onConfirm={() => own.undoEntry(e.id)}
+                      onDone={() => {
+                        setUndoneCount((n) => n + 1);
+                        onUndone?.();
+                      }}
+                    />
+                  )
+                }
+              />
             ))}
           </ul>
         )}

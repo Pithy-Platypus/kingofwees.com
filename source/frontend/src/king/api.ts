@@ -134,6 +134,12 @@ export const kingApi = {
   },
   getPhotos: (before?: string) =>
     request<PhotosPage>(`/api/king/photos${before === undefined ? '' : `?before=${encodeURIComponent(before)}`}`, undefined),
+  // One's own shared photo, within 10 minutes of sharing it (same device and window as undo).
+  deletePhoto: (id: string, reporterKey: string) =>
+    request<void>(`/api/king/photos/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'X-Reporter-Key': reporterKey },
+    }),
   undo: (id: string, reporterKey: string) =>
     request<void>(`/api/king/events/${encodeURIComponent(id)}`, {
       method: 'DELETE',

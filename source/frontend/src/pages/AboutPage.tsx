@@ -58,7 +58,11 @@ const m = defineMessages<Values>({
     defaultMessage: 'Fed King? Tap “I fed King”, pick what he ate, and log it.',
     description: 'How-to step for feedings',
   },
-  howUndo: { id: 'about.how.undo', defaultMessage: 'Made a mistake? You can undo for 10 minutes.', description: 'How-to step for undo' },
+  howUndo: {
+    id: 'about.how.undo',
+    defaultMessage: 'Made a mistake? You can undo for 10 minutes from Lately, the history page or Photos.',
+    description: 'How-to step for undo: one’s own entries (Lately on Home, the history page) and shared photos (Photos page)',
+  },
   honorTitle: { id: 'about.honor.title', defaultMessage: 'Built on trust', description: 'Heading over the honor-system paragraph' },
   honor: {
     id: 'about.honor',

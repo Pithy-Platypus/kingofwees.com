@@ -38,6 +38,12 @@ describe('AboutPage', () => {
     expect(screen.getByText('King as a kitten — tap for the full-size photo.')).toBeInTheDocument();
   });
 
+  it('says where to undo, and for how long', () => {
+    renderAbout();
+
+    expect(screen.getByText('Made a mistake? You can undo for 10 minutes from Lately, the history page or Photos.')).toBeInTheDocument();
+  });
+
   it('explains the honor system and what happens if spam appears', () => {
     renderAbout();
 
@@ -212,6 +218,7 @@ describe('PrivacyPage', () => {
 
     const removal = screen.getByText(/Undo takes a photo away/);
     expect(removal).toHaveTextContent(/recovered for 30 days/);
+    expect(removal).toHaveTextContent(/a photo you shared on its own can be removed on the photos page for 10 minutes/);
     expect(removal).toHaveTextContent(/the caretakers will hide it from everyone/);
     expect(removal).toHaveTextContent(/Hidden photos are kept rather than deleted/);
     expect(removal.querySelector(`a[href="mailto:${contactEmail}"]`)).not.toBeNull();

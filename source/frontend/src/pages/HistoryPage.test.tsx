@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HeatCell, HistoryPage as HistoryPageData } from '../king/api';
-import { CENTER, device, event, fakeAdminApi, fakeApi, NOW, SIGN_IN, spot } from '../test/fakeApi';
+import { CENTER, device, event, fakeAdminApi, fakeApi, fakeOwnUndo, NOW, SIGN_IN, spot } from '../test/fakeApi';
 import { ApiError } from '../king/api';
 import { renderInEnglish } from '../test/render';
 import { HistoryPage } from './HistoryPage';
@@ -382,5 +382,52 @@ describe('HistoryPage — photos', () => {
     renderInEnglish(<HistoryPage api={fakeApi()} spots={[]} mapCenter={null} now={NOW} />);
 
     expect(screen.getByRole('link', { name: 'See every photo' })).toHaveAttribute('href', '/photos');
+  });
+});
+
+describe('HistoryPage — undoing one’s own entries', () => {
+  const history = { events: [event({ id: 'mine', reporterName: 'Sunny' }), event({ id: 'theirs', kind: 'seen' })], next: null };
+  const entries = async () => (await screen.findAllByRole('listitem')).map((li) => within(li));
+
+  it('offers Undo only on this device’s own recent entries', async () => {
+    renderInEnglish(<HistoryPage api={fakeApi(undefined, { history })} spots={[]} mapCenter={null} now={NOW} own={fakeOwnUndo(['mine'])} />);
+
+    const [mine, theirs] = await entries();
+    expect(mine.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(theirs.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('undoes after asking, then shows the log without it, says so and lets Home load again', async () => {
+    const api = fakeApi(undefined, { history });
+    const own = fakeOwnUndo(['mine']);
+    const onUndone = vi.fn();
+    renderInEnglish(<HistoryPage api={api} spots={[]} mapCenter={null} now={NOW} own={own} onUndone={onUndone} />);
+
+    await userEvent.click((await entries())[0].getByRole('button', { name: 'Undo' }));
+    expect(screen.getByText('Undo this feeding?')).toHaveFocus();
+    await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
+
+    expect(own.undoEntry).toHaveBeenCalledWith('mine');
+    await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
+    expect(onUndone).toHaveBeenCalledOnce();
+    expect(screen.getByText('Your entry was undone.')).toHaveFocus();
+  });
+
+  it('gives an admin’s own entry both Undo and the admin’s buttons', async () => {
+    renderInEnglish(
+      <HistoryPage
+        api={fakeApi(undefined, { history })}
+        spots={[]}
+        mapCenter={null}
+        now={NOW}
+        own={fakeOwnUndo(['mine'])}
+        admin={{ signIn: SIGN_IN, api: fakeAdminApi(), onRejected: vi.fn() }}
+      />,
+    );
+
+    const [mine, theirs] = await entries();
+    expect(mine.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(mine.getByRole('button', { name: 'Hide this entry' })).toBeInTheDocument();
+    expect(theirs.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
 });

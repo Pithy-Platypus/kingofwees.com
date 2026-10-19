@@ -24,8 +24,8 @@
     "description": "Heading over the how-to list"
   },
   "about.how.undo": {
-    "defaultMessage": "Made a mistake? You can undo for 10 minutes.",
-    "description": "How-to step for undo"
+    "defaultMessage": "Made a mistake? You can undo for 10 minutes from Lately, the history page or Photos.",
+    "description": "How-to step for undo: one’s own entries (Lately on Home, the history page) and shared photos (Photos page)"
   },
   "about.kitten.alt": {
     "defaultMessage": "King as a tiny grey kitten on an orange toy (full-size photo)",
@@ -815,6 +815,38 @@
     "defaultMessage": "What should neighbors call you?",
     "description": "Heading of the one-time name question"
   },
+  "own.confirm": {
+    "defaultMessage": "{what, select, fed {Undo this feeding?} seen {Undo this sighting?} other {Remove this photo?}}",
+    "description": "Asked in place before undoing one’s own entry or removing one’s own photo"
+  },
+  "own.failed": {
+    "defaultMessage": "{what, select, photo {Couldn’t remove the photo. Try again.} other {Couldn’t undo it. Try again.}}",
+    "description": "Undoing or removing failed for another reason (offline, server error)"
+  },
+  "own.keep": {
+    "defaultMessage": "Keep it",
+    "description": "Answers no to undoing or removing; nothing changes"
+  },
+  "own.remove": {
+    "defaultMessage": "Remove",
+    "description": "Button under a photo this device shared, within 10 minutes of sharing it"
+  },
+  "own.tooLate": {
+    "defaultMessage": "{what, select, photo {It’s too late to remove it — photos can only be removed for 10 minutes.} other {It’s too late to undo — entries can only be undone for 10 minutes.}}",
+    "description": "The server refused because the entry or photo is older than 10 minutes"
+  },
+  "own.undo": {
+    "defaultMessage": "Undo",
+    "description": "Button under one of this device’s own entries, within 10 minutes of logging it"
+  },
+  "own.undone": {
+    "defaultMessage": "{what, select, photo {Your photo was removed.} other {Your entry was undone.}}",
+    "description": "Said, and focused, after one’s own entry was undone or photo removed (its buttons are gone)"
+  },
+  "own.yes": {
+    "defaultMessage": "{what, select, photo {Remove it} other {Undo it}}",
+    "description": "Confirms undoing one’s own entry, or removing one’s own photo"
+  },
   "page.backToKing": {
     "defaultMessage": "Back to King",
     "description": "Link from About/Privacy back to the home page"
@@ -996,8 +1028,8 @@
     "description": "Stored data: the optional public nickname, also kept in the browser"
   },
   "privacy.stored.photoRemoval": {
-    "defaultMessage": "Undo takes a photo away with its entry (a deleted photo can be recovered for 30 days, then it’s gone). Want a photo taken down later? Email <mail>{email}</mail> and the caretakers will hide it from everyone. Hidden photos are kept rather than deleted, in case the law requires it.",
-    "description": "How photos are removed: undo deletes (30-day recovery), takedown requests hide; hidden photos are kept for legal reasons; keep the <mail></mail> tags around {email}"
+    "defaultMessage": "Undo takes a photo away with its entry, and a photo you shared on its own can be removed on the photos page for 10 minutes (a deleted photo can be recovered for 30 days, then it’s gone). Want a photo taken down later? Email <mail>{email}</mail> and the caretakers will hide it from everyone. Hidden photos are kept rather than deleted, in case the law requires it.",
+    "description": "How photos are removed: undo, or removing a just-shared photo, deletes (30-day recovery), takedown requests hide; hidden photos are kept for legal reasons; keep the <mail></mail> tags around {email}"
   },
   "privacy.stored.photos": {
     "defaultMessage": "Photos you add: everyone can see them on the <photos>photos page</photos>, with the name you gave. Your browser shrinks each photo and removes the hidden details phones save in it, including the exact place it was taken, and our server removes them again before storing it.",

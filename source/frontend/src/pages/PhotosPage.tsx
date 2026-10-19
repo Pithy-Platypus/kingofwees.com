@@ -3,8 +3,11 @@ import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 
 import { isKeyRejected, type AdminSession, type HideReason } from '../king/admin';
 import { isPostingRefused, photoUrl, type kingApi, type PhotoView, type SpotView } from '../king/api';
 import { photoAlt, photoPhrases } from '../king/messages';
+import type { OwnUndo } from '../king/ownPosts';
 import type { PhotoFiles, PhotoResizer } from '../king/photo';
 import { PhotoPicker } from '../king/PhotoSlot';
+import { ownMessages } from '../king/ownMessages';
+import { UndoOwnPost } from '../king/UndoOwnPost';
 import { Link } from '../routing/Link';
 import { adminMessages } from './adminMessages';
 import { HidePhotoForm } from './HidePhotoForm';
@@ -123,6 +126,8 @@ type Props = {
   resize: PhotoResizer;
   /** Present when this device holds an accepted admin key: each photo gets "Hide this photo". */
   admin?: AdminSession;
+  /** This device's own just-shared photos get Remove. */
+  own?: OwnUndo;
 };
 
 /** Every visible photo, newest first, 50 at a time; shared photos are only ever here. */
@@ -136,6 +141,7 @@ export function PhotosPage({
   onPhotosChanged,
   resize,
   admin,
+  own,
 }: Props) {
   const intl = useIntl();
   const [photos, setPhotos] = useState<PhotoView[] | null>(null);
@@ -147,6 +153,8 @@ export function PhotosPage({
   const [focusId, setFocusId] = useState<string | null>(null);
   const [share, setShare] = useState<Share | null>(null);
   const [hidCount, setHidCount] = useState(0);
+  const [removedCount, setRemovedCount] = useState(0);
+  const removedNotice = useRef<HTMLParagraphElement>(null);
   const firstNew = useRef<HTMLAnchorElement>(null);
   const sharedNotice = useRef<HTMLParagraphElement>(null);
   const retry = useRef<HTMLButtonElement>(null);
@@ -171,6 +179,9 @@ export function PhotosPage({
   useEffect(() => {
     if (hidCount > 0) hiddenNotice.current?.focus();
   }, [hidCount]);
+  useEffect(() => {
+    if (removedCount > 0) removedNotice.current?.focus();
+  }, [removedCount]);
 
   const showOlder = async (before: string) => {
     setLoadingOlder(true);
@@ -191,6 +202,7 @@ export function PhotosPage({
     setShare({ status: 'sending', files });
     try {
       const added = await api.sharePhoto({ reporterKey, ...(nickname ? { reporterName: nickname } : {}) }, files);
+      own?.remember(added.id, added.postedAt);
       setPhotos((shown) => [added, ...(shown ?? [])]);
       setShare({ status: 'shared' });
       onPhotosChanged();
@@ -215,6 +227,12 @@ export function PhotosPage({
   const hidden = (id: string) => {
     setPhotos((shown) => (shown ?? []).filter((p) => p.id !== id));
     setHidCount((n) => n + 1);
+    onPhotosChanged();
+  };
+
+  const removed = (id: string) => {
+    setPhotos((shown) => (shown ?? []).filter((p) => p.id !== id));
+    setRemovedCount((n) => n + 1);
     onPhotosChanged();
   };
 
@@ -286,6 +304,7 @@ export function PhotosPage({
                 <a ref={p.id === focusId ? firstNew : undefined} href={photoUrl(p.id, 'full')} className="photo-grid-link">
                   <img src={photoUrl(p.id, 'thumb')} alt={description} title={description} loading="lazy" className="photo-grid-image" />
                 </a>
+                {own?.canUndo(p.id) && <UndoOwnPost what="photo" onConfirm={() => own.removePhoto(p.id)} onDone={() => removed(p.id)} />}
                 {admin && <HidePhoto photo={p} admin={admin} onHidden={() => hidden(p.id)} />}
               </li>
             );
@@ -314,6 +333,11 @@ export function PhotosPage({
             <FormattedMessage {...m.notASighting} />
           </p>
         </div>
+      )}
+      {removedCount > 0 && (
+        <p ref={removedNotice} tabIndex={-1} role="status" className="screen-hint">
+          <FormattedMessage {...ownMessages.undone} values={{ what: 'photo' }} />
+        </p>
       )}
       {hidCount > 0 && (
         <p ref={hiddenNotice} tabIndex={-1} role="status" className="screen-hint">

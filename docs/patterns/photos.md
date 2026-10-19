@@ -42,6 +42,10 @@ The browser shrinks every picked photo before sending it (`src/king/photo.ts`): 
 
 The entry is posted first and shown at once; its photo follows. A failed upload says the entry is saved and offers Retry with the same files, so a bad connection never costs the entry. A 409 means the 10-minute window closed ("too late", no Retry). Undo stays off while a photo is on its way, so the two requests never race (an upload that lost the race would get a 404 — no stray photo — but the screen would say the photo failed on an entry that's gone).
 
+## Removing one's own shared photo
+
+For 10 minutes after sharing, `/photos` offers **Remove** on that photo, in this browser only, asked in place (`undo.md`); it calls `DELETE /api/king/photos/{id}` with `X-Reporter-Key`, which deletes the record and both files (recoverable from storage's soft delete for 30 days). A photo on an entry goes only with its entry.
+
 ## Showing photos
 
 Every photo is described by how it was added, like its history line ("Photo from a sighting by Sarah near Porch, Oct 8, 2026, 4:12 PM"; "Photo shared by Kael on Oct 8, 2026"). The date **always carries the year**: a shared photo can be months old, and "Oct 8" alone would read as this year. The same text is the image's `title` as well as its `alt`: browsers never show alt text on hover (Wallie's manual test found hovering showed nothing), and a title equal to the accessible name isn't read twice. Touch screens have no hover, and captions were declined, so phones show no description.

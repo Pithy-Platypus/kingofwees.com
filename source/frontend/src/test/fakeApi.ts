@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotosPage, PhotoView, SpotView } from '../king/api';
 import type { ActivityPage, AdminApi, AdminSignIn, AdminSpot, DeviceView, HiddenDevice, HiddenPhotoView } from '../king/admin';
 import type { GeoPoint } from '../king/location';
+import type { OwnUndo } from '../king/ownPosts';
 
 export const at = (iso: string) => new Date(iso);
 export const NOW = at('2026-10-08T12:00:00Z');
@@ -67,11 +68,20 @@ export function fakeApi(
     sharePhoto: vi.fn<typeof kingApi.sharePhoto>().mockImplementation(async (r) => photo({ id: 'shared-photo', reporterName: r.reporterName ?? null })),
     getPhotos: vi.fn<typeof kingApi.getPhotos>().mockResolvedValue(photos),
     undo: vi.fn<typeof kingApi.undo>().mockResolvedValue(undefined),
+    deletePhoto: vi.fn<typeof kingApi.deletePhoto>().mockResolvedValue(undefined),
     renameEvent: vi.fn<typeof kingApi.renameEvent>().mockResolvedValue(undefined),
     getHeat: vi.fn<typeof kingApi.getHeat>().mockResolvedValue(heat),
     getHistory: vi.fn<typeof kingApi.getHistory>().mockResolvedValue(history),
   };
 }
+
+/** This device's own recent posts: the ids in `mine` can be undone; every undo succeeds unless a test says otherwise. */
+export const fakeOwnUndo = (mine: string[] = []) => ({
+  canUndo: vi.fn<OwnUndo['canUndo']>((id) => mine.includes(id)),
+  remember: vi.fn<OwnUndo['remember']>(),
+  undoEntry: vi.fn<OwnUndo['undoEntry']>().mockResolvedValue(undefined),
+  removePhoto: vi.fn<OwnUndo['removePhoto']>().mockResolvedValue(undefined),
+});
 
 export const ADMIN_KEY = 'test-admin-key';
 export const SIGN_IN: AdminSignIn = { key: ADMIN_KEY, name: 'Wallie' };

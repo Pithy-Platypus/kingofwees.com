@@ -16,7 +16,7 @@ const m = defineMessages<Values>({
   },
 });
 
-/** `actions` (admins only) go on their own row under the entry. */
+/** `actions` (Undo on one's own recent entry, an admin's buttons) go on their own row under the entry. */
 type Props = { event: KingEventView; spots: SpotView[]; time: string; ref?: Ref<HTMLLIElement>; actions?: ReactNode };
 
 // Browsers never show alt text on hover; the title does, on devices that hover (same text, so it isn't read twice).
