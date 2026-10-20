@@ -10,4 +10,7 @@ public interface IPhotoBlobStore
 
     /// <returns>Whether a file with the name existed.</returns>
     Task<bool> DeleteAsync(string name, CancellationToken cancellationToken);
+
+    /// <summary>Makes a first call, so the next ones don't wait for sign-in and a connection.</summary>
+    Task WarmUpAsync(CancellationToken cancellationToken);
 }

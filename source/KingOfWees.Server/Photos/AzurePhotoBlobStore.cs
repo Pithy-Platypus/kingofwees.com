@@ -24,6 +24,15 @@ public sealed class AzurePhotoBlobStore(BlobContainerClient container) : IPhotoB
         }
     }
 
+    // One page of at most one name: a 200 whether or not there are photos, with the app's own read access.
+    public async Task WarmUpAsync(CancellationToken cancellationToken)
+    {
+        await foreach (var _ in container.GetBlobsAsync(cancellationToken: cancellationToken).AsPages(pageSizeHint: 1))
+        {
+            return;
+        }
+    }
+
     public async Task<bool> DeleteAsync(string name, CancellationToken cancellationToken) =>
         await container.GetBlobClient(name).DeleteIfExistsAsync(cancellationToken: cancellationToken);
 }

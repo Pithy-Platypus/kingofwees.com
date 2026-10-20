@@ -22,6 +22,16 @@ public abstract class PhotoBlobStoreContract
     }
 
     [Fact]
+    public async Task Warming_up_succeeds_with_or_without_files()
+    {
+        var store = CreateStore();
+
+        await store.WarmUpAsync(Ct);
+        await store.PutAsync(NewName(), new MemoryStream([0xFF, 0xD8, 0xFF, 0xD9]), Ct);
+        await store.WarmUpAsync(Ct);
+    }
+
+    [Fact]
     public async Task A_stored_file_opens_with_the_same_bytes()
     {
         var store = CreateStore();

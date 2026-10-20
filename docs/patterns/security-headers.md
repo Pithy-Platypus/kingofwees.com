@@ -15,6 +15,7 @@ The admin key is kept in `localStorage` (`admin-key.md`), so any script running 
 | `X-Content-Type-Options` | `nosniff` | Everywhere now (it was on photo files only) |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | The browsers' default, stated. **Never `no-referrer`:** OpenStreetMap's tile usage policy requires a Referer naming the site, and tiles may be refused without one |
 | `Cross-Origin-Resource-Policy` | `same-origin` | Added 2026-10-19 (second security review). Another site can't load the site's files into its own page — King's photos in its `<img>` (hotlinking), a script or a JSON response read as a script. The site's own pages load everything from their own origin, so nothing of theirs is refused; `kingofwees.com` and `www.` each load from themselves. It doesn't touch navigation: opening a photo's link still works. Not `same-site`: no other name under the domain needs the files |
+| `X-Robots-Tag` | `noindex` | Added 2026-10-20 (Wallie): the site stays out of search engines — kids post nicknames and the history shows where King goes. `robots.txt` (`frontend/public/`) lets crawlers read the pages, keeping them only out of `/api/`, because a crawler blocked by `Disallow: /` never sees the noindex, and a search engine can still list an address it only saw linked elsewhere. `/admin` isn't named there: it isn't linked anywhere, and naming it in a public file would advertise it. |
 
 Kestrel no longer sends `Server: Kestrel`.
 

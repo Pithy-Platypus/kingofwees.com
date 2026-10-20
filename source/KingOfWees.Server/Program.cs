@@ -46,6 +46,7 @@ builder.Services.AddKing();
 builder.Services.AddAdmin();
 builder.Services.AddClientDiagnostics();
 builder.Services.AddSingleton<IPhotoBlobStore, AzurePhotoBlobStore>();
+builder.Services.AddHostedService<PhotoStorageWarmUp>();
 builder.Services.AddSingleton<IPhotoStore, MongoPhotoStore>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

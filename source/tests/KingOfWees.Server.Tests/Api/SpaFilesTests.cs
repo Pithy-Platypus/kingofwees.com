@@ -28,6 +28,10 @@ public sealed class SpaFilesTests : IAsyncLifetime
         File.WriteAllBytes(Path.Combine(assets, "index-abc.js.br"), Brotli);
         File.WriteAllBytes(Path.Combine(assets, "index-abc.js.gz"), Gzip);
         File.WriteAllBytes(Path.Combine(assets, "font-abc.woff2"), Font);
+        foreach (var file in new[] { "favicon.ico", "favicon.svg", "apple-touch-icon.png", "robots.txt" })
+        {
+            File.WriteAllBytes(Path.Combine(_webRoot, file), [1, 2, 3]);
+        }
         _factory = new KingApiFactory();
         // The client sends Accept-Encoding as each test sets it and never decompresses, so the bytes are what was sent.
         _client = _factory.WithWebHostBuilder(b => b.UseWebRoot(_webRoot)).CreateClient();
@@ -112,6 +116,21 @@ public sealed class SpaFilesTests : IAsyncLifetime
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
         Assert.True(response.Headers.CacheControl?.NoCache);
         Assert.Null(response.Headers.CacheControl?.MaxAge);
+    }
+
+    // From frontend/public, at the site's root: the names browsers and crawlers ask for on their own.
+    [Theory]
+    [InlineData("/favicon.ico", "image/x-icon")]
+    [InlineData("/favicon.svg", "image/svg+xml")]
+    [InlineData("/apple-touch-icon.png", "image/png")]
+    [InlineData("/robots.txt", "text/plain")]
+    public async Task Root_files_are_served_with_their_type_and_rechecked(string path, string type)
+    {
+        var response = await Get(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(type, response.Content.Headers.ContentType?.MediaType);
+        Assert.True(response.Headers.CacheControl?.NoCache);
     }
 
     [Fact]

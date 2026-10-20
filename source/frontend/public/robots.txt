@@ -1,0 +1,3 @@
+# Crawlers may read the pages, so they see each one's X-Robots-Tag: noindex and leave the site out of search.
+User-agent: *
+Disallow: /api/

@@ -6,6 +6,15 @@ namespace KingOfWees.Server.Tests.Photos;
 public sealed class InMemoryPhotoBlobStore : IPhotoBlobStore
 {
     private readonly ConcurrentDictionary<string, byte[]> _files = new();
+    private int _warmUps;
+
+    public int WarmUps => _warmUps;
+
+    public Task WarmUpAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _warmUps);
+        return Task.CompletedTask;
+    }
 
     public async Task PutAsync(string name, Stream content, CancellationToken cancellationToken)
     {

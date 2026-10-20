@@ -51,6 +51,8 @@ public sealed class SecurityHeadersTests : IAsyncLifetime
         Assert.Equal("strict-origin-when-cross-origin", Single(response, "Referrer-Policy"));
         // No other site may load the site's files (King's photos in its <img>, say); the site's own pages still do.
         Assert.Equal("same-origin", Single(response, "Cross-Origin-Resource-Policy"));
+        // Kept out of search engines (Wallie, 2026-10-20); robots.txt lets crawlers in so they can read this.
+        Assert.Equal("noindex", Single(response, "X-Robots-Tag"));
     }
 
     [Fact]

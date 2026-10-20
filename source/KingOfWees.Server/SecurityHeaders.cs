@@ -25,6 +25,8 @@ internal static class SecurityHeaders
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
                 // No other site may load the site's files, such as showing King's photos in its own <img>.
                 headers["Cross-Origin-Resource-Policy"] = "same-origin";
+                // Out of search engines; robots.txt lets crawlers fetch pages, or they would never see this.
+                headers["X-Robots-Tag"] = "noindex";
                 return Task.CompletedTask;
             });
             return next(context);

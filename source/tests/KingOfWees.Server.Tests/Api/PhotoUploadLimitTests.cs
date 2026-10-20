@@ -42,6 +42,8 @@ public sealed class PhotoUploadLimitTests
         public Task<Stream?> OpenAsync(string name, CancellationToken cancellationToken) => files.OpenAsync(name, cancellationToken);
 
         public Task<bool> DeleteAsync(string name, CancellationToken cancellationToken) => files.DeleteAsync(name, cancellationToken);
+
+        public Task WarmUpAsync(CancellationToken cancellationToken) => files.WarmUpAsync(cancellationToken);
     }
 
     private static (WebApplicationFactory<KingOfWees.Server.King.KingEvent> Factory, HeldFiles Files) Held(KingApiFactory factory)
