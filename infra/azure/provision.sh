@@ -228,7 +228,8 @@ secrets = [{"name": "king-connection", "value": e["KING_CONN"]},
            {"name": "insights-connection", "value": e["INSIGHTS_CONN"]}]
 env = [{"name": "ConnectionStrings__king", "secretRef": "king-connection"},
        {"name": "APPLICATIONINSIGHTS_CONNECTION_STRING", "secretRef": "insights-connection"},
-       # Without the agent nothing names the service: rows keep the role name kingofwees-env.kingofwees.
+       # Without the agent nothing names the service. The exporter writes the role name as [kingofwees-env]/kingofwees
+       # (the agent wrote kingofwees-env.kingofwees); nothing queries it.
        {"name": "OTEL_SERVICE_NAME", "value": "kingofwees"},
        {"name": "OTEL_RESOURCE_ATTRIBUTES", "value": "service.namespace=kingofwees-env"},
        # The blob address only, not a secret: the app signs in with its own identity (no storage key exists).
