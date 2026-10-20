@@ -28,7 +28,7 @@ public sealed class SpaFilesTests : IAsyncLifetime
         File.WriteAllBytes(Path.Combine(assets, "index-abc.js.br"), Brotli);
         File.WriteAllBytes(Path.Combine(assets, "index-abc.js.gz"), Gzip);
         File.WriteAllBytes(Path.Combine(assets, "font-abc.woff2"), Font);
-        foreach (var file in new[] { "favicon.ico", "favicon.svg", "apple-touch-icon.png", "robots.txt" })
+        foreach (var file in new[] { "favicon.ico", "favicon.svg", "favicon-32.png", "apple-touch-icon.png", "robots.txt" })
         {
             File.WriteAllBytes(Path.Combine(_webRoot, file), [1, 2, 3]);
         }
@@ -122,6 +122,7 @@ public sealed class SpaFilesTests : IAsyncLifetime
     [Theory]
     [InlineData("/favicon.ico", "image/x-icon")]
     [InlineData("/favicon.svg", "image/svg+xml")]
+    [InlineData("/favicon-32.png", "image/png")]
     [InlineData("/apple-touch-icon.png", "image/png")]
     [InlineData("/robots.txt", "text/plain")]
     public async Task Root_files_are_served_with_their_type_and_rechecked(string path, string type)

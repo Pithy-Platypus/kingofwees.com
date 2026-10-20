@@ -39,10 +39,13 @@ public sealed class HomePageTests(AppFixture app)
                 (await link.GetAttributeAsync("type")) ?? "";
         }
 
-        Assert.Equal(["apple-touch-icon /apple-touch-icon.png", "icon /favicon.ico", "icon /favicon.svg"], icons.Keys.Order());
+        // A PNG for Safari: its tab showed a letter with only our .ico and SVG, as it did for a site offering only
+        // a .ico, while a site offering PNGs got its icon (2026-10-20).
+        Assert.Equal(["apple-touch-icon /apple-touch-icon.png", "icon /favicon-32.png", "icon /favicon.ico", "icon /favicon.svg"], icons.Keys.Order());
         foreach (var (path, type) in new[]
         {
-            ("/favicon.ico", "image/x-icon"), ("/favicon.svg", "image/svg+xml"), ("/apple-touch-icon.png", "image/png"),
+            ("/favicon.ico", "image/x-icon"), ("/favicon.svg", "image/svg+xml"), ("/favicon-32.png", "image/png"),
+            ("/apple-touch-icon.png", "image/png"),
         })
         {
             var response = await page.APIRequest.GetAsync(path);
