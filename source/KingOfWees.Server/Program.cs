@@ -1,5 +1,6 @@
 using KingOfWees.Server;
 using KingOfWees.Server.Admin;
+using KingOfWees.Server.Diagnostics;
 using KingOfWees.Server.King;
 using KingOfWees.Server.Photos;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -43,6 +44,7 @@ builder.Services.Configure<ExceptionHandlerOptions>(options =>
         : StatusCodes.Status500InternalServerError);
 builder.Services.AddKing();
 builder.Services.AddAdmin();
+builder.Services.AddClientDiagnostics();
 builder.Services.AddSingleton<IPhotoBlobStore, AzurePhotoBlobStore>();
 builder.Services.AddSingleton<IPhotoStore, MongoPhotoStore>();
 
@@ -77,6 +79,7 @@ app.UseAuthorization();
 app.MapKingEndpoints();
 app.MapAdminEndpoints();
 app.MapVersion();
+app.MapClientDiagnostics();
 app.MapDefaultEndpoints();
 
 // Unknown /api routes must stay 404s, not return the page.

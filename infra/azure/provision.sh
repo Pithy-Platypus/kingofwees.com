@@ -33,6 +33,7 @@ ALERTS="kingofwees-alerts"
 BACKUP_ALERT="kingofwees-backup-failed"
 SEEN_ALERT="kingofwees-king-seen-or-fed"
 PHOTO_ALERT="kingofwees-photo-posted"
+ERROR_ALERT="kingofwees-server-errors"
 REPOSITORY="ghcr.io/pithy-platypus/kingofwees"
 SECRETS="$HOME/.kingofwees"
 
@@ -51,6 +52,9 @@ export KING_CONN ADMIN_KEY_HASH MAP_CENTER
 
 EXISTING_IMAGE=$(az containerapp show -g "$GROUP" -n "$APP" --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)
 IMAGE=${1:-${EXISTING_IMAGE:-$REPOSITORY:$(git -C "$(dirname "$0")" rev-parse --short=12 HEAD)}}
+# Telemetry leaves only through the app's own exporter now: an image from before it would run with none at all.
+git -C "$(dirname "$0")" show "${IMAGE##*:}:source/KingOfWees.Server/Extensions.cs" 2>/dev/null | grep -q AddAzureMonitorTraceExporter \
+  || { echo "$IMAGE has no Azure Monitor exporter (or its commit isn't here): deploy a newer one with infra/deploy.sh first." >&2; exit 1; }
 # Container Apps pulls without credentials, so the package must be public before the app can start.
 # Checked before anything is created; GHCR refuses even the anonymous token while the package is private.
 anonymous_pull() {
@@ -81,18 +85,22 @@ done
 }
 ENVIRONMENT_ID=$(az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" --query id -o tsv)
 
-echo "== Telemetry: traces and logs through the environment's OpenTelemetry agent to $INSIGHTS (workspace $WORKSPACE, ${WORKSPACE_DAILY_GB} GB a day cap)"
-# The agent injects OTEL_EXPORTER_OTLP_ENDPOINT into the app, which turns its OTLP exporter on. It can't send metrics to
-# Application Insights: memory, CPU and restarts are the container app's platform metrics (portal → Metrics).
+echo "== Telemetry: the app's own exporter to $INSIGHTS (workspace $WORKSPACE, ${WORKSPACE_DAILY_GB} GB a day cap)"
+# Not the environment's OpenTelemetry agent: it left every request's ResultCode 0 and Success true. Memory, CPU and restarts
+# are the container app's platform metrics (portal → Metrics). Why → docs/patterns/telemetry.md.
 az monitor log-analytics workspace create -g "$GROUP" -n "$WORKSPACE" -l "$LOCATION" --sku PerGB2018 \
   --retention-time 31 --quota "$WORKSPACE_DAILY_GB" -o none
 if ! az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" -o none 2>/dev/null; then
   az monitor app-insights component create -g "$GROUP" --app "$INSIGHTS" -l "$LOCATION" --kind web --application-type web \
     --workspace "$(az monitor log-analytics workspace show -g "$GROUP" -n "$WORKSPACE" --query id -o tsv)" -o none
 fi
-az containerapp env telemetry app-insights set -g "$GROUP" -n "$ENVIRONMENT" -o none \
-  --connection-string "$(az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" --query connectionString -o tsv)" \
-  --enable-open-telemetry-traces true --enable-open-telemetry-logs true
+INSIGHTS_CONN=$(az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" --query connectionString -o tsv)
+export INSIGHTS_CONN
+# With the agent left on, every row would arrive twice.
+if [[ "$(az containerapp env telemetry app-insights show -g "$GROUP" -n "$ENVIRONMENT" \
+  --query "enableOpenTelemetryTraces || enableOpenTelemetryLogs" -o tsv 2>/dev/null)" == "true" ]]; then
+  az containerapp env telemetry app-insights delete -g "$GROUP" -n "$ENVIRONMENT" --yes -o none
+fi
 
 echo "== Storage account $STORAGE for backups (private, blobs deleted after 30 days)"
 if ! az storage account show -g "$GROUP" -n "$STORAGE" -o none 2>/dev/null; then
@@ -189,22 +197,25 @@ if ! az monitor metrics alert show -g "$GROUP" -n "$BACKUP_ALERT" -o none 2>/dev
     --severity 2 --action "$ALERTS" --description "A nightly backup run failed: see the job's execution history and its log in $STORAGE/$BACKUPS."
 fi
 
-# The app's counters never reach Azure, but every request does, as one unsampled AppRequests row. ResultCode there reads 0,
-# so success is the span's status tag. Rows can land minutes late (16 seen), so each run takes the rows that arrived since
-# the last one, over an hour of event time. Stateless: a rule that stayed fired would email only once.
-event_alert() { # name, routes, description
+# Every request is one unsampled AppRequests row with its real ResultCode. Rows can land minutes late (16 seen), so each
+# run takes the rows that arrived since the last one, over an hour of event time. Stateless: a rule that stayed fired
+# would email only once.
+request_alert() { # name, severity, filter, description
   az monitor scheduled-query create -g "$GROUP" -n "$1" -o none \
     --scopes "$(az monitor log-analytics workspace show -g "$GROUP" -n "$WORKSPACE" --query id -o tsv)" \
-    --condition "count 'Posts' > 0" \
-    --condition-query Posts="AppRequests | where ingestion_time() > ago(15m) | where Name in ($2) | where tostring(Properties['http.response.status_code']) == '201'" \
-    --window-size 1h --evaluation-frequency 15m --auto-mitigate false --severity 4 --action-groups "$ALERTS_ID" --description "$3"
+    --condition "count 'Requests' > 0" \
+    --condition-query Requests="AppRequests | where ingestion_time() > ago(15m) | where $3" \
+    --window-size 1h --evaluation-frequency 15m --auto-mitigate false --severity "$2" --action-groups "$ALERTS_ID" --description "$4"
 }
-echo "== Alerts $SEEN_ALERT, $PHOTO_ALERT: email when King is seen or fed, and when a photo is posted"
+echo "== Alerts $SEEN_ALERT, $PHOTO_ALERT, $ERROR_ALERT: email when King is seen or fed, a photo is posted, or the site fails"
 ALERTS_ID=$(az monitor action-group show -g "$GROUP" -n "$ALERTS" --query id -o tsv)
-event_alert "$SEEN_ALERT" "'POST /api/king/sightings', 'POST /api/king/feedings'" \
+request_alert "$SEEN_ALERT" 4 "Name in ('POST /api/king/sightings', 'POST /api/king/feedings') and ResultCode == '201'" \
   "King has been seen or fed: https://$DOMAIN/history"
-event_alert "$PHOTO_ALERT" "'POST /api/king/events/{id}/photo', 'POST /api/king/photos'" \
+request_alert "$PHOTO_ALERT" 4 "Name in ('POST /api/king/events/{id}/photo', 'POST /api/king/photos') and ResultCode == '201'" \
   "A photo of King has been posted: https://$DOMAIN/photos"
+# Only 5xx: every 4xx counts as a failed request too (scanners' 404s, visitors leaving a slow page's 499s).
+request_alert "$ERROR_ALERT" 2 "toint(ResultCode) >= 500" \
+  "The site answered with a server error: $INSIGHTS → Failures, filtered to 5xx response codes."
 
 echo "== Container app $APP"
 # Re-applying the definition without the bound domains would drop them, so they're carried over.
@@ -213,8 +224,13 @@ APP_DOMAINS="${APP_DOMAINS:-null}" APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAG
   APP_PHOTOS="Endpoint=https://$PHOTOS_STORAGE.blob.core.windows.net;ContainerName=$PHOTOS" python3 -I - >"$WORK/app.json" <<'PY'
 import json, os
 e = os.environ
-secrets = [{"name": "king-connection", "value": e["KING_CONN"]}]
+secrets = [{"name": "king-connection", "value": e["KING_CONN"]},
+           {"name": "insights-connection", "value": e["INSIGHTS_CONN"]}]
 env = [{"name": "ConnectionStrings__king", "secretRef": "king-connection"},
+       {"name": "APPLICATIONINSIGHTS_CONNECTION_STRING", "secretRef": "insights-connection"},
+       # Without the agent nothing names the service: rows keep the role name kingofwees-env.kingofwees.
+       {"name": "OTEL_SERVICE_NAME", "value": "kingofwees"},
+       {"name": "OTEL_RESOURCE_ATTRIBUTES", "value": "service.namespace=kingofwees-env"},
        # The blob address only, not a secret: the app signs in with its own identity (no storage key exists).
        {"name": "ConnectionStrings__photos", "value": e["APP_PHOTOS"]},
        {"name": "King__Proxy__TrustForwardedFor", "value": "true"}]

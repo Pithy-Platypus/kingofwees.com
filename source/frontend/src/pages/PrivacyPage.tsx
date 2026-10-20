@@ -17,6 +17,7 @@ type Values = {
   storedPhotos: { photos: MessageTag };
   photoRemoval: { email: string; mail: MessageTag };
   storedCode: NoMessageValues;
+  storedProblems: NoMessageValues;
   storedWhere: NoMessageValues;
   notTitle: NoMessageValues;
   notTracking: NoMessageValues;
@@ -71,6 +72,12 @@ const m = defineMessages<Values>({
     defaultMessage:
       'A random code saved in your browser, so you can undo your own entries. It isn’t linked to who you are.',
     description: 'Stored data: the per-device undo key',
+  },
+  storedProblems: {
+    id: 'privacy.stored.problems',
+    defaultMessage:
+      'If a page breaks in your browser, your browser tells us what broke and on which page, so we can fix it — never your internet address or the random code above. It’s kept for a month.',
+    description: 'Stored data: error reports from the browser (what broke, which page, the site version); no IP address or device code; kept 31 days in the technical logs',
   },
   storedWhere: {
     id: 'privacy.stored.where',
@@ -162,6 +169,9 @@ export function PrivacyPage() {
         </li>
         <li>
           <FormattedMessage {...m.storedCode} />
+        </li>
+        <li>
+          <FormattedMessage {...m.storedProblems} />
         </li>
         <li>
           <FormattedMessage {...m.storedWhere} />

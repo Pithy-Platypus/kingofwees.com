@@ -8,6 +8,8 @@
   "mutate": [
     "build/precompress.ts",
     "src/App.tsx",
+    "src/ErrorBoundary.tsx",
+    "src/diagnostics.ts",
     "src/i18n/locale.ts",
     "src/king/LazyMapView.tsx",
     "src/king/PhotoSlot.tsx",

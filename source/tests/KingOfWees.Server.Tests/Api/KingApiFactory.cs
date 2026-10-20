@@ -50,6 +50,8 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
         // A test makes many reads from one address; RateLimitTests set lower ones through settings.
         builder.UseSetting("RateLimiting:ReadsPerMinute", "1000");
         builder.UseSetting("RateLimiting:PhotoFilesPerMinute", "1000");
+        builder.UseSetting("RateLimiting:ClientDiagnosticsPerMinute", "1000");
+        builder.UseSetting("RateLimiting:ClientDiagnosticsTotalPerMinute", "1000");
         foreach (var (key, value) in settings)
         {
             builder.UseSetting(key, value);

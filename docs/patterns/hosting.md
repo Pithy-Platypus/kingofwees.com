@@ -28,7 +28,7 @@ One Azure Container Apps (ACA) app, **one replica, always warm**, at the smalles
 
 ## Telemetry
 
-The environment's managed OpenTelemetry agent (no compute charge) sends the app's traces and logs to Application Insights, stored in a Log Analytics workspace: the first 5 GB a month per billing account are free, and a 0.05 GB-a-day cap keeps the worst case to about $4 a month. The agent sets `OTEL_EXPORTER_OTLP_ENDPOINT` in the app, so the existing exporter switched on without a code change. It can't send metrics to Application Insights, so memory, CPU and restarts come from ACA's free platform metrics.
+The app sends its traces, logs and own counters to Application Insights with the Azure Monitor exporter, stored in a Log Analytics workspace: the first 5 GB a month per billing account are free, and a 0.05 GB-a-day cap keeps the worst case to about $4 a month. Memory, CPU and restarts come from ACA's free platform metrics. At first the environment's managed OpenTelemetry agent did the sending (no code change, no compute charge), but it left every request's `ResultCode` 0 and `Success` true — `telemetry.md`.
 
 Rejected: ACA's managed Aspire dashboard (preview, price not documented, telemetry in memory only — a restart loses it) and our own dashboard app (~$6 a month more, in memory only, needs its own sign-in).
 

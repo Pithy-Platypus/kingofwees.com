@@ -107,6 +107,15 @@ describe('PrivacyPage', () => {
     expect(screen.getByText(/Don’t just take our word for it/)).toBeInTheDocument();
   });
 
+  it('says a page that breaks tells us what broke and where, without the address or the browser’s code, for a month', () => {
+    renderInEnglish(<PrivacyPage />);
+
+    const problems = screen.getByText(/If a page breaks in your browser/);
+    expect(problems).toHaveTextContent(/what broke and on which page/);
+    expect(problems).toHaveTextContent(/never your internet address or the random code above/);
+    expect(problems).toHaveTextContent(/kept for a month/);
+  });
+
   it('promises no accounts, ads, trackers or cookies', () => {
     renderInEnglish(<PrivacyPage />);
 
@@ -178,7 +187,7 @@ describe('PrivacyPage', () => {
   it('explains the random undo code kept in the browser', () => {
     renderInEnglish(<PrivacyPage />);
 
-    expect(screen.getByText(/random code/)).toHaveTextContent(/undo/);
+    expect(screen.getByText(/A random code saved in your browser/)).toHaveTextContent(/undo/);
   });
 
   it('says entries are kept for King’s history and can be removed by email', () => {

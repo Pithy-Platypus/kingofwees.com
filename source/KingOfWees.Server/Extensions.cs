@@ -1,4 +1,6 @@
+using Azure.Monitor.OpenTelemetry.Exporter;
 using KingOfWees.Server;
+using KingOfWees.Server.King;
 using KingOfWees.Server.Telemetry;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -94,12 +96,27 @@ public static class Extensions
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
         }
 
-        // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
-        //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
-        //{
-        //    builder.Services.AddOpenTelemetry()
-        //       .UseAzureMonitor();
-        //}
+        // Straight to Application Insights: through the Container Apps agent every request reads ResultCode 0 and
+        // Success true. Every trace is kept (the exporter samples 5 a second by default; the event alerts count rows),
+        // and only the app's own meter: the runtime and ASP.NET Core instruments alone would pass the workspace's
+        // daily cap. Why → docs/patterns/telemetry.md.
+        if (builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"] is { Length: > 0 } connectionString)
+        {
+            void Configure(AzureMonitorExporterOptions options)
+            {
+                options.ConnectionString = connectionString;
+                options.SamplingRatio = 1.0f;
+                options.TracesPerSecond = null;
+                options.EnableLiveMetrics = false;
+            }
+
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(tracing => tracing.AddAzureMonitorTraceExporter(Configure))
+                .WithLogging(logging => logging.AddAzureMonitorLogExporter(Configure))
+                .WithMetrics(metrics => metrics
+                    .AddView(instrument => instrument.Meter.Name == KingMetrics.MeterName ? null : MetricStreamConfiguration.Drop)
+                    .AddAzureMonitorMetricExporter(Configure));
+        }
 
         return builder;
     }

@@ -8,7 +8,7 @@ All in subscription "Playground", resource group `kingofwees.com`, East US.
 
 | Resource | What it is |
 |---|---|
-| `kingofwees-env` | Container Apps environment. Console logs aren't kept; its OpenTelemetry agent sends the app's traces and logs to `kingofwees-insights`. |
+| `kingofwees-env` | Container Apps environment. Console logs aren't kept; its OpenTelemetry agent is off (the app sends its own telemetry to `kingofwees-insights`). |
 | `kingofwees` | The app: one replica (min 1, max 1 — the rate limits live in memory, so a second replica would double them), 0.25 vCPU / 0.5 GiB, external HTTPS ingress on port 8080, readiness `/health` (database included), liveness `/alive` (app only). A system-assigned identity with Storage Blob Data Contributor on `kingofweesphotos/photos` only; `ConnectionStrings__photos` is the blob address (not a secret — there's no storage key). Settings are secrets: the DocumentDB connection string, the admin key hash, the map center; `King__Proxy__TrustForwardedFor=true` so rate limits see each visitor (never set it where the app is reachable without the ingress). Custom domains `kingofwees.com` and `www.kingofwees.com` with free managed certificates. |
 | DocumentDB cluster | Free tier (MongoDB API, 32 GB), database `king`. Firewall rule "Allow Azure services": the app's outbound addresses are a shared pool of hundreds, so they can't be listed; connections still need the cluster's credentials over TLS. |
 | `kingofwees-backup` | Scheduled job, nightly at 08:00 UTC: `azure/backup.sh` in the stock `mongo:8.0` image (pinned by digest) dumps the database and uploads it with its own managed identity. |
@@ -16,7 +16,7 @@ All in subscription "Playground", resource group `kingofwees.com`, East US.
 | `kingofweesphotos` | Storage account for photos (Slice 6); private container `photos`, shared keys off, Hot, **blob soft delete 30 days**. Separate from backups: soft delete is per account, and the backups' delete rule must never touch photos. Only the app may read and write it. |
 | `kingofwees-insights`, `kingofwees-logs` | Application Insights and its Log Analytics workspace: traces and logs, 31 days, capped at 0.05 GB a day. |
 | `kingofwees-alerts`, `kingofwees-backup-failed` | Action group (email to the signed-in account) and the metric alert that uses it when a backup run fails. |
-| `kingofwees-king-seen-or-fed`, `kingofwees-photo-posted` | Log search alerts on `kingofwees-logs`, every 15 minutes, emailing through `kingofwees-alerts` when a sighting or feeding, or a photo, was posted. |
+| `kingofwees-king-seen-or-fed`, `kingofwees-photo-posted`, `kingofwees-server-errors` | Log search alerts on `kingofwees-logs`, every 15 minutes, emailing through `kingofwees-alerts` when a sighting or feeding, or a photo, was posted, or the site answered with a server error (5xx). |
 | `kingofwees-monthly` | Budget: $25 a month on the resource group; emails at 80% actual and 100% forecast. |
 
 Images: `ghcr.io/pithy-platypus/kingofwees`, public (they hold no secrets), tagged with the commit (a version's `+` isn't allowed in a tag) and labelled `org.opencontainers.image.version` with the full version.
@@ -25,7 +25,7 @@ Images: `ghcr.io/pithy-platypus/kingofwees`, public (they hold no secrets), tagg
 
 ## Costs
 
-About $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1; still enough with photos, Slice 6 step 8), photo storage cents (~0.8 GB a year at 5 photos a day), the database $0 (free tier), backups cents, telemetry $0 inside the 5 GB a month free per billing account (at most about $4 if that allowance is used elsewhere — the daily cap bounds it), the backup alert and all emails $0 (free allowance), the two log search alerts about $1 (about $0.50 each at a 15-minute frequency), certificates $0.
+About $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1; still enough with photos, Slice 6 step 8), photo storage cents (~0.8 GB a year at 5 photos a day), the database $0 (free tier), backups cents, telemetry $0 inside the 5 GB a month free per billing account (at most about $4 if that allowance is used elsewhere — the daily cap bounds it), the backup alert and all emails $0 (free allowance), the three log search alerts about $1.50 (about $0.50 each at a 15-minute frequency), certificates $0.
 
 ## Scripts (run from Wallie's Mac)
 
@@ -73,9 +73,12 @@ No CAA record, or one that allows `digicert.com`. The IP changes only if the env
 
 ## Telemetry and alerts
 
-- **Traces and logs:** portal → `kingofwees-insights` → Transaction search or Logs. Nothing personal is exported (`TelemetryPrivacyTests` covers spans and logs). The workspace stops taking data for the rest of the day at 0.05 GB.
-- **Memory, CPU, restarts:** portal → container app `kingofwees` → Metrics (`Memory Working Set Bytes`, `CPU Usage`, `Total Replica Restart Count`). These are free platform metrics; the app's own OpenTelemetry metrics aren't kept (the agent can't send metrics to Application Insights).
+- **Traces and logs:** portal → `kingofwees-insights` → Transaction search, Failures or Logs. The app sends them itself (`APPLICATIONINSIGHTS_CONNECTION_STRING`, set by `provision.sh`), every request unsampled with its real response code; every code ≥ 400 counts as a failed request, so filter Failures by response code. Nothing personal is exported (`TelemetryPrivacyTests` covers spans and logs). The workspace stops taking data for the rest of the day at 0.05 GB. Why → `docs/patterns/telemetry.md`.
+- **What broke in visitors' browsers:** Logs → `traces | where customDimensions.CategoryName == "KingOfWees.Server.Diagnostics.ClientDiagnostic"` — kind, page path, version, message and stack, as warnings (`/api/client-diagnostics`; at most 120 a minute across everyone).
+- **The app's counters** (`king.feedings`, `king.sightings`, `king.photos`, `king.admin.*`, `king.posting.refused`): Logs → `customMetrics`, `valueSum` per minute in which something happened.
+- **Memory, CPU, restarts:** portal → container app `kingofwees` → Metrics (`Memory Working Set Bytes`, `CPU Usage`, `Total Replica Restart Count`). These are free platform metrics; the runtime's own OpenTelemetry metrics aren't sent (they alone would pass the daily cap).
 - **King seen or fed, a photo posted:** at most one email per rule per 15-minute run (with how many arrived), 15–30 minutes after the post; no "resolved" email. Undone entries and photos still count. Nothing arrives while the workspace's daily cap is hit.
+- **A server error (5xx):** at most one email per 15-minute run, the same way; then `kingofwees-insights` → Failures, filtered to 5xx response codes.
 - **A failed backup:** an email from `kingofwees-alerts`, then another when it resolves. Check the job's execution history and the run's `.log` in `kingofweesbackups/backups`.
 
 ## Restoring a backup
