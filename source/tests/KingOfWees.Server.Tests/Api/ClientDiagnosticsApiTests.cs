@@ -86,7 +86,7 @@ public sealed class ClientDiagnosticsApiTests
         { "message", null, "message.required" },
         { "message", " \u200B ", "message.required" },
         { "message", new string('m', 501), "message.tooLong" },
-        { "stack", new string('s', 4001), "stack.tooLong" },
+        { "stack", new string('s', 1501), "stack.tooLong" },
         { "path", null, "path.required" },
         { "path", "history", "path.invalid" },
         { "path", "/history?locale=en-XA", "path.invalid" },

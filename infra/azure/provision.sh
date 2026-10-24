@@ -20,6 +20,7 @@ BACKUPS="backups"
 PHOTOS_STORAGE="kingofweesphotos"
 PHOTOS="photos"
 PHOTOS_SOFT_DELETE_DAYS=30 # a deleted photo (an undo, a mistake) can be recovered this long; photos aren't in the nightly dump
+BACKUPS_SOFT_DELETE_DAYS=30 # a deleted or overwritten archive can be recovered this long (its own copy of the database)
 BACKUP_JOB="kingofwees-backup"
 # The stock image (mongodump, and mongosh for the upload), pinned so a new tag can't change what runs nightly.
 BACKUP_IMAGE="docker.io/library/mongo:8.0@sha256:4a4ab5d4834207389e0d7270fac988e21ffedccecba77991a552f755df229907"
@@ -34,6 +35,8 @@ BACKUP_ALERT="kingofwees-backup-failed"
 SEEN_ALERT="kingofwees-king-seen-or-fed"
 PHOTO_ALERT="kingofwees-photo-posted"
 ERROR_ALERT="kingofwees-server-errors"
+CAP_ALERT="kingofwees-telemetry-capped"
+BROWSER_ALERT="kingofwees-browser-errors"
 REPOSITORY="ghcr.io/pithy-platypus/kingofwees"
 SECRETS="$HOME/.kingofwees"
 
@@ -48,7 +51,7 @@ python3 -I -c 'import sys,urllib.parse as u; sys.exit(0 if u.urlsplit(sys.stdin.
   <<<"$KING_CONN" || { echo "The connection string must name the database: put /king before the '?'." >&2; exit 1; }
 ADMIN_KEY_HASH=$([[ -r "$SECRETS/admin-key.hash" ]] && tr -d '[:space:]' <"$SECRETS/admin-key.hash" || true)
 MAP_CENTER=$([[ -r "$SECRETS/map-center" ]] && tr -d '[:space:]' <"$SECRETS/map-center" || true)
-export KING_CONN ADMIN_KEY_HASH MAP_CENTER
+# Not exported: only the two Python processes below get them, inline — every other command's environment stays clean.
 
 EXISTING_IMAGE=$(az containerapp show -g "$GROUP" -n "$APP" --query "properties.template.containers[0].image" -o tsv 2>/dev/null || true)
 IMAGE=${1:-${EXISTING_IMAGE:-$REPOSITORY:$(git -C "$(dirname "$0")" rev-parse --short=12 HEAD)}}
@@ -95,14 +98,13 @@ if ! az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" -o non
     --workspace "$(az monitor log-analytics workspace show -g "$GROUP" -n "$WORKSPACE" --query id -o tsv)" -o none
 fi
 INSIGHTS_CONN=$(az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" --query connectionString -o tsv)
-export INSIGHTS_CONN
 # With the agent left on, every row would arrive twice.
 if [[ "$(az containerapp env telemetry app-insights show -g "$GROUP" -n "$ENVIRONMENT" \
   --query "enableOpenTelemetryTraces || enableOpenTelemetryLogs" -o tsv 2>/dev/null)" == "true" ]]; then
   az containerapp env telemetry app-insights delete -g "$GROUP" -n "$ENVIRONMENT" --yes -o none
 fi
 
-echo "== Storage account $STORAGE for backups (private, blobs deleted after 30 days)"
+echo "== Storage account $STORAGE for backups (private, blobs deleted after 30 days, deleted or overwritten ones kept $BACKUPS_SOFT_DELETE_DAYS)"
 if ! az storage account show -g "$GROUP" -n "$STORAGE" -o none 2>/dev/null; then
   az storage account create -g "$GROUP" -n "$STORAGE" -l "$LOCATION" --sku Standard_LRS --kind StorageV2 \
     --min-tls-version TLS1_2 --allow-blob-public-access false --allow-shared-key-access false -o none
@@ -110,10 +112,15 @@ fi
 if ! az storage container-rm show -g "$GROUP" --storage-account "$STORAGE" -n "$BACKUPS" -o none 2>/dev/null; then
   az storage container-rm create -g "$GROUP" --storage-account "$STORAGE" -n "$BACKUPS" --public-access off -o none
 fi
+# The job's identity can delete and overwrite what it writes (security review fix 6): a deleted archive comes back for
+# 30 days, an overwritten one keeps its previous version. Set before the policy below, which expires those versions too.
+az storage account blob-service-properties update -g "$GROUP" -n "$STORAGE" \
+  --enable-delete-retention true --delete-retention-days "$BACKUPS_SOFT_DELETE_DAYS" --enable-versioning true -o none
 az storage account management-policy create -g "$GROUP" --account-name "$STORAGE" -o none --policy '{
   "rules": [{ "name": "delete-after-30-days", "enabled": true, "type": "Lifecycle", "definition": {
     "filters": { "blobTypes": ["blockBlob"], "prefixMatch": ["'"$BACKUPS"'/"] },
-    "actions": { "baseBlob": { "delete": { "daysAfterModificationGreaterThan": 30 } } } } }] }'
+    "actions": { "baseBlob": { "delete": { "daysAfterModificationGreaterThan": 30 } },
+                 "version": { "delete": { "daysAfterCreationGreaterThan": 30 } } } } }] }'
 
 echo "== Storage account $PHOTOS_STORAGE for photos (private, shared keys off, deleted photos recoverable for $PHOTOS_SOFT_DELETE_DAYS days)"
 if ! az storage account show -g "$GROUP" -n "$PHOTOS_STORAGE" -o none 2>/dev/null; then
@@ -144,6 +151,15 @@ az rest --method put -o none \
   --url "https://management.azure.com$CLUSTER_ID/firewallRules/AllowAllAzureServicesAndResourcesWithinAzureIps?api-version=2024-07-01" \
   --body '{ "properties": { "startIpAddress": "0.0.0.0", "endIpAddress": "0.0.0.0" } }'
 
+echo "== Delete locks on the database and both storage accounts (the only copies of the data)"
+# Management-plane only: updates, the firewall rule and the lifecycle rule go through; deleting the resource (or its
+# group) needs an Owner to remove the lock first. Blob deletes are the data plane, which soft delete above covers.
+# A PUT, so a rerun just re-applies it.
+lock() { az lock create -n "do-not-delete" --lock-type CanNotDelete --resource "$1" -o none; }
+lock "$CLUSTER_ID"
+lock "$(az storage account show -g "$GROUP" -n "$STORAGE" --query id -o tsv)"
+lock "$(az storage account show -g "$GROUP" -n "$PHOTOS_STORAGE" --query id -o tsv)"
+
 # Secrets go to az in a file only this user can read, removed on exit — never on a command line.
 WORK=$(mktemp -d); chmod 700 "$WORK"; trap 'rm -rf "$WORK"' EXIT
 
@@ -152,7 +168,7 @@ STORAGE_ID=$(az storage account show -g "$GROUP" -n "$STORAGE" --query id -o tsv
 BACKUPS_SCOPE="$STORAGE_ID/blobServices/default/containers/$BACKUPS"
 JOB_ENVIRONMENT_ID="$ENVIRONMENT_ID" JOB_LOCATION="$LOCATION" JOB_IMAGE="$BACKUP_IMAGE" JOB_CRON="$BACKUP_CRON" \
   JOB_SCRIPT="$(<"$(dirname "$0")/backup.sh")" JOB_BACKUP_URL="https://$STORAGE.blob.core.windows.net/$BACKUPS" \
-  python3 -I - >"$WORK/job.json" <<'PY'
+  KING_CONN="$KING_CONN" python3 -I - >"$WORK/job.json" <<'PY'
 import json, os
 e = os.environ
 print(json.dumps({
@@ -197,18 +213,20 @@ if ! az monitor metrics alert show -g "$GROUP" -n "$BACKUP_ALERT" -o none 2>/dev
     --severity 2 --action "$ALERTS" --description "A nightly backup run failed: see the job's execution history and its log in $STORAGE/$BACKUPS."
 fi
 
-# Every request is one unsampled AppRequests row with its real ResultCode. Rows can land minutes late (16 seen), so each
-# run takes the rows that arrived since the last one, over an hour of event time. Stateless: a rule that stayed fired
-# would email only once.
-request_alert() { # name, severity, filter, description
-  az monitor scheduled-query create -g "$GROUP" -n "$1" -o none \
-    --scopes "$(az monitor log-analytics workspace show -g "$GROUP" -n "$WORKSPACE" --query id -o tsv)" \
-    --condition "count 'Requests' > 0" \
-    --condition-query Requests="AppRequests | where ingestion_time() > ago(15m) | where $3" \
+# Rows can land minutes late (16 seen), so each run takes the rows that arrived since the last one, over an hour of
+# event time. Stateless: a rule that stayed fired would email only once. A PUT: a rerun re-applies the rule.
+log_alert() { # name, severity, query (its rows fire the alert), description
+  az monitor scheduled-query create -g "$GROUP" -n "$1" -o none --scopes "$WORKSPACE_ID" \
+    --condition "count 'Rows' > 0" --condition-query Rows="$3" \
     --window-size 1h --evaluation-frequency 15m --auto-mitigate false --severity "$2" --action-groups "$ALERTS_ID" --description "$4"
 }
-echo "== Alerts $SEEN_ALERT, $PHOTO_ALERT, $ERROR_ALERT: email when King is seen or fed, a photo is posted, or the site fails"
+# Every API request is one unsampled AppRequests row with its real ResultCode.
+request_alert() { # name, severity, filter, description
+  log_alert "$1" "$2" "AppRequests | where ingestion_time() > ago(15m) | where $3" "$4"
+}
+echo "== Alerts $SEEN_ALERT, $PHOTO_ALERT, $ERROR_ALERT, $CAP_ALERT, $BROWSER_ALERT: email when King is seen or fed, a photo is posted, the site fails, telemetry stops or a page breaks"
 ALERTS_ID=$(az monitor action-group show -g "$GROUP" -n "$ALERTS" --query id -o tsv)
+WORKSPACE_ID=$(az monitor log-analytics workspace show -g "$GROUP" -n "$WORKSPACE" --query id -o tsv)
 request_alert "$SEEN_ALERT" 4 "Name in ('POST /api/king/sightings', 'POST /api/king/feedings') and ResultCode == '201'" \
   "King has been seen or fed: https://$DOMAIN/history"
 request_alert "$PHOTO_ALERT" 4 "Name in ('POST /api/king/events/{id}/photo', 'POST /api/king/photos') and ResultCode == '201'" \
@@ -216,12 +234,21 @@ request_alert "$PHOTO_ALERT" 4 "Name in ('POST /api/king/events/{id}/photo', 'PO
 # Only 5xx: every 4xx counts as a failed request too (scanners' 404s, visitors leaving a slow page's 499s).
 request_alert "$ERROR_ALERT" 2 "toint(ResultCode) >= 500" \
   "The site answered with a server error: $INSIGHTS → Failures, filtered to 5xx response codes."
+# Past the daily cap nothing arrives until the reset (18:00 UTC), and the three alerts above can't fire: this one says so.
+# _LogOperation isn't billable and isn't capped.
+log_alert "$CAP_ALERT" 2 "_LogOperation | where ingestion_time() > ago(15m) | where Category =~ 'Ingestion' | where Detail contains 'OverQuota'" \
+  "Telemetry hit the workspace's daily cap: nothing arrives, and no other alert can fire, until 18:00 UTC. A flood of requests or a bug loop — $WORKSPACE → Usage, $INSIGHTS → Logs."
+# What a visitor's browser reported through POST /api/client-diagnostics (one warning each, stored nowhere else).
+log_alert "$BROWSER_ALERT" 3 "AppTraces | where ingestion_time() > ago(15m) | where tostring(Properties['CategoryName']) == 'KingOfWees.Server.Diagnostics.ClientDiagnostic'" \
+  "A visitor's browser reported a broken page: $INSIGHTS → Logs → AppTraces, category KingOfWees.Server.Diagnostics.ClientDiagnostic."
 
 echo "== Container app $APP"
 # Re-applying the definition without the bound domains would drop them, so they're carried over.
 APP_DOMAINS=$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.customDomains -o json 2>/dev/null || true)
 APP_DOMAINS="${APP_DOMAINS:-null}" APP_ENVIRONMENT_ID="$ENVIRONMENT_ID" APP_IMAGE="$IMAGE" APP_LOCATION="$LOCATION" \
-  APP_PHOTOS="Endpoint=https://$PHOTOS_STORAGE.blob.core.windows.net;ContainerName=$PHOTOS" python3 -I - >"$WORK/app.json" <<'PY'
+  APP_PHOTOS="Endpoint=https://$PHOTOS_STORAGE.blob.core.windows.net;ContainerName=$PHOTOS" \
+  KING_CONN="$KING_CONN" INSIGHTS_CONN="$INSIGHTS_CONN" ADMIN_KEY_HASH="$ADMIN_KEY_HASH" MAP_CENTER="$MAP_CENTER" \
+  python3 -I - >"$WORK/app.json" <<'PY'
 import json, os
 e = os.environ
 secrets = [{"name": "king-connection", "value": e["KING_CONN"]},

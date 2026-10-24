@@ -482,3 +482,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Claude Code: this machine's permissions and agent notes
+.claude/settings.local.json
+.claude/agent-memory-local/

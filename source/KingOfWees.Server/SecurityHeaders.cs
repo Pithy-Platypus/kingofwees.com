@@ -5,6 +5,8 @@ namespace KingOfWees.Server;
 internal static class SecurityHeaders
 {
     // data: for the fonts and icons the build inlines; blob: for a photo's preview before it's sent.
+    private const string Api = "/api";
+
     private const string ContentSecurityPolicy =
         "default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; font-src 'self' data:; " +
         "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
@@ -27,6 +29,13 @@ internal static class SecurityHeaders
                 headers["Cross-Origin-Resource-Policy"] = "same-origin";
                 // Out of search engines; robots.txt lets crawlers fetch pages, or they would never see this.
                 headers["X-Robots-Tag"] = "noindex";
+                // API answers are for this moment and this visitor: an admin's activity log or a hidden-photo list must
+                // not come back from a shared browser's cache after "Sign out on this device". Photo files set their
+                // own (private, an hour) while handling, before this runs, and keep it.
+                if (context.Request.Path.StartsWithSegments(Api) && headers.CacheControl.Count == 0)
+                {
+                    headers.CacheControl = "no-store";
+                }
                 return Task.CompletedTask;
             });
             return next(context);

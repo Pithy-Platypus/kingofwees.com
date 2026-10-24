@@ -1,4 +1,8 @@
 using System.Net;
+using System.Net.Http.Headers;
+using KingOfWees.Server.Admin;
+using KingOfWees.Server.Photos;
+using KingOfWees.Server.Tests.Photos;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,6 +57,49 @@ public sealed class SecurityHeadersTests : IAsyncLifetime
         Assert.Equal("same-origin", Single(response, "Cross-Origin-Resource-Policy"));
         // Kept out of search engines (Wallie, 2026-10-20); robots.txt lets crawlers in so they can read this.
         Assert.Equal("noindex", Single(response, "X-Robots-Tag"));
+    }
+
+    [Theory]
+    [InlineData("/", "no-cache")]
+    [InlineData("/api/king/status", "no-store")]
+    [InlineData("/api/king/nothing-here", "no-store")]
+    [InlineData("/api/version", "no-store")]
+    public async Task Api_answers_are_never_cached_while_pages_ask_again(string path, string cacheControl)
+    {
+        // An API answer is for this moment and this visitor; a shared browser must not replay one from its cache.
+        var response = await _client.GetAsync(path, Ct);
+
+        Assert.Equal(cacheControl, Single(response, "Cache-Control"));
+    }
+
+    [Fact]
+    public async Task Admin_answers_are_never_cached()
+    {
+        // After "Sign out on this device" the activity log (addresses, typed names) must not come back from the cache.
+        const string key = "test-admin-key";
+        await using var factory = new KingApiFactory(settings: [("King:Admin:KeyHash", AdminKeyHasher.Hash(key))]);
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
+
+        var response = await client.GetAsync("/api/admin/activity", Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", Single(response, "Cache-Control"));
+    }
+
+    [Fact]
+    public async Task Photo_files_keep_their_own_short_private_caching()
+    {
+        // The one API answer that may be cached: an hour, for this visitor only (docs/patterns/photos.md).
+        var photo = new Photo(Guid.CreateVersion7().ToString(), null, _factory.Clock.GetUtcNow(), "device", "Sarah");
+        await _factory.PhotoFiles.PutAsync(PhotoFiles.Thumbnail(photo.Id), new MemoryStream(TestJpeg.Make(50)), Ct);
+        await _factory.Photos.AddAsync(photo, Ct);
+
+        var response = await _client.GetAsync($"/api/king/photos/{photo.Id}/thumb", Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // Parsed: HttpClient reorders the directives.
+        Assert.Equal(CacheControlHeaderValue.Parse("private, max-age=3600"), response.Headers.CacheControl);
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using KingOfWees.Server.King;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
@@ -46,6 +47,47 @@ public sealed class AzureMonitorExportTests
         }
 
         Assert.Equal(traceIds.Count, await ServerSpanCount(spans, traceIds));
+    }
+
+    [Fact]
+    public async Task Only_api_requests_are_traced_and_unknown_api_paths_are_not()
+    {
+        // Pages, files and unknown /api paths (scanners) would let anyone spend the daily cap, a row at a time; a 404 on
+        // a real route stays (the alerts and the Failures blade count real routes).
+        var spans = new List<Activity>();
+        await using var factory = WithAzureMonitor().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddInMemoryExporter(spans))));
+        var untraced = new[] { "/", "/about", "/assets/missing.js", "/wp-admin/install.php", "/api/nope", "/api/king/nothing" }
+            .ToDictionary(path => path, _ => ActivityTraceId.CreateRandom());
+        var traced = new[] { "/api/version", "/api/king/photos/00000000-0000-0000-0000-000000000000/thumb" }
+            .ToDictionary(path => path, _ => ActivityTraceId.CreateRandom());
+
+        foreach (var (path, traceId) in untraced.Concat(traced))
+        {
+            await factory.Server.SendAsync(context =>
+            {
+                context.Request.Method = "GET";
+                context.Request.Path = path;
+                context.Request.Headers.TraceParent = $"00-{traceId}-{ActivitySpanId.CreateRandom()}-01";
+            }, Ct);
+        }
+
+        Assert.Equal(traced.Count, await ServerSpanCount(spans, [.. traced.Values]));
+        lock (spans) Assert.DoesNotContain(spans, s => s.Kind == ActivityKind.Server && untraced.ContainsValue(s.TraceId));
+    }
+
+    [Fact]
+    public async Task The_exporter_s_own_performance_counters_and_standard_metrics_are_off()
+    {
+        // Five counters a minute were ~3.5 MB a day, outside the meter View's reach; the request rows answer the same.
+        await using var factory = WithAzureMonitor();
+        await factory.CreateClient().GetAsync("/api/version", Ct);
+
+        var options = factory.Services.GetRequiredService<IOptionsMonitor<AzureMonitorExporterOptions>>().CurrentValue;
+
+        Assert.False(options.EnablePerformanceCounters);
+        Assert.False(options.EnableStandardMetrics);
+        Assert.False(options.EnableLiveMetrics);
     }
 
     [Fact]

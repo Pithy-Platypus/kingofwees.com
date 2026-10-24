@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createReporter, MAX_REPORTS, rootErrorHandlers, sendDiagnostic, watchErrors, type Report } from './diagnostics';
+import {
+  createReporter,
+  MAX_REPORTS,
+  PRELOAD_RELOADED,
+  rootErrorHandlers,
+  sendDiagnostic,
+  watchErrors,
+  watchPreloadError,
+  type Report,
+} from './diagnostics';
 
 const version = '2026.10.20+0123456789ab';
 const reporter = (pathname = '/history') => {
@@ -42,7 +51,7 @@ describe('createReporter', () => {
 
     report('error', error);
 
-    expect(sent[0]).toMatchObject({ message: 'm'.repeat(500), stack: 's'.repeat(4000), path: '/' + 'p'.repeat(199) });
+    expect(sent[0]).toMatchObject({ message: 'm'.repeat(500), stack: 's'.repeat(1500), path: '/' + 'p'.repeat(199) });
   });
 
   it('sends the same failure once', () => {
@@ -117,6 +126,87 @@ describe('watchErrors', () => {
       ['error', 'Script error.'],
       ['rejection', 'nope'],
     ]);
+  });
+});
+
+describe('watchPreloadError', () => {
+  // A visitor on 2026-10-21 got "Something went wrong" from a tab open since before a deploy: the new build no longer
+  // had the chunk it asked for (Unable to preload CSS for /assets/MapView-….css).
+  const preloadError = (payload: unknown = new Error('Unable to preload CSS')) =>
+    Object.assign(new Event('vite:preloadError', { cancelable: true }), { payload });
+  const storage = () => {
+    const items = new Map<string, string>();
+    return {
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => void items.set(key, value),
+      items,
+    } as unknown as Storage & { items: Map<string, string> };
+  };
+
+  it('reloads once for a missing chunk, remembering it for this tab, and reports nothing', () => {
+    const target = new EventTarget();
+    const report = vi.fn<Report>();
+    const reload = vi.fn();
+    const tab = storage();
+    watchPreloadError(target, tab, version, report, reload);
+
+    const event = preloadError();
+    target.dispatchEvent(event);
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(report).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+    expect(tab.items.get('king.preloadReloaded')).toBe(version); // the key main.tsx's storage will hold
+  });
+
+  it('reports instead of reloading again when this build already reloaded in this tab', () => {
+    const target = new EventTarget();
+    const report = vi.fn<Report>();
+    const reload = vi.fn();
+    const tab = storage();
+    tab.setItem(PRELOAD_RELOADED, version);
+    watchPreloadError(target, tab, version, report, reload);
+    const error = new Error('Unable to preload CSS');
+
+    target.dispatchEvent(preloadError(error));
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(report).toHaveBeenCalledWith('render', error);
+  });
+
+  it('reports a repeat without a payload too (the reporter names it)', () => {
+    const target = new EventTarget();
+    const report = vi.fn<Report>();
+    const tab = storage();
+    tab.setItem(PRELOAD_RELOADED, version);
+    watchPreloadError(target, tab, version, report, vi.fn());
+
+    target.dispatchEvent(new Event('vite:preloadError', { cancelable: true }));
+
+    expect(report).toHaveBeenCalledWith('render', undefined);
+  });
+
+  it('reloads again for a newer build than the one that reloaded', () => {
+    const target = new EventTarget();
+    const reload = vi.fn();
+    const tab = storage();
+    tab.setItem(PRELOAD_RELOADED, '2026.10.19+000000000000');
+    watchPreloadError(target, tab, version, vi.fn<Report>(), reload);
+
+    target.dispatchEvent(preloadError());
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(tab.items.get(PRELOAD_RELOADED)).toBe(version);
+  });
+
+  it('still reloads when the tab has no storage', () => {
+    const target = new EventTarget();
+    const reload = vi.fn();
+    watchPreloadError(target, undefined, version, vi.fn<Report>(), reload);
+
+    target.dispatchEvent(preloadError());
+
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });
 

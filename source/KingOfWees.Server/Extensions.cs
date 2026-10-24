@@ -20,6 +20,7 @@ namespace Microsoft.Extensions.Hosting;
 // To learn more about using this project, see https://aka.ms/aspire/service-defaults
 public static class Extensions
 {
+    private const string ApiPath = "/api";
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
 
@@ -70,16 +71,17 @@ public static class Extensions
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(tracing =>
-                        // Exclude health check requests from tracing
-                        tracing.Filter = context =>
-                            !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
+                        // Only the API is traced: pages and files tell nothing the API rows don't, /health and /alive are
+                        // the probes', and a request nobody traces can't spend the daily cap. Why → docs/patterns/telemetry.md.
+                        tracing.Filter = context => context.Request.Path.StartsWithSegments(ApiPath)
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()
                     .AddHttpClientInstrumentation()
-                    // Registered before any exporter so personal data never leaves the process.
-                    .AddProcessor(new PersonalDataScrubber());
+                    // Registered before any exporter so personal data never leaves the process, and the noise never
+                    // reaches the workspace (the health check's database ping, unknown /api paths).
+                    .AddProcessor(new PersonalDataScrubber())
+                    .AddProcessor(new NoiseFilter());
             });
 
         builder.AddOpenTelemetryExporters();
@@ -97,9 +99,9 @@ public static class Extensions
         }
 
         // Straight to Application Insights: through the Container Apps agent every request reads ResultCode 0 and
-        // Success true. Every trace is kept (the exporter samples 5 a second by default; the event alerts count rows),
-        // and only the app's own meter: the runtime and ASP.NET Core instruments alone would pass the workspace's
-        // daily cap. Why → docs/patterns/telemetry.md.
+        // Success true. Every API trace is kept (the exporter samples 5 a second by default; the event alerts count
+        // rows), and only the app's own meter: the runtime and ASP.NET Core instruments alone would pass the
+        // workspace's daily cap. Why → docs/patterns/telemetry.md.
         if (builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"] is { Length: > 0 } connectionString)
         {
             void Configure(AzureMonitorExporterOptions options)
@@ -108,6 +110,10 @@ public static class Extensions
                 options.SamplingRatio = 1.0f;
                 options.TracesPerSecond = null;
                 options.EnableLiveMetrics = false;
+                // The exporter's own rows, outside the meter View: five performance counters a minute (~3.5 MB a day)
+                // and the standard metrics, which the request rows already answer.
+                options.EnablePerformanceCounters = false;
+                options.EnableStandardMetrics = false;
             }
 
             builder.Services.AddOpenTelemetry()

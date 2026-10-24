@@ -11,21 +11,22 @@ All in subscription "Playground", resource group `kingofwees.com`, East US.
 | `kingofwees-env` | Container Apps environment. Console logs aren't kept; its OpenTelemetry agent is off (the app sends its own telemetry to `kingofwees-insights`). |
 | `kingofwees` | The app: one replica (min 1, max 1 — the rate limits live in memory, so a second replica would double them), 0.25 vCPU / 0.5 GiB, external HTTPS ingress on port 8080, readiness `/health` (database included), liveness `/alive` (app only). A system-assigned identity with Storage Blob Data Contributor on `kingofweesphotos/photos` only; `ConnectionStrings__photos` is the blob address (not a secret — there's no storage key). Settings are secrets: the DocumentDB connection string, the admin key hash, the map center; `King__Proxy__TrustForwardedFor=true` so rate limits see each visitor (never set it where the app is reachable without the ingress). Custom domains `kingofwees.com` and `www.kingofwees.com` with free managed certificates. |
 | DocumentDB cluster | Free tier (MongoDB API, 32 GB), database `king`. Firewall rule "Allow Azure services": the app's outbound addresses are a shared pool of hundreds, so they can't be listed; connections still need the cluster's credentials over TLS. |
+| `do-not-delete` locks | `CanNotDelete` on the cluster and both storage accounts (the only copies of the data). Updates go through; deleting one, or the resource group, needs an Owner to remove the lock first (`az lock delete -n do-not-delete --resource <id>`). |
 | `kingofwees-backup` | Scheduled job, nightly at 08:00 UTC: `azure/backup.sh` in the stock `mongo:8.0` image (pinned by digest) dumps the database and uploads it with its own managed identity. |
-| `kingofweesbackups` | Storage account; private container `backups`, blobs deleted after 30 days, shared keys off. The job may write only there; the signed-in account may read it (for the drill). |
+| `kingofweesbackups` | Storage account; private container `backups`, blobs deleted after 30 days, shared keys off, **blob soft delete and versioning 30 days** (the job's identity can delete and overwrite what it writes; versions expire with the same rule). The job may write only there; the signed-in account may read it (for the drill). |
 | `kingofweesphotos` | Storage account for photos (Slice 6); private container `photos`, shared keys off, Hot, **blob soft delete 30 days**. Separate from backups: soft delete is per account, and the backups' delete rule must never touch photos. Only the app may read and write it. |
 | `kingofwees-insights`, `kingofwees-logs` | Application Insights and its Log Analytics workspace: traces and logs, 31 days, capped at 0.05 GB a day. |
 | `kingofwees-alerts`, `kingofwees-backup-failed` | Action group (email to the signed-in account) and the metric alert that uses it when a backup run fails. |
-| `kingofwees-king-seen-or-fed`, `kingofwees-photo-posted`, `kingofwees-server-errors` | Log search alerts on `kingofwees-logs`, every 15 minutes, emailing through `kingofwees-alerts` when a sighting or feeding, or a photo, was posted, or the site answered with a server error (5xx). |
+| `kingofwees-king-seen-or-fed`, `kingofwees-photo-posted`, `kingofwees-server-errors`, `kingofwees-telemetry-capped`, `kingofwees-browser-errors` | Log search alerts on `kingofwees-logs`, every 15 minutes, emailing through `kingofwees-alerts` when a sighting or feeding, or a photo, was posted; the site answered with a server error (5xx); telemetry hit the day's cap (`_LogOperation` `OverQuota` — nothing arrives and no other alert fires until 18:00 UTC); or a visitor's browser reported a broken page (`AppTraces`, category `KingOfWees.Server.Diagnostics.ClientDiagnostic`). About $0.50 a month each. |
 | `kingofwees-monthly` | Budget: $25 a month on the resource group; emails at 80% actual and 100% forecast. |
 
 Images: `ghcr.io/pithy-platypus/kingofwees`, public (they hold no secrets), tagged with the commit (a version's `+` isn't allowed in a tag) and labelled `org.opencontainers.image.version` with the full version.
 
-**Photos are not in the nightly backup**, which dumps only the database: a deleted or overwritten photo file can be recovered for 30 days through `kingofweesphotos`'s soft delete, and nothing protects the files beyond that. Measured for photos (Slice 6 step 8, at 0.25 vCPU / 0.5 GiB): uploads settle the server at about 310–335 MiB, so the size stays.
+**Photos are not in the nightly backup**, which dumps only the database: a deleted or overwritten photo file can be recovered for 30 days through `kingofweesphotos`'s soft delete, and the account's delete lock; nothing protects the files beyond that. Measured for photos (Slice 6 step 8, at 0.25 vCPU / 0.5 GiB): uploads settle the server at about 310–335 MiB, so the size stays.
 
 ## Costs
 
-About $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1; still enough with photos, Slice 6 step 8), photo storage cents (~0.8 GB a year at 5 photos a day), the database $0 (free tier), backups cents, telemetry $0 inside the 5 GB a month free per billing account (at most about $4 if that allowance is used elsewhere — the daily cap bounds it), the backup alert and all emails $0 (free allowance), the three log search alerts about $1.50 (about $0.50 each at a 15-minute frequency), certificates $0.
+Measured: $1.31 for October 2026 to the 24th, $1.88 forecast (Cost Management, 2026-10-24) — Container Apps $0.99, Azure Monitor $0.44, storage cents. The ceiling reasoned at go-live, about $6–7 a month: the app at the idle rate (measured size, Slice 5 step 1; still enough with photos, Slice 6 step 8), photo storage cents (~0.8 GB a year at 5 photos a day), the database $0 (free tier), backups cents, telemetry $0 inside the 5 GB a month free per billing account (at most about $4 if that allowance is used elsewhere — the daily cap bounds it), the backup alert and all emails $0 (free allowance), the three log search alerts about $1.50 (about $0.50 each at a 15-minute frequency), certificates $0.
 
 ## Scripts (run from Wallie's Mac)
 
@@ -40,7 +41,7 @@ Mongo tools print the whole connection string, password included, when they fail
 
 ## Settings
 
-Files in `~/.kingofwees/` (outside the repo, `chmod 600`), read by `provision.sh`, never printed. Change one, rerun `provision.sh`.
+Files in `~/.kingofwees/` (outside the repo, `chmod 600`), read by `provision.sh`, never printed, never on a command line, and never in another command's environment (only the two Python processes that write the job and app definitions get them, inline). Change one, rerun `provision.sh`.
 
 | File | Holds |
 |---|---|

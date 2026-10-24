@@ -11,7 +11,7 @@ namespace KingOfWees.Server.Diagnostics;
 public sealed record ClientDiagnostic(string? Kind, string? Message, string? Stack, string? Path, string? Version)
 {
     public const int MaxMessageLength = 500;
-    public const int MaxStackLength = 4000;
+    public const int MaxStackLength = 1500; // the top frames say where; 120 reports of 4,000 a minute could spend the daily cap in an hour
     public const int MaxPathLength = 200;
     public const int MaxVersionLength = 64;
 
@@ -87,7 +87,7 @@ public static partial class ClientDiagnosticsEndpoints
 {
     public const string Policy = "client-diagnostics";
     public const int DefaultPerMinute = 10;
-    public const int DefaultTotalPerMinute = 120;
+    public const int DefaultTotalPerMinute = 20; // a handful of real breakages, never a flood's worth of rows
 
     public static IServiceCollection AddClientDiagnostics(this IServiceCollection services)
     {
