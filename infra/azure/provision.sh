@@ -22,7 +22,7 @@ PHOTOS="photos"
 PHOTOS_SOFT_DELETE_DAYS=30 # a deleted photo (an undo, a mistake) can be recovered this long; photos aren't in the nightly dump
 BACKUP_JOB="kingofwees-backup"
 # The stock image (mongodump, and mongosh for the upload), pinned so a new tag can't change what runs nightly.
-BACKUP_IMAGE="docker.io/library/mongo:8.0@sha256:d0d926f94df099bff534b7ee5b5986458131a22489dfff8664509af0c1e2ca9c"
+BACKUP_IMAGE="docker.io/library/mongo:8.0@sha256:4a4ab5d4834207389e0d7270fac988e21ffedccecba77991a552f755df229907"
 BACKUP_CRON="0 8 * * *" # UTC: 3–4 a.m. in Boston
 BUDGET="kingofwees-monthly"
 BUDGET_AMOUNT=25
