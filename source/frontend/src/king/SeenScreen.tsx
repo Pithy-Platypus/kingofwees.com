@@ -45,10 +45,11 @@ type Props = {
   /** "Add a photo" and the picked photo, kept by the app. */
   photo: ReactNode;
   onLog: (location?: GeoPoint) => void;
+  onAddSpot: () => void;
   onBack: () => void;
 };
 
-export function SeenScreen({ spots, mapCenter, geolocation, busy, photo, onLog, onBack }: Props) {
+export function SeenScreen({ spots, mapCenter, geolocation, busy, photo, onLog, onAddSpot, onBack }: Props) {
   const intl = useIntl();
   const heading = useRef<HTMLHeadingElement>(null);
   const [picked, setPicked] = useState<GeoPoint | null>(null);
@@ -87,17 +88,21 @@ export function SeenScreen({ spots, mapCenter, geolocation, busy, photo, onLog, 
         <EyeIcon className="button-icon" />
         <FormattedMessage {...place.nearNow} />
       </button>
-      {sorted.length > 0 && (
-        <ul className="where-tiles" aria-label={intl.formatMessage(m.spots)}>
-          {sorted.map((s) => (
-            <li key={s.id}>
-              <button type="button" className="where-tile" disabled={busy} onClick={() => onLog(s.location)}>
-                <FormattedMessage {...m.bySpot} values={{ spot: s.name }} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="where-tiles" aria-label={intl.formatMessage(m.spots)}>
+        {sorted.map((s) => (
+          <li key={s.id}>
+            <button type="button" className="where-tile" disabled={busy} onClick={() => onLog(s.location)}>
+              <FormattedMessage {...m.bySpot} values={{ spot: s.name }} />
+            </button>
+          </li>
+        ))}
+        <li>
+          {/* Adds a spot and logs the sighting there, so it's a place choice like the others. */}
+          <button type="button" className="where-tile where-tile-new" onClick={onAddSpot}>
+            <FormattedMessage {...place.newSpot} />
+          </button>
+        </li>
+      </ul>
       {mapCenter && (
         <MapView
           center={mapCenter}

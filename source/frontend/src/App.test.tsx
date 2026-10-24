@@ -488,17 +488,64 @@ describe('App — where he was seen', () => {
     await startSighting();
 
     const tiles = within(screen.getByRole('list', { name: 'Spots' })).getAllByRole('button').map((b) => b.textContent);
-    expect(tiles).toEqual(['By Corner', 'By Porch']);
+    expect(tiles).toEqual(['By Corner', 'By Porch', 'Somewhere new']);
     await userEvent.click(screen.getByRole('button', { name: 'By Porch' }));
 
     expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, location: porch.location });
   });
 
-  it('offers no spot list when there are no spots', async () => {
+  it('offers only “Somewhere new” when there are no spots', async () => {
     renderSeen({ map: CENTER });
     await startSighting();
 
-    expect(screen.queryByRole('list', { name: 'Spots' })).not.toBeInTheDocument();
+    const tiles = within(screen.getByRole('list', { name: 'Spots' })).getAllByRole('button').map((b) => b.textContent);
+    expect(tiles).toEqual(['Somewhere new']);
+  });
+
+  it('adds somewhere new with a name and a place on the map, then logs the sighting there', async () => {
+    const api = renderSeen({ map: CENTER, spots: [spot('corner', 'Corner')] });
+    await startSighting();
+
+    await userEvent.click(within(screen.getByRole('list', { name: 'Spots' })).getByRole('button', { name: 'Somewhere new' }));
+    expect(screen.getByRole('heading', { name: 'Add a spot' })).toHaveFocus();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Garden gate');
+    expect(
+      screen.getByRole('region', { name: 'Map of where you saw King', description: 'Move the map so the pin is where you saw him.' }),
+    ).toBeInTheDocument();
+    moveMap('Map of where you saw King');
+    await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
+
+    expect(api.addSpot).toHaveBeenCalledWith({ reporterKey: KEY, name: 'Garden gate', location: anyPlace });
+    const { location } = api.addSpot.mock.lastCall![0];
+    await waitFor(() => expect(api.logSighting).toHaveBeenCalledWith({ reporterKey: KEY, location }));
+    expect(await screen.findByRole('heading', { name: 'Thanks for spotting King!' })).toBeInTheDocument();
+  });
+
+  it('does not preselect a spot added from a sighting for the next feeding', async () => {
+    renderSeen({ map: CENTER });
+    await startSighting();
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Name this spot' }), 'Garden gate');
+    moveMap('Map of where you saw King');
+    await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Done' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'I fed King' }));
+
+    expect(screen.getByRole('radio', { name: 'Garden gate' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'No spot' })).toBeChecked();
+  });
+
+  it('Back from “Somewhere new” returns to “Where is King?” without logging', async () => {
+    const api = renderSeen({ map: CENTER });
+    await startSighting();
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(screen.getByRole('heading', { name: 'Where is King?' })).toHaveFocus();
+    expect(api.addSpot).not.toHaveBeenCalled();
+    expect(api.logSighting).not.toHaveBeenCalled();
   });
 
   it('offers only “I’m near him now” and logging without a place when the site has no map', async () => {

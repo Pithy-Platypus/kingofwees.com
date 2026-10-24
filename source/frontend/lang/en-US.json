@@ -475,10 +475,6 @@
     "defaultMessage": "Log feeding",
     "description": "Saves the feeding with the picked foods"
   },
-  "feed.newSpot": {
-    "defaultMessage": "Somewhere new",
-    "description": "Opens the form to add a new feeding spot"
-  },
   "feed.noSpot": {
     "defaultMessage": "No spot",
     "description": "Choice: log the feeding without a spot"
@@ -983,6 +979,10 @@
     "defaultMessage": "I’m near him now",
     "description": "Uses the device’s location for a sighting"
   },
+  "place.newSpot": {
+    "defaultMessage": "Somewhere new",
+    "description": "Opens the form to add a new spot"
+  },
   "place.useMyLocation": {
     "defaultMessage": "Use where I am",
     "description": "Uses the device’s location for a new spot"
@@ -1125,11 +1125,23 @@
   },
   "spot.save": {
     "defaultMessage": "Save spot",
-    "description": "Adds the new spot and uses it for this feeding"
+    "description": "Adds the new spot and uses it for this feeding or sighting"
+  },
+  "spot.seen.mapInstruction": {
+    "defaultMessage": "Move the map so the pin is where you saw him.",
+    "description": "Above the map: the pin stays in the middle and the map moves under it"
+  },
+  "spot.seen.mapLabel": {
+    "defaultMessage": "Map of where you saw King",
+    "description": "Accessible name of the map"
+  },
+  "spot.seen.title": {
+    "defaultMessage": "Add a spot",
+    "description": "Heading of the screen that adds a new spot, reached from a sighting"
   },
   "spot.title": {
     "defaultMessage": "Add a feeding spot",
-    "description": "Heading of the screen that adds a new feeding spot"
+    "description": "Heading of the screen that adds a new spot, reached from a feeding"
   },
   "time.justNow": {
     "defaultMessage": "just now",

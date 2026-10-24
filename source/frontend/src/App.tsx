@@ -54,7 +54,7 @@ type Logged = { name: 'logged'; event: KingEventView };
 type Screen =
   | { name: 'home' }
   | { name: 'feed' }
-  | { name: 'spots' }
+  | { name: 'spots'; from: 'feed' | 'seen' }
   | { name: 'seen' }
   | Logged
   | { name: 'nickname'; then: 'feed' | 'seen' | Logged };
@@ -234,12 +234,18 @@ function App({
   const logSighting = (location?: GeoPoint) =>
     run(async () => showLogged(await api.logSighting({ ...reporter(nickname), ...(location ? { location } : {}) })));
 
-  const addSpot = (name: string, location: GeoPoint) =>
+  // From Feed the new spot is picked for the feeding being filled in; from Seen it's the place, so the sighting logs
+  // there at once like every other place choice. Only a feeding remembers a spot for next time.
+  const addSpot = (from: 'feed' | 'seen', name: string, location: GeoPoint) =>
     run(async () => {
       const added = await api.addSpot({ reporterKey, name, location });
       setSpots((current) => [...current, added]);
-      setSpotId(added.id);
-      setScreen({ name: 'feed' });
+      if (from === 'feed') {
+        setSpotId(added.id);
+        setScreen({ name: 'feed' });
+      } else {
+        await showLogged(await api.logSighting({ ...reporter(nickname), location: added.location }));
+      }
     });
 
   const startFeeding = () => {
@@ -341,20 +347,22 @@ function App({
         photo={draftPhoto}
         onDraft={setFeedDraft}
         onPickSpot={setSpotId}
-        onAddSpot={() => setScreen({ name: 'spots' })}
+        onAddSpot={() => setScreen({ name: 'spots', from: 'feed' })}
         onLog={logFeeding}
         onBack={goHome}
       />
     );
     withFooter = false;
   } else if (screen.name === 'spots') {
+    const from = screen.from;
     content = (
       <SpotScreen
+        from={from}
         mapCenter={mapCenter}
         geolocation={geolocation}
-        busy={busy}
-        onAdd={addSpot}
-        onBack={() => setScreen({ name: 'feed' })}
+        busy={photoBusy}
+        onAdd={(name, location) => addSpot(from, name, location)}
+        onBack={() => setScreen(from === 'feed' ? { name: 'feed' } : { name: 'seen' })}
       />
     );
     withFooter = false;
@@ -367,6 +375,7 @@ function App({
         busy={photoBusy}
         photo={draftPhoto}
         onLog={logSighting}
+        onAddSpot={() => setScreen({ name: 'spots', from: 'seen' })}
         onBack={goHome}
       />
     );

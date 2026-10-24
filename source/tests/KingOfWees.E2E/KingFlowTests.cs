@@ -299,6 +299,41 @@ public sealed partial class KingFlowTests(AppFixture app)
     }
 
     [Fact]
+    public async Task A_new_spot_added_from_a_sighting_logs_the_sighting_there_and_is_offered_to_feeders_unpicked()
+    {
+        var page = await app.NewPageAsync();
+        var name = UniqueSpotName("Hedge");
+        await page.GotoAsync("/");
+        await Button(page, "I saw King").ClickAsync();
+        await SkipNameQuestion(page);
+        await Assertions.Expect(WhereQuestion(page)).ToBeFocusedAsync();
+
+        await Button(page, "Somewhere new").ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Add a spot" })).ToBeFocusedAsync();
+        await page.GetByLabel("Name this spot").FillAsync(name);
+        await Button(page, "Use where I am").ClickAsync();
+        await Assertions.Expect(page.GetByText("Place picked.")).ToBeVisibleAsync();
+        await AssertNoAxeViolations(page);
+        await Button(page, "Save spot").ClickAsync();
+
+        // Saving the spot logs the sighting there, like every other place choice on "Where is King?".
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Thanks for spotting King!" })).ToBeFocusedAsync();
+        var spots = JsonDocument.Parse(await (await page.APIRequest.GetAsync("/api/king/spots")).TextAsync()).RootElement;
+        var spotLocation = spots.EnumerateArray().Single(s => s.GetProperty("name").GetString() == name).GetProperty("location");
+        var seenLocation = (await Status(page)).GetProperty("lastSeen").GetProperty("location");
+        Assert.Equal(spotLocation.GetProperty("latitude").GetDouble(), seenLocation.GetProperty("latitude").GetDouble());
+        Assert.Equal(spotLocation.GetProperty("longitude").GetDouble(), seenLocation.GetProperty("longitude").GetDouble());
+        await Button(page, "Done").ClickAsync();
+        // Other tests' spots share this GPS point, so Home may name any of them: only "near" is certain.
+        await Assertions.Expect(page.GetByText("Seen just now · near ")).ToBeVisibleAsync();
+
+        // The spot is now a choice for feeders, but a sighting never picks next time's feeding spot.
+        await Button(page, "I fed King").ClickAsync();
+        await Assertions.Expect(SpotChoice(page, name)).ToBeVisibleAsync();
+        await Assertions.Expect(SpotChoice(page, "No spot")).ToBeCheckedAsync();
+    }
+
+    [Fact]
     public async Task The_home_map_shows_both_the_feeding_spot_and_a_sighting_placed_away_from_it()
     {
         var page = await app.NewPageAsync();

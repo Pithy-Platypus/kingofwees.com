@@ -21,6 +21,7 @@ export const foodMessage = (food: Food) =>
 export const place = defineMessages({
   nearNow: { id: 'place.nearNow', defaultMessage: 'I’m near him now', description: 'Uses the device’s location for a sighting' },
   useMyLocation: { id: 'place.useMyLocation', defaultMessage: 'Use where I am', description: 'Uses the device’s location for a new spot' },
+  newSpot: { id: 'place.newSpot', defaultMessage: 'Somewhere new', description: 'Opens the form to add a new spot' },
   locationFailed: {
     id: 'place.locationFailed',
     defaultMessage: 'Couldn’t get your location.',

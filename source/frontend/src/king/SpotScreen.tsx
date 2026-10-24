@@ -7,21 +7,14 @@ import { MapView } from './LazyMapView';
 import { place } from './messages';
 
 const m = defineMessages({
-  title: { id: 'spot.title', defaultMessage: 'Add a feeding spot', description: 'Heading of the screen that adds a new feeding spot' },
   nameLabel: { id: 'spot.nameLabel', defaultMessage: 'Name this spot', description: 'Label of the new spot’s name field' },
   nameHint: {
     id: 'spot.nameHint',
     defaultMessage: 'Like “Blue house steps”. Everyone can see it, so leave out house numbers and family names.',
     description: 'Guidance for naming a spot without giving away who lives there',
   },
-  mapLabel: { id: 'spot.mapLabel', defaultMessage: 'Map of where you fed King', description: 'Accessible name of the map' },
-  mapInstruction: {
-    id: 'spot.mapInstruction',
-    defaultMessage: 'Move the map so the pin is where you fed him.',
-    description: 'Above the map: the pin stays in the middle and the map moves under it',
-  },
   placeSet: { id: 'spot.placeSet', defaultMessage: 'Place picked.', description: 'Confirms a place was chosen for the new spot' },
-  save: { id: 'spot.save', defaultMessage: 'Save spot', description: 'Adds the new spot and uses it for this feeding' },
+  save: { id: 'spot.save', defaultMessage: 'Save spot', description: 'Adds the new spot and uses it for this feeding or sighting' },
   needNameAndPlace: {
     id: 'spot.needNameAndPlace',
     defaultMessage: 'Give the spot a name and move the map to its place.',
@@ -29,9 +22,30 @@ const m = defineMessages({
   },
 });
 
-// Matches the server's spot name limit.
+// The screen that sent the visitor decides the wording: a feeder is placing where he ate, a spotter where he was.
+const wording = {
+  feed: defineMessages({
+    title: { id: 'spot.title', defaultMessage: 'Add a feeding spot', description: 'Heading of the screen that adds a new spot, reached from a feeding' },
+    mapLabel: { id: 'spot.mapLabel', defaultMessage: 'Map of where you fed King', description: 'Accessible name of the map' },
+    mapInstruction: {
+      id: 'spot.mapInstruction',
+      defaultMessage: 'Move the map so the pin is where you fed him.',
+      description: 'Above the map: the pin stays in the middle and the map moves under it',
+    },
+  }),
+  seen: defineMessages({
+    title: { id: 'spot.seen.title', defaultMessage: 'Add a spot', description: 'Heading of the screen that adds a new spot, reached from a sighting' },
+    mapLabel: { id: 'spot.seen.mapLabel', defaultMessage: 'Map of where you saw King', description: 'Accessible name of the map' },
+    mapInstruction: {
+      id: 'spot.seen.mapInstruction',
+      defaultMessage: 'Move the map so the pin is where you saw him.',
+      description: 'Above the map: the pin stays in the middle and the map moves under it',
+    },
+  }),
+};
 
 type Props = {
+  from: keyof typeof wording;
   mapCenter: GeoPoint | null;
   geolocation: Geolocator | undefined;
   busy: boolean;
@@ -39,7 +53,8 @@ type Props = {
   onBack: () => void;
 };
 
-export function SpotScreen({ mapCenter, geolocation, busy, onAdd, onBack }: Props) {
+export function SpotScreen({ from, mapCenter, geolocation, busy, onAdd, onBack }: Props) {
+  const w = wording[from];
   const intl = useIntl();
   const heading = useRef<HTMLHeadingElement>(null);
   const [name, setName] = useState('');
@@ -78,7 +93,7 @@ export function SpotScreen({ mapCenter, geolocation, busy, onAdd, onBack }: Prop
         <FormattedMessage {...place.back} />
       </button>
       <h1 ref={heading} tabIndex={-1} className="screen-title">
-        <FormattedMessage {...m.title} />
+        <FormattedMessage {...w.title} />
       </h1>
       <form className="field-form" onSubmit={save}>
         <label htmlFor={nameId} className="field-label">
@@ -106,8 +121,8 @@ export function SpotScreen({ mapCenter, geolocation, busy, onAdd, onBack }: Prop
         {mapCenter && (
           <MapView
             center={mapCenter}
-            label={intl.formatMessage(m.mapLabel)}
-            instruction={intl.formatMessage(m.mapInstruction)}
+            label={intl.formatMessage(w.mapLabel)}
+            instruction={intl.formatMessage(w.mapInstruction)}
             goTo={here}
             onPick={setPicked}
           />

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { defineMessages, FormattedMessage, type NoMessageValues } from 'react-intl';
 import type { Food, SpotView } from './api';
 import { BackIcon, BowlIcon, CheckIcon } from './icons';
-import { foodMessage } from './messages';
+import { foodMessage, place } from './messages';
 import { useSpotsByName } from './useSpotsByName';
 
 type Values = {
@@ -13,7 +13,6 @@ type Values = {
   leftOut: NoMessageValues;
   where: NoMessageValues;
   noSpot: NoMessageValues;
-  newSpot: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -32,7 +31,6 @@ const m = defineMessages<Values>({
   },
   where: { id: 'feed.where', defaultMessage: 'Where did you feed him?', description: 'Heading over the feeding spot choices' },
   noSpot: { id: 'feed.noSpot', defaultMessage: 'No spot', description: 'Choice: log the feeding without a spot' },
-  newSpot: { id: 'feed.newSpot', defaultMessage: 'Somewhere new', description: 'Opens the form to add a new feeding spot' },
 });
 
 /** A feeding being filled in; kept by the app so adding a spot midway doesn't lose it. */
@@ -112,7 +110,7 @@ export function FeedScreen({ busy, spots, spotId, draft, photo, onDraft, onPickS
             </label>
           ))}
           <button type="button" className="where-tile where-tile-new" onClick={onAddSpot}>
-            <FormattedMessage {...m.newSpot} />
+            <FormattedMessage {...place.newSpot} />
           </button>
         </div>
       </fieldset>

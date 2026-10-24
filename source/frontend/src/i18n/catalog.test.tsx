@@ -73,17 +73,9 @@ describe('pseudo-locale catalog', () => {
         onBack={noop}
       />,
     ],
-    ['where seen', <SeenScreen spots={[spot('c', 'Corner')]} mapCenter={CENTER} geolocation={undefined} busy={false} photo={draftPhoto(null)} onLog={noop} onBack={noop} />],
-    [
-      'spots',
-      <SpotScreen
-        mapCenter={CENTER}
-        geolocation={undefined}
-        busy={false}
-        onAdd={noop}
-        onBack={noop}
-      />,
-    ],
+    ['where seen', <SeenScreen spots={[spot('c', 'Corner')]} mapCenter={CENTER} geolocation={undefined} busy={false} photo={draftPhoto(null)} onLog={noop} onAddSpot={noop} onBack={noop} />],
+    ['spots from a feeding', <SpotScreen from="feed" mapCenter={CENTER} geolocation={undefined} busy={false} onAdd={noop} onBack={noop} />],
+    ['spots from a sighting', <SpotScreen from="seen" mapCenter={CENTER} geolocation={undefined} busy={false} onAdd={noop} onBack={noop} />],
     [
       'logged fed',
       <LoggedScreen event={event({ kind: 'fed' })} nickname="" undoFailed onUndo={noop} onDone={noop} onChangeName={noop} busy={false} />,

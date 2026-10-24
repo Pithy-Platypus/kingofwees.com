@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
@@ -6,7 +6,7 @@ import { ApiError, type PhotoView } from './king/api';
 import type { PhotoFiles, PhotoResizer } from './king/photo';
 import { saveAdminSignIn } from './king/admin';
 import { saveNickname } from './king/reporter';
-import { fakeAdminApi, fakeApi, NOW, photo, SIGN_IN } from './test/fakeApi';
+import { CENTER, emptyStatus, fakeAdminApi, fakeApi, NOW, photo, SIGN_IN } from './test/fakeApi';
 import { memoryStorage } from './test/memoryStorage';
 import { renderInEnglish } from './test/render';
 
@@ -150,6 +150,24 @@ describe('App — adding a photo while logging', () => {
 
     expect(await screen.findByRole('img', { name: 'The photo you picked' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Log feeding' }));
+    await waitFor(() => expect(api.addPhoto).toHaveBeenCalled());
+  });
+
+  it('keeps the picked photo while a new spot is added from a sighting, and sends it with the sighting', async () => {
+    const { api } = renderApp(fakeApi(emptyStatus, { map: CENTER }));
+    await startSighting();
+    await pickPhoto();
+    await screen.findByRole('img', { name: 'The photo you picked' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Somewhere new' }));
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Name this spot' }), 'Garden gate');
+    fireEvent.click(screen.getByRole('region', { name: 'Map of where you saw King' }).querySelector('.leaflet-container')!, {
+      clientX: 120,
+      clientY: 80,
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Save spot' }));
+
+    await screen.findByRole('heading', { name: 'Thanks for spotting King!' });
     await waitFor(() => expect(api.addPhoto).toHaveBeenCalled());
   });
 
