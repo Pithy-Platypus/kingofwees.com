@@ -29,3 +29,11 @@ for (const file of env.BACKUP_FILES.split(" ")) {
   print(`uploaded ${file}`);
 }
 })()'
+
+# A dump that "succeeds" with nothing in it is the one failure nobody would see: King's history is never empty, and the
+# archive of a real one is a few KB (2,850 bytes on 2026-10-25). Checked after the upload, so the log is there to read;
+# a failed run fires the backup-failed alert.
+grep -qE 'done dumping `king\.events` \([1-9][0-9]* documents\)' "$NAME.log" \
+  || { echo "The dump holds no entries (king.events): see $NAME.log" >&2; exit 1; }
+[[ $(wc -c <"$NAME.archive.gz") -ge 1000 ]] \
+  || { echo "The archive is only $(wc -c <"$NAME.archive.gz") bytes: see $NAME.log" >&2; exit 1; }

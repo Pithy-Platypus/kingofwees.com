@@ -37,6 +37,12 @@ PHOTO_ALERT="kingofwees-photo-posted"
 ERROR_ALERT="kingofwees-server-errors"
 CAP_ALERT="kingofwees-telemetry-capped"
 BROWSER_ALERT="kingofwees-browser-errors"
+UP_TEST="kingofwees-up"                       # the site checked from outside
+DOWN_ALERT="kingofwees-down"
+RESTART_ALERT="kingofwees-restarted"
+MEMORY_ALERT="kingofwees-memory-high"
+BACKUP_MISSING_ALERT="kingofwees-backup-missing"
+WORKBOOK="2b7c5e9a-4d1f-4c8e-9a3b-6f0e2d1c7a55" # workbook resources are named by a UUID; this one is "King of Wees"
 REPOSITORY="ghcr.io/pithy-platypus/kingofwees"
 SECRETS="$HOME/.kingofwees"
 
@@ -212,6 +218,15 @@ if ! az monitor metrics alert show -g "$GROUP" -n "$BACKUP_ALERT" -o none 2>/dev
     --condition "total Executions > 0 where state includes Failed" --window-size 1h --evaluation-frequency 15m \
     --severity 2 --action "$ALERTS" --description "A nightly backup run failed: see the job's execution history and its log in $STORAGE/$BACKUPS."
 fi
+# A run that never happened (a disabled schedule, a stuck job) fails nothing. The Succeeded series reads 0 in hours
+# with no run (checked 2026-10-25), so "fewer than one in a day" evaluates rather than waiting for data; it fires about
+# a day after a missed 08:00 run and clears on the next success. Metric alerts on platform metrics cost $0.
+if ! az monitor metrics alert show -g "$GROUP" -n "$BACKUP_MISSING_ALERT" -o none 2>/dev/null; then
+  az monitor metrics alert create -g "$GROUP" -n "$BACKUP_MISSING_ALERT" -o none \
+    --scopes "$(az containerapp job show -g "$GROUP" -n "$BACKUP_JOB" --query id -o tsv)" \
+    --condition "total Executions < 1 where state includes Succeeded" --window-size 1d --evaluation-frequency 1h \
+    --severity 2 --action "$ALERTS" --description "No backup run succeeded in the last day: check the job $BACKUP_JOB's schedule and execution history."
+fi
 
 # Rows can land minutes late (16 seen), so each run takes the rows that arrived since the last one, over an hour of
 # event time. Stateless: a rule that stayed fired would email only once. A PUT: a rerun re-applies the rule.
@@ -312,6 +327,19 @@ if [[ -n "$EXISTING_IMAGE" ]]; then
     --revision "$(az containerapp show -g "$GROUP" -n "$APP" --query properties.latestRevisionName -o tsv)" -o none
 fi
 
+echo "== Alerts $RESTART_ALERT and $MEMORY_ALERT: the app restarted, or memory is near its limit (platform metrics, \$0)"
+# RestartCount counts a replica's restarts since it started, so the first restart fires the rule and it stays fired
+# until the next deploy (one email, which is the point); a second restart in between sends nothing more.
+# Memory: 243–272 MiB of 512 over two quiet days, 310–335 MiB under uploads (Slice 6); 450 MiB says a leak, not a day's work.
+APP_ID=$(az containerapp show -g "$GROUP" -n "$APP" --query id -o tsv)
+app_alert() { # name, severity, condition, window, description — created once; change one with `az monitor metrics alert update`
+  az monitor metrics alert show -g "$GROUP" -n "$1" -o none 2>/dev/null \
+    || az monitor metrics alert create -g "$GROUP" -n "$1" -o none --scopes "$APP_ID" --condition "$3" --window-size "$4" \
+         --evaluation-frequency 15m --severity "$2" --action "$ALERTS" --description "$5"
+}
+app_alert "$RESTART_ALERT" 2 "max RestartCount > 0" 1h "The app restarted (a crash, or out of memory): $APP → Revisions and replicas, then $INSIGHTS → Failures around that time."
+app_alert "$MEMORY_ALERT" 2 "avg WorkingSetBytes > 471859200" 15m "The app is using more than 450 MiB of its 512: $APP → Metrics (Memory Working Set Bytes). Quiet days sit at ~250 MiB."
+
 echo "== Custom domains $DOMAIN and www.$DOMAIN (free managed certificates)"
 # Both need their records first (A @ → environment IP or CNAME www → app address, plus TXT asuid.<host>), DNS only:
 # the certificate is issued and renewed only while DigiCert reaches the app directly.
@@ -330,5 +358,41 @@ bind_domain() { # host record-type expected-value validation-method
 }
 bind_domain "$DOMAIN" A "$(az containerapp env show -g "$GROUP" -n "$ENVIRONMENT" --query properties.staticIp -o tsv)" HTTP
 bind_domain "www.$DOMAIN" CNAME "$APP_FQDN." CNAME
+
+echo "== Availability test $UP_TEST: GET https://$DOMAIN/health from two places every 15 minutes; $DOWN_ALERT emails when both fail"
+# Every alert above fires on rows the app sends; this one needs none. Standard web tests cost \$0.0005 a run (2026-10-25):
+# two locations every 900 s is \$2.88 a month (300 s would be \$8.64). /health (the database included) isn't traced or
+# rate-limited, so the probes add no request rows; their results land in AppAvailabilityResults (~0.2 MB a day). The
+# certificate's remaining life is checked too: 14 days before it expires the test fails, in time for a renewal that didn't happen.
+INSIGHTS_ID=$(az monitor app-insights component show -g "$GROUP" --app "$INSIGHTS" --query id -o tsv)
+az monitor app-insights web-test create -g "$GROUP" -n "$UP_TEST" -l "$LOCATION" --defined-web-test-name "$UP_TEST" \
+  --web-test-kind standard --request-url "https://$DOMAIN/health" --http-verb GET --expected-status-code 200 \
+  --frequency 900 --timeout 30 --retry-enabled true --enabled true --ssl-check true --ssl-lifetime-check 14 \
+  --locations Id="us-va-ash-azr" --locations Id="us-il-ch1-azr" \
+  --tags "hidden-link:$INSIGHTS_ID=Resource" -o none
+WEBTEST_ID=$(az monitor app-insights web-test show -g "$GROUP" -n "$UP_TEST" --query id -o tsv)
+# The CLI's --condition grammar has no web-test criteria, so the rule goes in as the portal writes it. Both locations
+# over 30 minutes (each runs twice in that window): one probe's hiccup isn't an outage. A PUT: a rerun re-applies it.
+az rest --method put -o none \
+  --url "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$GROUP/providers/Microsoft.Insights/metricAlerts/$DOWN_ALERT?api-version=2018-03-01" \
+  --body '{ "location": "global",
+    "tags": { "hidden-link:'"$INSIGHTS_ID"'": "Resource", "hidden-link:'"$WEBTEST_ID"'": "Resource" },
+    "properties": { "description": "kingofwees.com is not answering from outside (or its certificate is about to expire): '"$INSIGHTS"' → Availability.",
+      "severity": 1, "enabled": true, "scopes": ["'"$WEBTEST_ID"'", "'"$INSIGHTS_ID"'"],
+      "evaluationFrequency": "PT5M", "windowSize": "PT30M", "autoMitigate": true,
+      "criteria": { "odata.type": "Microsoft.Azure.Monitor.WebtestLocationAvailabilityCriteria",
+                    "webTestId": "'"$WEBTEST_ID"'", "componentId": "'"$INSIGHTS_ID"'", "failedLocationCount": 2 },
+      "actions": [{ "actionGroupId": "'"$ALERTS_ID"'" }] } }'
+
+echo "== Workbook \"King of Wees\" ($INSIGHTS → Workbooks): Health now, Triage, Usage"
+# The template (infra/azure/workbook.json) queries the workspace and charts the app's platform metrics; the resource ids
+# are filled in here. Listed under the Application Insights resource (--source-id). A rerun re-applies it.
+sed "s#__WORKSPACE_ID__#$WORKSPACE_ID#g; s#__APP_ID__#$APP_ID#g" "$(dirname "$0")/workbook.json" >"$WORK/workbook.json"
+if az monitor app-insights workbook show -g "$GROUP" -n "$WORKBOOK" -o none 2>/dev/null; then
+  az monitor app-insights workbook update -g "$GROUP" -n "$WORKBOOK" --serialized-data "$(<"$WORK/workbook.json")" -o none
+else
+  az monitor app-insights workbook create -g "$GROUP" -n "$WORKBOOK" -l "$LOCATION" --kind shared --category workbook \
+    --display-name "King of Wees" --source-id "$INSIGHTS_ID" --serialized-data "$(<"$WORK/workbook.json")" -o none
+fi
 
 echo "== Done: https://$(az containerapp show -g "$GROUP" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv) ($IMAGE)"

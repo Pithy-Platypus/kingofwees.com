@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Json;
 using KingOfWees.Server.Admin;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -194,6 +195,29 @@ public sealed class TelemetryPrivacyTests
     }
 
     // Keeps each exported record as text (message, attributes, scopes, exception): the SDK reuses LogRecord objects.
+    [Fact]
+    public async Task A_refused_request_is_logged_with_its_route_and_codes_and_never_what_was_sent()
+    {
+        // Until 2026-10-25 a 400 was a status code and nothing else. Now one line names the route and the codes (the
+        // workbook's Triage tab reads it); the value stays the visitor's.
+        var nickname = "Telemetry-Nickname-" + new string('x', 30); // past the 40-character limit
+        var exported = new ExportedLogText();
+        await using var factory = new KingApiFactory().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.ConfigureOpenTelemetryLoggerProvider(logging => logging.AddProcessor(exported))));
+        var client = factory.CreateClient();
+
+        var refused = await client.PostAsJsonAsync("/api/king/sightings",
+            new { reporterKey = "telemetry-device", reporterName = nickname }, TestContext.Current.CancellationToken);
+        var logged = await client.PostAsJsonAsync("/api/king/sightings",
+            new { reporterKey = "telemetry-device", reporterName = "Sarah" }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, logged.StatusCode);
+        var line = Assert.Single(exported.Lines, l => l.Contains("Refused POST /api/king/sightings"));
+        Assert.Contains("reporterName: reporterName.tooLong", line);
+        Assert.DoesNotContain(exported.Lines, l => l.Contains(nickname) || l.Contains("Sarah"));
+    }
+
     private sealed class ExportedLogText : BaseProcessor<LogRecord>
     {
         private readonly List<string> lines = [];

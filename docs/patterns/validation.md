@@ -30,6 +30,10 @@
 - **Cost:** England's, Scotland's and Wales's flags are built from tag characters (`Cf`), so they arrive as a plain black flag.
 - **Rejected:** a JSON converter that cleans every string — it would miss the form field (a shared photo's name) and the header (the admin's typed name), and clean device keys and ids it has no business touching.
 
+## Refusals are logged, codes only (2026-10-25)
+
+`ValidationFilter` logs one Information line per refusal — `Refused POST /api/king/sightings: reporterName: reporterName.tooLong` — the method, the route pattern and the codes by field, never the value, so a phone sending something the server refuses can be diagnosed from `AppTraces` (the workbook's Triage tab) without reproducing it. `TelemetryPrivacyTests` pins that the refused nickname never reaches a log line.
+
 ## Incident found while switching
 
 `JsonStringEnumConverter` accepts integers by default, so `"food": 7` was stored as an invalid `Food`. Enum fields need `.IsInEnum()`; covered by `Numeric_food_outside_the_known_values_is_rejected_with_an_error_code`.

@@ -1,0 +1,533 @@
+{
+ "version": "Notebook/1.0",
+ "items": [
+  {
+   "type": 9,
+   "content": {
+    "version": "KqlParameterItem/1.0",
+    "parameters": [
+     {
+      "id": "time",
+      "version": "KqlParameterItem/1.0",
+      "name": "TimeRange",
+      "label": "Time range",
+      "type": 4,
+      "isRequired": true,
+      "value": {
+       "durationMs": 86400000
+      },
+      "typeSettings": {
+       "selectableValues": [
+        {
+         "durationMs": 3600000
+        },
+        {
+         "durationMs": 86400000
+        },
+        {
+         "durationMs": 604800000
+        },
+        {
+         "durationMs": 2592000000
+        }
+       ]
+      }
+     }
+    ],
+    "style": "pills",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces"
+   },
+   "name": "parameters"
+  },
+  {
+   "type": 11,
+   "content": {
+    "version": "LinkItem/1.0",
+    "style": "tabs",
+    "links": [
+     {
+      "id": "tab-health",
+      "cellValue": "tab",
+      "linkTarget": "parameter",
+      "linkLabel": "Health now",
+      "subTarget": "health",
+      "style": "link"
+     },
+     {
+      "id": "tab-triage",
+      "cellValue": "tab",
+      "linkTarget": "parameter",
+      "linkLabel": "Triage",
+      "subTarget": "triage",
+      "style": "link"
+     },
+     {
+      "id": "tab-usage",
+      "cellValue": "tab",
+      "linkTarget": "parameter",
+      "linkLabel": "Usage",
+      "subTarget": "usage",
+      "style": "link"
+     }
+    ]
+   },
+   "name": "tabs"
+  },
+  {
+   "type": 1,
+   "content": {
+    "json": "Only `/api` requests are traced (pages and files aren't); health checks and the probes add no request rows. Every row here is from `kingofwees-logs`. Why \u2192 `docs/patterns/telemetry.md` in the repository."
+   },
+   "name": "note"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | summarize requests = count() by bin(TimeGenerated, {TimeRange:grain}), ResultCode | render columnchart",
+    "size": 0,
+    "title": "Requests by response code",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "health"
+   },
+   "name": "codes"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | summarize p95 = round(percentile(DurationMs, 95)), requests = count() by Name | order by p95 desc",
+    "size": 0,
+    "title": "Slowest routes (p95 ms) and their requests",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "health"
+   },
+   "name": "p95"
+  },
+  {
+   "type": 10,
+   "content": {
+    "chartId": "chart-platform",
+    "version": "MetricsItem/1.0",
+    "size": 0,
+    "chartType": 2,
+    "resourceType": "microsoft.app/containerapps",
+    "metricScope": 0,
+    "resourceIds": [
+     "__APP_ID__"
+    ],
+    "timeContextFromParameter": "TimeRange",
+    "timeContext": {
+     "durationMs": 0
+    },
+    "metrics": [
+     {
+      "namespace": "microsoft.app/containerapps",
+      "metric": "microsoft.app/containerapps-Standard metrics-WorkingSetBytes",
+      "aggregation": 4,
+      "splitBy": null
+     },
+     {
+      "namespace": "microsoft.app/containerapps",
+      "metric": "microsoft.app/containerapps-Standard metrics-CpuPercentage",
+      "aggregation": 4,
+      "splitBy": null
+     },
+     {
+      "namespace": "microsoft.app/containerapps",
+      "metric": "microsoft.app/containerapps-Standard metrics-RestartCount",
+      "aggregation": 3,
+      "splitBy": null
+     }
+    ],
+    "title": "Memory (working set), CPU and restarts \u2014 the container app's own metrics",
+    "gridSettings": {
+     "rowLimit": 10000
+    }
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "health"
+   },
+   "name": "platform"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppAvailabilityResults | summarize up = countif(Success), down = countif(not(Success)), slowest_ms = max(DurationMs) by Location | order by Location asc",
+    "size": 0,
+    "title": "Reachable from outside (the availability test, by location)",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "health"
+   },
+   "name": "outside"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppAvailabilityResults | summarize ok = countif(Success), failed = countif(not(Success)) by bin(TimeGenerated, {TimeRange:grain}) | render columnchart",
+    "size": 0,
+    "title": "Probes over time",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "health"
+   },
+   "name": "outside-time"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "Usage | where IsBillable | summarize MB = round(sum(Quantity), 2) by DataType | order by MB desc",
+    "size": 0,
+    "title": "Telemetry ingested (MB, billable) by table \u2014 the cap is 50 MB a day",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "health"
+   },
+   "name": "ingestion"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | where toint(ResultCode) >= 400 | project TimeGenerated, Name, ResultCode, DurationMs, OperationId | order by TimeGenerated desc | take 200",
+    "size": 0,
+    "title": "Failed requests (4xx and 5xx) \u2014 the operation id joins the dependencies and traces behind one",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "triage"
+   },
+   "name": "failed"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppDependencies | where Success == false | summarize failures = count(), last = max(TimeGenerated) by Target, Name, ResultCode | order by failures desc",
+    "size": 0,
+    "title": "Dependencies that failed",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "triage"
+   },
+   "name": "deps"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppTraces | where tostring(Properties['CategoryName']) == 'KingOfWees.Server.Diagnostics.ClientDiagnostic' | project TimeGenerated, Message | order by TimeGenerated desc | take 100",
+    "size": 0,
+    "title": "What visitors' browsers reported",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "triage"
+   },
+   "name": "browser"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | where ResultCode in ('429', '403') | summarize refused = count(), last = max(TimeGenerated) by Name, ResultCode | order by refused desc",
+    "size": 0,
+    "title": "Requests the server refused \u2014 429 rate-limited, 403 posting from outside the US",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "triage"
+   },
+   "name": "refused"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppTraces | where tostring(Properties['CategoryName']) == 'KingOfWees.Server.Validation.ValidationFilter' | extend Route = tostring(Properties['Route']), Codes = tostring(Properties['Codes']) | summarize refusals = count(), last = max(TimeGenerated) by Route, Codes | order by refusals desc",
+    "size": 0,
+    "title": "Validation refusals by route and code (what phones send that the server won't take)",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "triage"
+   },
+   "name": "validation"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "union (AppRequests | where toint(ResultCode) >= 500 | project TimeGenerated, What = strcat('request ', Name, ' \u2192 ', ResultCode), OperationId), (AppExceptions | project TimeGenerated, What = strcat('exception ', ExceptionType, ': ', OuterMessage), OperationId) | order by TimeGenerated desc | take 100",
+    "size": 0,
+    "title": "Server errors (5xx) and exceptions",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "triage"
+   },
+   "name": "errors"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | where Name == 'GET /api/king/status' | summarize visits = count() by bin(TimeGenerated, 1d) | render columnchart",
+    "size": 0,
+    "title": "Home loads a day (one status read per load)",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "usage"
+   },
+   "name": "visits"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | where Name in ('GET /api/king/status', 'GET /api/king/history', 'GET /api/king/photos', 'GET /api/king/heat') | extend Page = case(Name has 'history', 'History', Name has 'photos', 'Photos', Name has 'heat', 'Heat map', 'Home') | summarize opened = count() by bin(TimeGenerated, 1d), Page | render columnchart",
+    "size": 0,
+    "title": "Pages opened a day",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "usage"
+   },
+   "name": "pages"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | where Name == 'GET /api/king/status' | summarize visits = count() by hour = hourofday(TimeGenerated) | order by hour asc | render columnchart",
+    "size": 0,
+    "title": "When in the day people check on King (hour, UTC)",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "usage"
+   },
+   "name": "hours"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppMetrics | where Name in ('king.feedings', 'king.sightings', 'king.photos') | summarize posted = sum(Sum) by bin(TimeGenerated, 1d), Name | render columnchart",
+    "size": 0,
+    "title": "Feedings, sightings and photos a day",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "usage"
+   },
+   "name": "posts"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppRequests | where Name == 'GET /api/king/photos/{id}/thumb' and ResultCode == '200' | summarize served = count() by bin(TimeGenerated, 1d) | render columnchart",
+    "size": 0,
+    "title": "Photos looked at a day (thumbnails served)",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "usage"
+   },
+   "name": "thumbs"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppMetrics | where Name startswith 'king.admin.' | summarize actions = sum(Sum) by Name, Target = tostring(Properties['target']) | order by actions desc",
+    "size": 0,
+    "title": "Admin actions (hides, restores, renames, merges)",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "table"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "usage"
+   },
+   "name": "admin"
+  },
+  {
+   "type": 3,
+   "content": {
+    "version": "KqlItem/1.0",
+    "query": "AppMetrics | where Name == 'king.posting.refused' | summarize refused = sum(Sum) by bin(TimeGenerated, 1d) | render columnchart",
+    "size": 0,
+    "title": "Posts refused from outside the US, a day",
+    "timeContextFromParameter": "TimeRange",
+    "queryType": 0,
+    "resourceType": "microsoft.operationalinsights/workspaces",
+    "crossComponentResources": [
+     "__WORKSPACE_ID__"
+    ],
+    "visualization": "barchart"
+   },
+   "conditionalVisibility": {
+    "parameterName": "tab",
+    "comparison": "isEqualTo",
+    "value": "usage"
+   },
+   "name": "refusedUs"
+  }
+ ],
+ "isLocked": false,
+ "fallbackResourceIds": [
+  "__WORKSPACE_ID__"
+ ]
+}
