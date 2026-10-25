@@ -9,9 +9,12 @@ import { PhotoPicker } from '../king/PhotoSlot';
 import { ownMessages } from '../king/ownMessages';
 import { UndoOwnPost } from '../king/UndoOwnPost';
 import { Link } from '../routing/Link';
+import { pathOf, photoPath, usePhotoId } from '../routing/routes';
 import { adminMessages } from './adminMessages';
 import { HidePhotoForm } from './HidePhotoForm';
 import { PageShell } from './PageShell';
+import { PhotoViewer } from './PhotoViewer';
+import { viewerMessages } from './viewerMessages';
 
 type Values = {
   title: NoMessageValues;
@@ -113,7 +116,7 @@ function HidePhoto({ photo, admin, onHidden }: HideProps) {
 }
 
 type Props = {
-  api: Pick<typeof kingApi, 'getPhotos' | 'sharePhoto'>;
+  api: Pick<typeof kingApi, 'getPhotos' | 'sharePhoto' | 'getPhoto'>;
   spots: SpotView[];
   reporterKey: string;
   /** This device's name; null or empty shares as "a neighbor". */
@@ -154,6 +157,16 @@ export function PhotosPage({
   const [share, setShare] = useState<Share | null>(null);
   const [hidCount, setHidCount] = useState(0);
   const [removedCount, setRemovedCount] = useState(0);
+  // The viewer follows the address: /photos/{id} shows that photo over the grid (PhotoViewer).
+  const photoId = usePhotoId();
+  // A photo the address names but the loaded pages don't hold, fetched alone; photo null = it isn't there (hidden, removed).
+  const [alone, setAlone] = useState<{ id: string; photo: PhotoView | null } | null>(null);
+  // Opened from the grid (one history entry pushed, so Back closes it), or by the address itself.
+  const pushedViewer = useRef(false);
+  const [returnTo, setReturnTo] = useState<{ id: string; tick: number } | null>(null);
+  const links = useRef(new Map<string, HTMLAnchorElement>());
+  const closing = useRef(false);
+  const goneNotice = useRef<HTMLParagraphElement>(null);
   const removedNotice = useRef<HTMLParagraphElement>(null);
   const firstNew = useRef<HTMLAnchorElement>(null);
   const sharedNotice = useRef<HTMLParagraphElement>(null);
@@ -171,7 +184,34 @@ export function PhotosPage({
     );
   }, [api, attempt]);
 
-  useEffect(() => firstNew.current?.focus(), [focusId]);
+  useEffect(() => {
+    // Not while the viewer is open: a modal dialog keeps focus, and the viewer's own photo gets it on close.
+    if (!photoId) firstNew.current?.focus();
+  }, [focusId, photoId]);
+  useEffect(() => {
+    if (!photoId || !photos || photos.some((p) => p.id === photoId) || alone?.id === photoId) return;
+    let current = true;
+    api.getPhoto(photoId).then(
+      (found) => {
+        if (current) setAlone({ id: photoId, photo: found });
+      },
+      () => {
+        if (current) setAlone({ id: photoId, photo: null });
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [api, photoId, photos, alone]);
+  useEffect(() => {
+    if (photoId) return;
+    closing.current = false;
+    if (returnTo) links.current.get(returnTo.id)?.focus();
+  }, [photoId, returnTo]);
+  useEffect(() => {
+    // The notice appears once the address is back on the grid, a render after the answer.
+    if (alone?.photo === null && !photoId) goneNotice.current?.focus();
+  }, [alone, photoId]);
   useEffect(() => {
     if (share?.status === 'shared') sharedNotice.current?.focus();
     if (share?.status === 'failed') retry.current?.focus();
@@ -223,6 +263,36 @@ export function PhotosPage({
     }
     await send(files);
   };
+
+  const announce = () => window.dispatchEvent(new PopStateEvent('popstate'));
+  const openViewer = (id: string) => {
+    pushedViewer.current = true;
+    window.history.pushState(null, '', photoPath(id));
+    announce();
+  };
+  const moveViewer = (id: string) => {
+    window.history.replaceState(null, '', photoPath(id));
+    announce();
+  };
+  const closeViewer = () => {
+    // In a browser Escape reaches both the viewer's keydown and the dialog's cancel: the second call is nothing.
+    if (!photoId || closing.current) return;
+    closing.current = true;
+    setReturnTo((r) => ({ id: photoId, tick: (r?.tick ?? 0) + 1 }));
+    if (pushedViewer.current) {
+      pushedViewer.current = false;
+      window.history.back();
+    } else {
+      window.history.replaceState(null, '', pathOf('photos'));
+      announce();
+    }
+  };
+  // The address named a photo that isn't there: back to the grid, which says so.
+  useEffect(() => {
+    if (photoId && alone?.id === photoId && alone.photo === null) closeViewer();
+    // closeViewer changes with every render; what matters is the address and the answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoId, alone]);
 
   const hidden = (id: string) => {
     setPhotos((shown) => (shown ?? []).filter((p) => p.id !== id));
@@ -301,7 +371,21 @@ export function PhotosPage({
             const description = photoAlt(intl, p, spots);
             return (
               <li key={p.id} className="photo-grid-item">
-                <a ref={p.id === focusId ? firstNew : undefined} href={photoUrl(p.id, 'full')} className="photo-grid-link">
+                <a
+                  ref={(element) => {
+                    if (element) links.current.set(p.id, element);
+                    else links.current.delete(p.id);
+                    if (p.id === focusId) firstNew.current = element;
+                  }}
+                  href={photoUrl(p.id, 'full')}
+                  className="photo-grid-link"
+                  onClick={(e) => {
+                    // A plain tap opens the viewer; a modified click (a new tab) keeps the link to the file.
+                    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                    e.preventDefault();
+                    openViewer(p.id);
+                  }}
+                >
                   <img src={photoUrl(p.id, 'thumb')} alt={description} title={description} loading="lazy" className="photo-grid-image" />
                 </a>
                 {own?.canUndo(p.id) && <UndoOwnPost what="photo" onConfirm={() => own.removePhoto(p.id)} onDone={() => removed(p.id)} />}
@@ -324,8 +408,46 @@ export function PhotosPage({
     );
   }
 
+  const index = photoId && photos ? photos.findIndex((p) => p.id === photoId) : -1;
+  let viewer = null;
+  if (photoId && photos && index >= 0) {
+    viewer = (
+      <PhotoViewer
+        photos={photos}
+        index={index}
+        spots={spots}
+        hasOlder={next !== null}
+        loadingOlder={loadingOlder}
+        onIndex={(i) => moveViewer(photos[i].id)}
+        onLoadOlder={() => {
+          if (next !== null) void showOlder(next);
+        }}
+        onClose={closeViewer}
+      />
+    );
+  } else if (photoId && alone?.id === photoId && alone.photo) {
+    viewer = (
+      <PhotoViewer
+        photos={[alone.photo]}
+        index={0}
+        spots={spots}
+        hasOlder={false}
+        loadingOlder={false}
+        onIndex={() => undefined}
+        onLoadOlder={() => undefined}
+        onClose={closeViewer}
+      />
+    );
+  }
+
   return (
     <PageShell title={<FormattedMessage {...m.title} />} titleId="photos-title">
+      {alone?.photo === null && !photoId && (
+        <p ref={goneNotice} tabIndex={-1} role="status" className="screen-hint">
+          <FormattedMessage {...viewerMessages.gone} />
+        </p>
+      )}
+      {viewer}
       {postingAllowed && (
         <div className="photo-share">
           {sharing}

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, type PhotosPage as PhotosPageData } from '../king/api';
@@ -101,19 +101,20 @@ describe('PhotosPage', () => {
   });
 
   it('“Show older” loads the next 50 and moves focus to the first older photo', async () => {
-    const older = photo({ id: 'p-old', postedAt: day(1), reporterName: 'Mo' });
+    const older = photo({ id: 'p-old', postedAt: day(2), reporterName: 'Mo' });
+    const oldest = photo({ id: 'p-oldest', postedAt: day(1), reporterName: 'Mo' });
     const api = fakeApi();
     api.getPhotos.mockImplementation(async (before) =>
-      before === undefined ? { photos: [shared], next: 'p-shared' } : { photos: [older], next: null },
+      before === undefined ? { photos: [shared], next: 'p-shared' } : { photos: [older, oldest], next: null },
     );
     renderPage({ api });
 
     await userEvent.click(await screen.findByRole('button', { name: 'Show older' }));
 
     expect(api.getPhotos).toHaveBeenLastCalledWith('p-shared');
-    const older2 = await grid().findByRole('link', { name: 'Photo shared by Mo on Oct 1, 2026' });
+    const older2 = await grid().findByRole('link', { name: 'Photo shared by Mo on Oct 2, 2026' });
     expect(older2).toHaveFocus();
-    expect(grid().getAllByRole('link')).toHaveLength(2);
+    expect(grid().getAllByRole('link')).toHaveLength(3);
     expect(screen.queryByRole('button', { name: 'Show older' })).not.toBeInTheDocument();
   });
 
@@ -135,6 +136,172 @@ describe('PhotosPage', () => {
     renderPage();
 
     expect(screen.getByText('A shared photo isn’t logged as a sighting, so it can be from any day.')).toBeInTheDocument();
+  });
+});
+
+describe('PhotosPage — the viewer', () => {
+  const older = photo({ id: 'p-old', postedAt: day(1), reporterName: 'Mo' });
+  const dialog = () => screen.findByRole('dialog');
+  const picture = (d: HTMLElement) => within(d).getByRole('img');
+  const goBack = () =>
+    act(async () => {
+      window.history.back();
+      await new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+    });
+  const openFirst = async (options: Options = {}) => {
+    const rendered = renderPage(options);
+    const link = (await shown('link'))[0];
+    const notPrevented = fireEvent.click(link);
+    return { ...rendered, link, notPrevented };
+  };
+
+  it('a tap on a thumbnail opens the viewer on that photo, at its own address, instead of the bare file', async () => {
+    const { notPrevented, api } = await openFirst();
+
+    const d = await dialog();
+    expect(notPrevented).toBe(false);
+    expect(picture(d)).toHaveAttribute('src', '/api/king/photos/p-shared/full');
+    expect(within(d).getByText('1 of 2')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/photos/p-shared');
+    expect(api.getPhoto).not.toHaveBeenCalled();
+
+    // No older page to load: the end is the end.
+    fireEvent.keyDown(d, { key: 'ArrowRight' });
+    expect(within(d).getByText('2 of 2')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: 'Next photo' })).toBeDisabled();
+  });
+
+  it('a modified click or another button keeps the link to the file (a new tab)', async () => {
+    renderPage();
+    const link = (await shown('link'))[0];
+
+    expect(fireEvent.click(link, { metaKey: true })).toBe(true);
+    expect(fireEvent.click(link, { button: 1 })).toBe(true);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('moving replaces the address, so Back closes the viewer instead of stepping through every photo', async () => {
+    await openFirst();
+    const d = await dialog();
+    const entries = window.history.length;
+
+    fireEvent.keyDown(d, { key: 'ArrowRight' });
+
+    expect(picture(d)).toHaveAttribute('src', '/api/king/photos/p-seen/full');
+    expect(window.location.pathname).toBe('/photos/p-seen');
+    expect(window.history.length).toBe(entries);
+
+    await goBack();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('Escape closes it, takes the address back and returns focus to the thumbnail', async () => {
+    const { link } = await openFirst();
+    const d = await dialog();
+    const back = vi.spyOn(window.history, 'back');
+
+    // A browser's Escape reaches the viewer's keydown and the dialog's cancel: one step back, not two.
+    fireEvent.keyDown(d, { key: 'Escape' });
+    fireEvent(d, new Event('cancel', { cancelable: true }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(window.location.pathname).toBe('/');
+    expect(link).toHaveFocus();
+    back.mockRestore();
+
+    // Opened by its address afterwards, closing replaces the address rather than stepping back.
+    window.history.replaceState(null, '', '/photos/p-seen');
+    act(() => window.dispatchEvent(new PopStateEvent('popstate')));
+    fireEvent.keyDown(await dialog(), { key: 'Escape' });
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.location.pathname).toBe('/photos');
+  });
+
+  it('opened by its address, a photo among the loaded ones shows in its place', async () => {
+    window.history.replaceState(null, '', '/photos/p-seen');
+    renderPage();
+
+    const d = await dialog();
+
+    expect(picture(d)).toHaveAttribute('src', '/api/king/photos/p-seen/full');
+    expect(within(d).getByText('2 of 2')).toBeInTheDocument();
+    expect(fakeApi().getPhoto).not.toHaveBeenCalled();
+  });
+
+  it('opened by its address, a photo older than the loaded ones is fetched and shown alone', async () => {
+    window.history.replaceState(null, '', '/photos/p-old');
+    const api = fakeApi(undefined, { photos: { photos: [shared, onSighting], next: 'p-seen' } });
+    api.getPhoto.mockResolvedValue(older);
+    renderPage({ api });
+
+    const d = await dialog();
+
+    expect(api.getPhoto).toHaveBeenCalledTimes(1);
+    expect(api.getPhoto).toHaveBeenCalledWith('p-old');
+    expect(picture(d)).toHaveAttribute('src', '/api/king/photos/p-old/full');
+    expect(within(d).getByText('1 of 1')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: 'Previous photo' })).toBeDisabled();
+    expect(within(d).getByRole('button', { name: 'Next photo' })).toBeDisabled();
+
+    fireEvent.keyDown(d, { key: 'Escape' });
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.location.pathname).toBe('/photos');
+  });
+
+  it('a link to a photo that is hidden or gone says so above the grid', async () => {
+    window.history.replaceState(null, '', '/photos/p-gone');
+    const api = fakeApi(undefined, { photos: { photos: [shared], next: null } });
+    api.getPhoto.mockRejectedValue(new ApiError(404));
+    renderPage({ api });
+
+    const notice = await screen.findByText('That photo isn’t here any more.');
+
+    expect(notice).toHaveAttribute('role', 'status');
+    expect(notice).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/photos');
+  });
+
+  it('Next past the last loaded photo fetches the older page and moves on to it', async () => {
+    const api = fakeApi();
+    api.getPhotos.mockImplementation(async (before) =>
+      before === undefined ? { photos: [shared], next: 'p-shared' } : { photos: [older], next: null },
+    );
+    await openFirst({ api });
+    const d = await dialog();
+
+    await userEvent.click(within(d).getByRole('button', { name: 'Next photo' }));
+
+    expect(api.getPhotos).toHaveBeenLastCalledWith('p-shared');
+    await waitFor(() => expect(picture(d)).toHaveAttribute('src', '/api/king/photos/p-old/full'));
+    expect(within(d).getByText('2 of 2')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/photos/p-old');
+    // The new thumbnail behind the viewer doesn't take the focus (the grid is inert under a modal dialog).
+    expect(grid().getByRole('link', { name: 'Photo shared by Mo on Oct 1, 2026' })).not.toHaveFocus();
+  });
+
+  it('when the older page fails, the page says so and the viewer stays on the last photo, Next ready to try again', async () => {
+    const api = fakeApi();
+    api.getPhotos.mockImplementation(async (before) => {
+      if (before === undefined) return { photos: [shared], next: 'p-shared' };
+      throw new ApiError(503);
+    });
+    await openFirst({ api });
+    const d = await dialog();
+
+    await userEvent.click(within(d).getByRole('button', { name: 'Next photo' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t load older photos.');
+    expect(picture(d)).toHaveAttribute('src', '/api/king/photos/p-shared/full');
+    expect(within(d).getByText('1 of 1')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: 'Next photo' })).toBeEnabled();
   });
 });
 

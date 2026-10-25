@@ -10,6 +10,7 @@ public static class PhotoEndpoints
     public static void MapPhotoReads(this RouteGroupBuilder king)
     {
         king.MapGet("/photos", ListPhotos);
+        king.MapGet("/photos/{id}", GetPhoto);
         king.MapGet("/photos/{id}/full", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
             ServeAsync(id, PhotoFiles.Full(id), photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
         king.MapGet("/photos/{id}/thumb", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
@@ -42,6 +43,14 @@ public static class PhotoEndpoints
         var page = found.Take(limit).ToList();
         return TypedResults.Ok(new PhotosPage(
             await PhotoViews(page, events, spots, photos, cancellationToken), found.Count > limit ? page[^1].Id : null));
+    }
+
+    // One photo, as the list shows it: a link to /photos/{id} may name one older than the page's first 50.
+    private static async Task<Results<Ok<PhotoView>, NotFound>> GetPhoto(
+        string id, IKingEventStore events, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
+    {
+        if (await photos.FindVisibleAsync(id, cancellationToken) is not { } photo) return TypedResults.NotFound();
+        return TypedResults.Ok((await PhotoViews([photo], events, spots, photos, cancellationToken))[0]);
     }
 
     // Each photo with its entry, shown as in history. A visible photo's entry is visible too: same device, and a hidden

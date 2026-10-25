@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { ApiError } from '../king/api';
 import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotosPage, PhotoView, SpotView } from '../king/api';
 import type { ActivityPage, AdminApi, AdminSignIn, AdminSpot, DeviceView, HiddenDevice, HiddenPhotoView } from '../king/admin';
 import type { GeoPoint } from '../king/location';
@@ -67,6 +68,11 @@ export function fakeApi(
     addPhoto: vi.fn<typeof kingApi.addPhoto>().mockImplementation(async (id) => photo({ id: 'new-photo', event: event({ id }) })),
     sharePhoto: vi.fn<typeof kingApi.sharePhoto>().mockImplementation(async (r) => photo({ id: 'shared-photo', reporterName: r.reporterName ?? null })),
     getPhotos: vi.fn<typeof kingApi.getPhotos>().mockResolvedValue(photos),
+    getPhoto: vi.fn<typeof kingApi.getPhoto>().mockImplementation(async (id) => {
+      const found = photos.photos.find((p) => p.id === id);
+      if (!found) throw new ApiError(404);
+      return found;
+    }),
     undo: vi.fn<typeof kingApi.undo>().mockResolvedValue(undefined),
     deletePhoto: vi.fn<typeof kingApi.deletePhoto>().mockResolvedValue(undefined),
     renameEvent: vi.fn<typeof kingApi.renameEvent>().mockResolvedValue(undefined),

@@ -21,3 +21,7 @@ Tried and not taken:
 - **`pool: 'vmThreads'`** (Vitest's own suggestion, ~3.1 s): Vitest documents memory leaks and `instanceof` mismatches with Node's built-ins (`Buffer`, `Uint8Array`) inside VM contexts, and `build/precompress.test.ts` and the photo code use them. The 0.2 s isn't worth a test that passes or fails because of the pool.
 - **`isolate: false`**: test files share module state (stores, `localStorage`, mocks), so results can depend on file order; with `threads` it also found no tests.
 - **Stryker `concurrency` 4 instead of 2**: same 64 s — each Vitest run already uses every core.
+
+## Reading a survivor (2026-10-25)
+
+A survivor's replacement applies to the mutated **range**, not the line. `if (photoId && photos && index >= 0)` has a `ConditionalExpression → true` mutant for the whole condition and another for the sub-expression `photoId && photos`; the console lists both as "line 413 … => true". Reproducing the wrong one by hand (`if (true)`) killed it and made Stryker look broken; the report's `location.start.column` / `end.column` name the exact text (`reports/mutation/mutation.html` embeds the JSON as `app.report`). Read the columns before calling a survivor a tooling bug — the sub-expression one was equivalent (`index >= 0` already implies both).

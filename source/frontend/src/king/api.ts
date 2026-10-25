@@ -134,6 +134,8 @@ export const kingApi = {
   },
   getPhotos: (before?: string) =>
     request<PhotosPage>(`/api/king/photos${before === undefined ? '' : `?before=${encodeURIComponent(before)}`}`, undefined),
+  // One photo, for its own address (/photos/{id}): it may be older than the page's first 50. 404 when hidden or gone.
+  getPhoto: (id: string) => request<PhotoView>(`/api/king/photos/${encodeURIComponent(id)}`, undefined),
   // One's own shared photo, within 10 minutes of sharing it (same device and window as undo).
   deletePhoto: (id: string, reporterKey: string) =>
     request<void>(`/api/king/photos/${encodeURIComponent(id)}`, {

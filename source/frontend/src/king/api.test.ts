@@ -188,6 +188,14 @@ describe('kingApi', () => {
     expect(fetchMock).toHaveBeenCalledWith(url, undefined);
   });
 
+  it('fetches one photo by its encoded id', async () => {
+    const one = { id: 'a/b', postedAt: '2026-10-08T12:00:00.000Z', reporterName: null, event: null };
+    respond(200, one);
+
+    await expect(kingApi.getPhoto('a/b')).resolves.toEqual(one);
+    expect(fetchMock).toHaveBeenCalledWith('/api/king/photos/a%2Fb', undefined);
+  });
+
   it('builds the address of a photo’s files with an encoded id', () => {
     expect(photoUrl('a/b', 'thumb')).toBe('/api/king/photos/a%2Fb/thumb');
     expect(photoUrl('p1', 'full')).toBe('/api/king/photos/p1/full');

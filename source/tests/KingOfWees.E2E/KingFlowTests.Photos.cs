@@ -214,6 +214,60 @@ public sealed partial class KingFlowTests
     }
 
     [Fact]
+    public async Task A_tapped_photo_opens_in_the_viewer_at_its_own_address_which_the_arrow_keys_Back_and_Escape_move_and_close()
+    {
+        // A tapped photo used to open as the bare JPEG, and the next one meant Back and another tap (Wallie, 2026-10-25).
+        var page = await app.NewPageAsync();
+        await page.GotoAsync("/photos");
+        var photo = await PhonePhoto(page);
+        for (var shared = 0; shared < 2; shared++)
+        {
+            await page.GetByLabel("Share a photo").SetInputFilesAsync(photo);
+            await Assertions.Expect(page.GetByText("Photo shared. Thank you!")).ToBeFocusedAsync();
+        }
+        var thumbnails = page.GetByRole(AriaRole.List, new() { Name = "Photos of King" }).GetByRole(AriaRole.Link);
+        var dialog = page.GetByRole(AriaRole.Dialog);
+
+        await thumbnails.First.ClickAsync();
+
+        await Assertions.Expect(dialog).ToBeVisibleAsync();
+        await Assertions.Expect(page).ToHaveURLAsync(new Regex("/photos/[^/?]+$"));
+        var newest = await dialog.GetByRole(AriaRole.Img).GetAttributeAsync("src");
+        await Assertions.Expect(dialog.GetByText(new Regex(@"^1 of \d+$"))).ToBeVisibleAsync();
+        await AssertNoAxeViolations(page);
+
+        await page.Keyboard.PressAsync("ArrowRight");
+
+        await Assertions.Expect(dialog.GetByText(new Regex(@"^2 of \d+$"))).ToBeVisibleAsync();
+        var older = await dialog.GetByRole(AriaRole.Img).GetAttributeAsync("src");
+        Assert.NotEqual(newest, older);
+        var olderAddress = new Uri(page.Url).PathAndQuery;
+
+        // Moving replaced the address, so one Back closes the viewer.
+        await page.GoBackAsync();
+
+        await Assertions.Expect(dialog).ToHaveCountAsync(0);
+        await Assertions.Expect(page).ToHaveURLAsync(new Regex("/photos$"));
+
+        // One photo's address, pasted into a message, opens the page on it; Escape goes back to the grid, on that photo.
+        await page.GotoAsync(olderAddress);
+        await Assertions.Expect(dialog.GetByRole(AriaRole.Img)).ToHaveAttributeAsync("src", older!);
+        await page.Keyboard.PressAsync("Escape");
+
+        await Assertions.Expect(dialog).ToHaveCountAsync(0);
+        await Assertions.Expect(page).ToHaveURLAsync(new Regex("/photos$"));
+        await Assertions.Expect(thumbnails.Nth(1)).ToBeFocusedAsync();
+
+        // The pseudo-locale: the viewer's labels are translated too, and it still meets WCAG 2.2 AA.
+        await page.GotoAsync(olderAddress + "?locale=en-XA");
+        await Assertions.Expect(dialog).ToBeVisibleAsync();
+        var nextLabel = await page.Locator(".viewer-button").Last.GetAttributeAsync("aria-label");
+        Assert.NotNull(nextLabel);
+        Assert.DoesNotContain("Next photo", nextLabel);
+        await AssertNoAxeViolations(page);
+    }
+
+    [Fact]
     public async Task An_admin_hides_a_photo_keeping_its_entry_and_shows_it_again()
     {
         var page = await app.NewPageAsync();

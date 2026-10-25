@@ -1170,5 +1170,33 @@
   "title.privacy": {
     "defaultMessage": "Privacy · King of Wees",
     "description": "Browser tab title of the Privacy page"
+  },
+  "viewer.close": {
+    "defaultMessage": "Close",
+    "description": "Closes the photo viewer"
+  },
+  "viewer.gone": {
+    "defaultMessage": "That photo isn’t here any more.",
+    "description": "A link named a photo that is hidden or was removed"
+  },
+  "viewer.loadingOlder": {
+    "defaultMessage": "Loading older photos…",
+    "description": "The viewer is fetching the next page of older photos"
+  },
+  "viewer.next": {
+    "defaultMessage": "Next photo",
+    "description": "Shows the older photo in the viewer"
+  },
+  "viewer.open": {
+    "defaultMessage": "Open the picture",
+    "description": "Link to the photo file itself"
+  },
+  "viewer.position": {
+    "defaultMessage": "{n} of {total}",
+    "description": "Which photo the viewer shows, e.g. 3 of 27"
+  },
+  "viewer.previous": {
+    "defaultMessage": "Previous photo",
+    "description": "Shows the newer photo in the viewer"
   }
 }

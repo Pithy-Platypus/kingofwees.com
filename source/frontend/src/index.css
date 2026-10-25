@@ -101,7 +101,9 @@
   .no-place-button,
   .place-button,
   .spot-choice,
-  .log-here-button {
+  .log-here-button,
+  .viewer-button,
+  .viewer-close {
     @apply btn;
   }
 
@@ -393,6 +395,49 @@
 
   .photo-grid-image {
     @apply aspect-square w-full rounded-box bg-base-200 object-cover;
+  }
+
+  /* The photo viewer: the whole screen, the picture as large as it fits, a bar below it. The page's own colors
+     (the body's bg-base-100), no tint and no animation: it covers the viewport, so a backdrop would never show. */
+  .photo-viewer {
+    @apply m-0 flex h-dvh max-h-none w-screen max-w-none flex-col bg-base-100 p-0 text-base-content;
+  }
+
+  /* Sideways swipes are the viewer's; pinching and vertical panning stay the browser's. */
+  .photo-viewer-frame {
+    @apply flex min-h-0 flex-1 touch-pan-y touch-pinch-zoom items-center justify-center;
+  }
+
+  .photo-viewer-image {
+    @apply max-h-full max-w-full object-contain;
+  }
+
+  .photo-viewer-bar {
+    @apply flex flex-col items-center gap-1 px-4 py-3;
+  }
+
+  .photo-viewer-caption {
+    @apply text-center text-sm;
+  }
+
+  .photo-viewer-position {
+    @apply text-sm opacity-80;
+  }
+
+  .photo-viewer-controls {
+    @apply flex items-center gap-6;
+  }
+
+  .viewer-button {
+    @apply btn-circle btn-outline min-h-12 min-w-12 text-2xl;
+  }
+
+  .viewer-close {
+    @apply btn-circle btn-ghost absolute top-2 right-2 min-h-12 min-w-12 text-2xl;
+  }
+
+  .viewer-open {
+    @apply link link-hover text-sm;
   }
 
   .activity-text {

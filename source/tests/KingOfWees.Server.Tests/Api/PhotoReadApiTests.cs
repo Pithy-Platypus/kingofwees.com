@@ -98,6 +98,44 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task One_photo_by_id_is_shaped_as_the_list_shows_it_with_its_entry()
+    {
+        // A link to one photo (/photos/{id}) may name one older than the page's first 50: the viewer asks for it alone.
+        var entry = await LoggedSighting();
+        var onEntry = await Stored(eventId: entry);
+        var shared = await Stored();
+
+        var one = await _client.GetFromJsonAsync<JsonElement>($"/api/king/photos/{onEntry.Id}", Ct);
+        var other = await _client.GetFromJsonAsync<JsonElement>($"/api/king/photos/{shared.Id}", Ct);
+
+        Assert.Equal(onEntry.Id, one.GetProperty("id").GetString());
+        Assert.Equal("Sarah", one.GetProperty("reporterName").GetString());
+        Assert.Equal(entry, one.GetProperty("event").GetProperty("id").GetString());
+        Assert.Equal(onEntry.Id, one.GetProperty("event").GetProperty("photoId").GetString());
+        Assert.Equal(JsonValueKind.Null, other.GetProperty("event").ValueKind);
+    }
+
+    [Theory]
+    [InlineData("hidden itself")]
+    [InlineData("on a hidden entry")]
+    [InlineData("from a hidden device")]
+    [InlineData("unknown")]
+    public async Task A_photo_that_isn_t_visible_is_404_by_id(string shape)
+    {
+        var entry = await LoggedSighting();
+        var id = (await Stored(eventId: entry)).Id;
+        switch (shape)
+        {
+            case "hidden itself": await _factory.Photos.HideAsync(id, Hiding, Ct); break;
+            case "on a hidden entry": await _factory.Store.SetHiddenAsync(entry, true, Ct); break;
+            case "from a hidden device": await _factory.Hidden.HideAsync(DeviceKey, _factory.Clock.GetUtcNow(), Ct); break;
+            case "unknown": id = Guid.CreateVersion7().ToString(); break;
+        }
+
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/king/photos/{id}", Ct)).StatusCode);
+    }
+
+    [Fact]
     public async Task Entries_in_status_and_history_carry_their_visible_photo()
     {
         var withPhoto = await LoggedSighting();
