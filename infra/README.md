@@ -87,6 +87,7 @@ No CAA record, or one that allows `digicert.com`. The IP changes only if the env
 - **King seen or fed, a photo posted:** at most one email per rule per 15-minute run (with how many arrived), 15–30 minutes after the post; no "resolved" email. Undone entries and photos still count. Nothing arrives while the workspace's daily cap is hit.
 - **A server error (5xx):** at most one email per 15-minute run, the same way; then `kingofwees-insights` → Failures, filtered to 5xx response codes.
 - **A failed backup:** an email from `kingofwees-alerts`, then another when it resolves. Check the job's execution history and the run's `.log` in `kingofweesbackups/backups`.
+  To re-test the alert, start a run that fails: `az containerapp job start -g kingofwees.com -n kingofwees-backup --command false`. That is a start with a container override, which needs `Microsoft.App/jobs/write` on the job as well as `Microsoft.App/jobs/start/action` (Owner has both); a plain `job start` needs only the latter. Why → `docs/patterns/hosting.md` → Backups.
 
 ## Restoring a backup
 
