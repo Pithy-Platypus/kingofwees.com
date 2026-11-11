@@ -67,6 +67,34 @@ public sealed record HeatCell(GeoPoint Location, int Count, string? SpotName);
 
 public sealed record HeatMap(IReadOnlyList<HeatCell> Cells);
 
+// What the habit charts need of an entry and nothing else: no name, place, id or photo travels with them.
+public sealed record HabitEntry(DateTimeOffset OccurredAt, KingEventKind Kind, bool SawKing, IReadOnlyList<Food> Foods)
+{
+    public static HabitEntry From(KingEvent e) => new(e.OccurredAt, e.Kind, e.SawKing, e.Foods);
+}
+
+// Days is 7 or 30, or omitted for all time: the court's range (the entries are always all-time, capped).
+public sealed record HabitsQuery(int? Days);
+
+// One seat at the royal court: a nickname (as neighbors typed it, so two devices with one name share a seat) and its feedings.
+public sealed record CourtierView(string Name, int Feedings);
+
+// Every visible entry, newest first, the newest MaxEntries at most (a decade at today's rate), and the court: the Seats
+// named neighbors with most feedings among those entries, ties by name; unnamed feedings hold no seat.
+public sealed record HabitsView(IReadOnlyList<HabitEntry> Entries, IReadOnlyList<CourtierView> Court)
+{
+    public const int MaxEntries = 5000;
+    public const int Seats = 3;
+
+    public static IReadOnlyList<CourtierView> CourtOf(IEnumerable<KingEvent> events, DateTimeOffset? since) =>
+    [
+        .. events.Where(e => e.Kind == KingEventKind.Fed && e.ReporterName is not null && (since is null || e.OccurredAt >= since))
+            .GroupBy(e => e.ReporterName!, (name, feedings) => new CourtierView(name, feedings.Count()))
+            .OrderByDescending(c => c.Feedings).ThenBy(c => c.Name, StringComparer.Ordinal)
+            .Take(Seats),
+    ];
+}
+
 // LatestPhoto is the newest visible photo of any kind (Home's crowned avatar).
 public sealed record KingStatus(EventView? LastFed, EventView? LastSeen, IReadOnlyList<EventView> Recent, PhotoView? LatestPhoto);
 
@@ -129,6 +157,11 @@ public sealed class HistoryQueryValidator : AbstractValidator<HistoryQuery>
             .When(q => q.Before is not null)
             .WithErrorCode("before.unknown");
     }
+}
+
+public sealed class HabitsQueryValidator : AbstractValidator<HabitsQuery>
+{
+    public HabitsQueryValidator() => RuleFor(q => q.Days).Must(d => d is null or 7 or 30).WithErrorCode("days.invalid");
 }
 
 public sealed class HeatQueryValidator : AbstractValidator<HeatQuery>

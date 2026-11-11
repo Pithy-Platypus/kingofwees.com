@@ -16,6 +16,7 @@
     "src/king/admin.ts",
     "src/king/api.ts",
     "src/king/heat.ts",
+    "src/king/habits.ts",
     "src/king/location.ts",
     "src/king/messages.ts",
     "src/king/photo.ts",
@@ -23,6 +24,7 @@
     "src/king/time.ts",
     "src/king/useSpotsByName.ts",
     "src/pages/AdminEntryActions.tsx",
+    "src/pages/HabitsSection.tsx",
     "src/pages/HidePhotoForm.tsx",
     "src/pages/PhotosPage.tsx",
     "src/routing/routes.ts"

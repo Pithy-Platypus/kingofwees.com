@@ -531,17 +531,129 @@
     "defaultMessage": "Site",
     "description": "Accessible name for the footer link list"
   },
-  "heat.all": {
-    "defaultMessage": "All",
-    "description": "Switch: every entry ever logged"
+  "habits.busiest": {
+    "defaultMessage": "Most meals around {hour}.",
+    "description": "Line under the by-hour chart; {hour} is e.g. “4 PM”"
   },
-  "heat.days30": {
-    "defaultMessage": "30 days",
-    "description": "Switch: only the last 30 days"
+  "habits.calendar": {
+    "defaultMessage": "The royal calendar",
+    "description": "Caption of the grid of the last five weeks, a crown on each fed day"
   },
-  "heat.days7": {
-    "defaultMessage": "7 days",
-    "description": "Switch: only the last 7 days"
+  "habits.calendarDays": {
+    "defaultMessage": "The last {count} days",
+    "description": "Accessible name of the calendar grid; {count} is 35"
+  },
+  "habits.court": {
+    "defaultMessage": "The royal court",
+    "description": "Caption of the list of the three neighbors with most feedings"
+  },
+  "habits.courtBlurb": {
+    "defaultMessage": "The neighbors who fed King most in this time.",
+    "description": "Line under the court caption saying what the list is"
+  },
+  "habits.courtEmpty": {
+    "defaultMessage": "No named feeders yet.",
+    "description": "Court when no feeding carries a nickname"
+  },
+  "habits.courtFeedings": {
+    "defaultMessage": "{count, plural, one {# feeding} other {# feedings}}",
+    "description": "Beside a courtier’s name: how many feedings they logged"
+  },
+  "habits.courtList": {
+    "defaultMessage": "Neighbors with most feedings",
+    "description": "Accessible name of the court list"
+  },
+  "habits.currentRun": {
+    "defaultMessage": "{count, plural, =0 {No run going right now.} one {On a run of # day.} other {On a run of # days.}}",
+    "description": "Sentence over the calendar: days in a row with a feeding up to today (or yesterday, before today’s first meal)"
+  },
+  "habits.day": {
+    "defaultMessage": "King’s day",
+    "description": "Caption of the chart of feedings and sightings by hour"
+  },
+  "habits.dayChart": {
+    "defaultMessage": "Feedings and times seen, by hour of the day",
+    "description": "Accessible name of the by-hour bar chart"
+  },
+  "habits.empty": {
+    "defaultMessage": "His habits will show here once something is logged.",
+    "description": "Charts section when no entry exists"
+  },
+  "habits.failed": {
+    "defaultMessage": "Couldn’t load King’s habits.",
+    "description": "Shown when the charts cannot be loaded"
+  },
+  "habits.fedCount": {
+    "defaultMessage": "Fed on {fed} of the last {days} days.",
+    "description": "Sentence over the calendar; {days} is 35"
+  },
+  "habits.fedDay": {
+    "defaultMessage": "{date}: fed",
+    "description": "Accessible text of a calendar day King was fed on; {date} is e.g. “Wed, Nov 11”"
+  },
+  "habits.heading": {
+    "defaultMessage": "King’s habits",
+    "description": "Heading over the charts on the history page"
+  },
+  "habits.hourFed": {
+    "defaultMessage": "{count, plural, one {# feeding} other {# feedings}}",
+    "description": "Feedings in one hour of the day, in the list under the chart"
+  },
+  "habits.hourSeen": {
+    "defaultMessage": "{count, plural, one {seen once} other {seen # times}}",
+    "description": "Times King was seen in one hour of the day, in the list under the chart"
+  },
+  "habits.hours": {
+    "defaultMessage": "Hours with something logged",
+    "description": "Accessible name of the list under the by-hour chart"
+  },
+  "habits.legendFed": {
+    "defaultMessage": "Feedings",
+    "description": "Legend of the by-hour chart: the feedings bars"
+  },
+  "habits.legendSeen": {
+    "defaultMessage": "Seen",
+    "description": "Legend of the by-hour chart: the bars of times King was seen"
+  },
+  "habits.loading": {
+    "defaultMessage": "Loading King’s habits…",
+    "description": "Shown while the charts load"
+  },
+  "habits.longestRun": {
+    "defaultMessage": "{count, plural, one {Longest run: # day.} other {Longest run: # days.}}",
+    "description": "Sentence over the calendar: the most days in a row with a feeding"
+  },
+  "habits.menu": {
+    "defaultMessage": "The royal menu",
+    "description": "Caption of the chart of how often each food came with a feeding"
+  },
+  "habits.menuCount": {
+    "defaultMessage": "{feedings} of {total, plural, one {# feeding} other {# feedings}}",
+    "description": "Beside a food’s bar: with how many of all feedings it came"
+  },
+  "habits.menuEmpty": {
+    "defaultMessage": "No feedings logged yet.",
+    "description": "Menu chart when only sightings exist"
+  },
+  "habits.menuList": {
+    "defaultMessage": "How often each food came with a feeding",
+    "description": "Accessible name of the list of foods with their bars"
+  },
+  "habits.mood": {
+    "defaultMessage": "Content or hungry",
+    "description": "Caption of the bar showing how much of the time King counted as content"
+  },
+  "habits.moodShare": {
+    "defaultMessage": "His Majesty was content {content} of the time — fed within the last {hours} hours — and awaiting a feast the rest.",
+    "description": "Sentence under the content-or-hungry bar; {content} is a percentage like “41%”, {hours} the threshold (12)"
+  },
+  "habits.tryAgain": {
+    "defaultMessage": "Try again",
+    "description": "Retry loading the charts"
+  },
+  "habits.unfedDay": {
+    "defaultMessage": "{date}: not fed",
+    "description": "Accessible text of a calendar day with no feeding; {date} is e.g. “Wed, Nov 11”"
   },
   "heat.empty": {
     "defaultMessage": "Nothing with a place logged in this time.",
@@ -591,10 +703,6 @@
     "defaultMessage": "Places, busiest first",
     "description": "Accessible name of the list of places under the heat map"
   },
-  "heat.range": {
-    "defaultMessage": "Time range",
-    "description": "Accessible name of the 7 days / 30 days / All switch"
-  },
   "heat.seen": {
     "defaultMessage": "Where he’s seen",
     "description": "Switch: heat map of sightings (including feedings where King was seen)"
@@ -611,9 +719,25 @@
     "defaultMessage": "Try again",
     "description": "Retry loading the heat map"
   },
+  "history.all": {
+    "defaultMessage": "All",
+    "description": "Switch: every entry ever logged"
+  },
+  "history.days30": {
+    "defaultMessage": "30 days",
+    "description": "Switch: only the last 30 days"
+  },
+  "history.days7": {
+    "defaultMessage": "7 days",
+    "description": "Switch: only the last 7 days"
+  },
+  "history.range": {
+    "defaultMessage": "Time range",
+    "description": "Accessible name of the 7 days / 30 days / All switch over the heat map and the habit charts"
+  },
   "history.title": {
     "defaultMessage": "King’s history",
-    "description": "Heading of the history page (heat map and every entry)"
+    "description": "Heading of the history page (heat map, habits and every entry)"
   },
   "home.aNeighbor": {
     "defaultMessage": "a neighbor",
@@ -710,10 +834,6 @@
   "home.tagline": {
     "defaultMessage": "A whimsical, neighborly way to keep track of King, the {age}-year-old long-hair our neighborhood co-parents. Who saw him, where, and when he last ate.",
     "description": "One-line explanation of the site under the header on the home page; {age} is King’s age in years, worked out from his birth year"
-  },
-  "link.seePhotos": {
-    "defaultMessage": "See every photo",
-    "description": "Link from the history page to the page with every photo of King"
   },
   "log.empty": {
     "defaultMessage": "Nothing logged yet.",

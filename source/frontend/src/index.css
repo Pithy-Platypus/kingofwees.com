@@ -234,12 +234,13 @@
     @apply join w-full;
   }
 
+  /* Chosen is the secondary green site-wide (the food chips, the "Where did you feed him?" tiles): pink would read as "seen". */
   .choice-button {
-    @apply join-item btn-outline min-h-12 flex-1 border-primary text-base text-base-content;
+    @apply join-item btn-outline min-h-12 flex-1 border-secondary text-base text-base-content;
   }
 
   .choice-button[aria-pressed='true'] {
-    @apply btn-primary text-primary-content;
+    @apply btn-secondary text-secondary-content;
   }
 
   .heat-places {
@@ -258,6 +259,136 @@
     @apply shrink-0 text-base-content;
   }
 
+  .habits-section,
+  .habits-figure {
+    @apply flex flex-col gap-3;
+  }
+
+  .habits-caption {
+    @apply font-display text-lg font-semibold;
+  }
+
+  .habits-summary {
+    @apply text-base text-muted;
+  }
+
+  .habits-day-chart {
+    @apply h-auto w-full;
+  }
+
+  /* Fed is green and seen is pink everywhere on the site (the map's markers set it). */
+  .habits-bar-fed {
+    fill: var(--color-secondary);
+  }
+
+  .habits-bar-seen {
+    fill: var(--color-primary);
+  }
+
+  .habits-axis {
+    stroke: var(--color-base-300);
+    stroke-width: 1;
+  }
+
+  .habits-axis-label {
+    fill: var(--color-muted);
+    font-size: 7px;
+  }
+
+  /* The same dots as Home's map key, so fed and seen look alike everywhere. */
+  .habits-legend {
+    @apply flex gap-4 text-base;
+  }
+
+  .habits-mood-bar {
+    @apply h-4 w-full overflow-hidden rounded-selector;
+  }
+
+  /* Home's fed chip: success when content, error when hungry. */
+  .habits-mood-content {
+    fill: var(--color-success);
+  }
+
+  .habits-mood-hungry {
+    fill: var(--color-error);
+  }
+
+  .habits-hours {
+    @apply flex flex-col divide-y divide-base-300;
+  }
+
+  .habits-hour {
+    @apply flex items-baseline justify-between gap-4 py-2 text-base;
+  }
+
+  .habits-hour-name {
+    @apply font-semibold;
+  }
+
+  .habits-calendar {
+    @apply grid grid-cols-7 gap-1;
+  }
+
+  .habits-day {
+    @apply relative flex aspect-square flex-col items-center justify-center rounded-selector bg-base-200 text-sm;
+  }
+
+  .habits-day-fed {
+    @apply bg-secondary text-secondary-content;
+  }
+
+  .habits-day-today {
+    @apply ring-2 ring-base-content;
+  }
+
+  .habits-day-name {
+    @apply sr-only;
+  }
+
+  .habits-crown {
+    @apply size-4 fill-current;
+  }
+
+  .habits-menu {
+    @apply flex flex-col gap-2;
+  }
+
+  .habits-menu-row {
+    @apply grid grid-cols-[6rem_1fr] items-center gap-x-3 gap-y-1 text-base;
+  }
+
+  .habits-menu-food {
+    @apply font-semibold;
+  }
+
+  .habits-menu-bar {
+    @apply h-3 w-full rounded-sm bg-base-200;
+  }
+
+  .habits-menu-count {
+    @apply col-start-2 text-muted;
+  }
+
+  .habits-court {
+    @apply flex flex-col divide-y divide-base-300;
+  }
+
+  .habits-courtier {
+    @apply flex items-baseline gap-2 py-2 text-base;
+  }
+
+  .habits-courtier-crown {
+    @apply size-4 shrink-0 self-center fill-current text-accent;
+  }
+
+  .habits-courtier-name {
+    @apply grow font-semibold;
+  }
+
+  .habits-courtier-count {
+    @apply shrink-0 text-base-content;
+  }
+
   .log-section {
     @apply flex flex-col gap-4;
   }
@@ -268,10 +399,6 @@
 
   .log-day-title {
     @apply font-display text-lg font-semibold;
-  }
-
-  .history-link {
-    @apply inline-flex min-h-12 items-center font-bold text-base-content underline underline-offset-4;
   }
 
   .section-title {

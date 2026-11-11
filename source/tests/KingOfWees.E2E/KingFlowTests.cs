@@ -528,7 +528,9 @@ public sealed partial class KingFlowTests(AppFixture app)
         await Assertions.Expect(heading).ToBeVisibleAsync();
 
         Assert.DoesNotContain("history", await heading.TextContentAsync());
-        Assert.DoesNotContain("Where he’s seen", await page.Locator("body").InnerTextAsync());
+        var body = await page.Locator("body").InnerTextAsync();
+        Assert.DoesNotContain("Where he’s seen", body);
+        Assert.DoesNotContain("The royal calendar", body);
     }
 
     private static async Task<JsonElement> PostJson(IPage page, string url, object body)

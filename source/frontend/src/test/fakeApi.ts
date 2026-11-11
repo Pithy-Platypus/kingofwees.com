@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { ApiError } from '../king/api';
-import type { HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotosPage, PhotoView, SpotView } from '../king/api';
+import type { Habits, HeatCell, HistoryPage, KingEventView, KingStatus, kingApi, PhotosPage, PhotoView, SpotView } from '../king/api';
 import type { ActivityPage, AdminApi, AdminSignIn, AdminSpot, DeviceView, HiddenDevice, HiddenPhotoView } from '../king/admin';
 import type { GeoPoint } from '../king/location';
 import type { OwnUndo } from '../king/ownPosts';
@@ -44,6 +44,7 @@ type World = {
   map?: GeoPoint | null;
   spots?: SpotView[];
   heat?: HeatCell[];
+  habits?: Habits;
   history?: HistoryPage;
   posting?: boolean;
   photos?: PhotosPage;
@@ -52,7 +53,7 @@ type World = {
 // By default the site has no map and no spots, as on a fresh install, and this visitor may post.
 export function fakeApi(
   status: KingStatus = emptyStatus,
-  { map = null, spots = [], heat = [], history = { events: [], next: null }, posting = true, photos = { photos: [], next: null } }: World = {},
+  { map = null, spots = [], heat = [], habits = { entries: [], court: [] }, history = { events: [], next: null }, posting = true, photos = { photos: [], next: null } }: World = {},
 ) {
   return {
     getMap: vi.fn<typeof kingApi.getMap>().mockResolvedValue(map),
@@ -77,6 +78,7 @@ export function fakeApi(
     deletePhoto: vi.fn<typeof kingApi.deletePhoto>().mockResolvedValue(undefined),
     renameEvent: vi.fn<typeof kingApi.renameEvent>().mockResolvedValue(undefined),
     getHeat: vi.fn<typeof kingApi.getHeat>().mockResolvedValue(heat),
+    getHabits: vi.fn<typeof kingApi.getHabits>().mockResolvedValue(habits),
     getHistory: vi.fn<typeof kingApi.getHistory>().mockResolvedValue(history),
   };
 }

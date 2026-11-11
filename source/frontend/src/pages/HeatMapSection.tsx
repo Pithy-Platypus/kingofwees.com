@@ -1,21 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor, type NoMessageValues } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import type { HeatCell, HeatLayer, HeatRange, kingApi, SpotView } from '../king/api';
 import { describeCell, heatLevel, mergeNearSpots } from '../king/heat';
-import { CheckIcon } from '../king/icons';
 import type { GeoPoint } from '../king/location';
 import { MapView } from '../king/LazyMapView';
 import type { MapMarker } from '../king/MapView';
+import { ChoiceGroup, type Choice } from './ChoiceGroup';
 
 type Values = {
   heading: NoMessageValues;
   show: NoMessageValues;
   seen: NoMessageValues;
   fed: NoMessageValues;
-  range: NoMessageValues;
-  days7: NoMessageValues;
-  days30: NoMessageValues;
-  all: NoMessageValues;
   mapSeen: NoMessageValues;
   mapFed: NoMessageValues;
   places: NoMessageValues;
@@ -35,10 +31,6 @@ const m = defineMessages<Values>({
   show: { id: 'heat.show', defaultMessage: 'Show', description: 'Accessible name of the seen/fed switch' },
   seen: { id: 'heat.seen', defaultMessage: 'Where he’s seen', description: 'Switch: heat map of sightings (including feedings where King was seen)' },
   fed: { id: 'heat.fed', defaultMessage: 'Where he’s fed', description: 'Switch: heat map of feedings, per feeding spot' },
-  range: { id: 'heat.range', defaultMessage: 'Time range', description: 'Accessible name of the 7 days / 30 days / All switch' },
-  days7: { id: 'heat.days7', defaultMessage: '7 days', description: 'Switch: only the last 7 days' },
-  days30: { id: 'heat.days30', defaultMessage: '30 days', description: 'Switch: only the last 30 days' },
-  all: { id: 'heat.all', defaultMessage: 'All', description: 'Switch: every entry ever logged' },
   mapSeen: { id: 'heat.mapSeen', defaultMessage: 'Map of where King is seen', description: 'Accessible name of the heat map, seen layer' },
   mapFed: { id: 'heat.mapFed', defaultMessage: 'Map of where King is fed', description: 'Accessible name of the heat map, fed layer' },
   places: { id: 'heat.places', defaultMessage: 'Places, busiest first', description: 'Accessible name of the list of places under the heat map' },
@@ -69,39 +61,16 @@ const m = defineMessages<Values>({
   tryAgain: { id: 'heat.tryAgain', defaultMessage: 'Try again', description: 'Retry loading the heat map' },
 });
 
-type Choice<T> = { value: T; label: MessageDescriptor };
-
 const layers: Choice<HeatLayer>[] = [
   { value: 'seen', label: m.seen },
   { value: 'fed', label: m.fed },
 ];
-const ranges: Choice<HeatRange>[] = [
-  { value: 7, label: m.days7 },
-  { value: 30, label: m.days30 },
-  { value: 'all', label: m.all },
-];
 
-// The chosen button is filled and checked, so the choice never relies on color alone.
-function ChoiceGroup<T>({ label, choices, chosen, onChoose }: { label: MessageDescriptor; choices: Choice<T>[]; chosen: T; onChoose: (value: T) => void }) {
-  const intl = useIntl();
-  return (
-    <div role="group" aria-label={intl.formatMessage(label)} className="choice-group">
-      {choices.map(({ value, label: text }) => (
-        <button key={String(value)} type="button" className="choice-button" aria-pressed={value === chosen} onClick={() => onChoose(value)}>
-          {value === chosen && <CheckIcon className="button-icon" />}
-          <FormattedMessage {...text} />
-        </button>
-      ))}
-    </div>
-  );
-}
+type Props = { api: Pick<typeof kingApi, 'getHeat'>; spots: SpotView[]; mapCenter: GeoPoint | null; range: HeatRange };
 
-type Props = { api: Pick<typeof kingApi, 'getHeat'>; spots: SpotView[]; mapCenter: GeoPoint | null };
-
-export function HeatMapSection({ api, spots, mapCenter }: Props) {
+export function HeatMapSection({ api, spots, mapCenter, range }: Props) {
   const intl = useIntl();
   const [layer, setLayer] = useState<HeatLayer>('seen');
-  const [range, setRange] = useState<HeatRange>(30);
   const [cells, setCells] = useState<HeatCell[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -182,7 +151,6 @@ export function HeatMapSection({ api, spots, mapCenter }: Props) {
         <FormattedMessage {...m.heading} />
       </h2>
       <ChoiceGroup label={m.show} choices={layers} chosen={layer} onChoose={setLayer} />
-      <ChoiceGroup label={m.range} choices={ranges} chosen={range} onChoose={setRange} />
       {mapCenter && (
         <MapView center={mapCenter} label={intl.formatMessage(layer === 'seen' ? m.mapSeen : m.mapFed)} markers={markers} fit />
       )}

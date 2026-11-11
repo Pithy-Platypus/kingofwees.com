@@ -86,7 +86,7 @@ describe('routing', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'King’s history' })).toHaveFocus();
   });
 
-  it('reaches every photo from the footer and from the history', async () => {
+  it('reaches every photo from the footer, on Home and on the history', async () => {
     renderAt('/');
     await screen.findByRole('button', { name: 'I fed King' });
 
@@ -95,7 +95,8 @@ describe('routing', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Photos of King' })).toHaveFocus();
 
     await userEvent.click(footer().getByRole('link', { name: 'History' }));
-    await userEvent.click(await screen.findByRole('link', { name: 'See every photo' }));
+    await screen.findByRole('heading', { level: 1, name: 'King’s history' });
+    await userEvent.click(footer().getByRole('link', { name: 'Photos' }));
     expect(window.location.pathname).toBe('/photos');
   });
 

@@ -19,6 +19,7 @@ public static class KingEndpoints
         king.MapGet("/status", GetStatus);
         king.MapGet("/history", GetHistory);
         king.MapGet("/heat", GetHeat);
+        king.MapGet("/habits", GetHabits);
         king.MapGet("/spots", ListSpots);
         king.MapGet("/map", GetMap);
         king.MapPhotoReads();
@@ -101,6 +102,14 @@ public static class KingEndpoints
 
         return TypedResults.Ok(new HeatMap(
             [.. cells.OrderByDescending(c => c.Count).ThenBy(c => c.Location.Latitude).ThenBy(c => c.Location.Longitude)]));
+    }
+
+    private static async Task<Ok<HabitsView>> GetHabits(
+        [AsParameters] HabitsQuery query, IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken)
+    {
+        DateTimeOffset? since = query.Days is { } days ? clock.GetUtcNow().AddDays(-days) : null;
+        var events = await store.GetPageAsync(null, HabitsView.MaxEntries, cancellationToken);
+        return TypedResults.Ok(new HabitsView([.. events.Select(HabitEntry.From)], HabitsView.CourtOf(events, since)));
     }
 
     // No configured center means no map; the app still works without one.

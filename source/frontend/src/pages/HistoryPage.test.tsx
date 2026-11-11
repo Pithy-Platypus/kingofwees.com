@@ -74,6 +74,8 @@ describe('HistoryPage — heat map', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'All' }));
     expect(api.getHeat).toHaveBeenLastCalledWith('seen', 'all');
+    // One switch for the page: the habit charts follow it too.
+    expect(api.getHabits).toHaveBeenLastCalledWith('all');
     expect(pressed('All')).toBe('true');
 
     await userEvent.click(screen.getByRole('button', { name: '7 days' }));
@@ -378,10 +380,10 @@ describe('HistoryPage — photos', () => {
     expect(within(link).getByRole('img')).toHaveAttribute('src', '/api/king/photos/p1/thumb');
   });
 
-  it('links to every photo', () => {
+  it('leaves Photos to the footer, with no link of its own (Wallie, 2026-11-11, as Home since 2026-10-12)', () => {
     renderInEnglish(<HistoryPage api={fakeApi()} spots={[]} mapCenter={null} now={NOW} />);
 
-    expect(screen.getByRole('link', { name: 'See every photo' })).toHaveAttribute('href', '/photos');
+    expect(screen.queryByRole('link', { name: 'See every photo' })).not.toBeInTheDocument();
   });
 });
 

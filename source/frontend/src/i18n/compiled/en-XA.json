@@ -2874,42 +2874,679 @@
       "value": "]"
     }
   ],
-  "heat.all": [
+  "habits.busiest": [
     {
       "type": 0,
       "value": "["
     },
     {
       "type": 0,
-      "value": "Ȧŀŀ"
+      "value": "Ḿǿǿşŧ ḿḗḗȧȧŀş ȧȧřǿǿŭŭƞḓ "
+    },
+    {
+      "type": 1,
+      "value": "hour"
+    },
+    {
+      "type": 0,
+      "value": "."
     },
     {
       "type": 0,
       "value": "]"
     }
   ],
-  "heat.days30": [
+  "habits.calendar": [
     {
       "type": 0,
       "value": "["
     },
     {
       "type": 0,
-      "value": "30 ḓȧȧẏş"
+      "value": "Ŧħḗḗ řǿǿẏȧȧŀ ƈȧȧŀḗḗƞḓȧȧř"
     },
     {
       "type": 0,
       "value": "]"
     }
   ],
-  "heat.days7": [
+  "habits.calendarDays": [
     {
       "type": 0,
       "value": "["
     },
     {
       "type": 0,
-      "value": "7 ḓȧȧẏş"
+      "value": "Ŧħḗḗ ŀȧȧşŧ "
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": " ḓȧȧẏş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.court": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧħḗḗ řǿǿẏȧȧŀ ƈǿǿŭŭřŧ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.courtBlurb": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧħḗḗ ƞḗḗīɠħƀǿǿřş ẇħǿǿ ƒḗḗḓ Ķīƞɠ ḿǿǿşŧ īƞ ŧħīş ŧīḿḗḗ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.courtEmpty": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿ ƞȧȧḿḗḗḓ ƒḗḗḗḗḓḗḗřş ẏḗḗŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.courtFeedings": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.courtList": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞḗḗīɠħƀǿǿřş ẇīŧħ ḿǿǿşŧ ƒḗḗḗḗḓīƞɠş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.currentRun": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "=0": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ƞǿǿ řŭŭƞ ɠǿǿīƞɠ řīɠħŧ ƞǿǿẇ."
+            }
+          ]
+        },
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ǿƞ ȧȧ řŭŭƞ ǿǿƒ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḓȧȧẏ."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ǿƞ ȧȧ řŭŭƞ ǿǿƒ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḓȧȧẏş."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.day": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ķīƞɠ’ş ḓȧȧẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.dayChart": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƒḗḗḗḗḓīƞɠş ȧȧƞḓ ŧīḿḗḗş şḗḗḗḗƞ, ƀẏ ħǿǿŭŭř ǿǿƒ ŧħḗḗ ḓȧȧẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.empty": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīş ħȧȧƀīŧş ẇīŀŀ şħǿǿẇ ħḗḗřḗḗ ǿǿƞƈḗḗ şǿǿḿḗḗŧħīƞɠ īş ŀǿǿɠɠḗḗḓ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.failed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿŭŭŀḓƞ’ŧ ŀǿǿȧȧḓ Ķīƞɠ’ş ħȧȧƀīŧş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.fedCount": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƒḗḗḓ ǿǿƞ "
+    },
+    {
+      "type": 1,
+      "value": "fed"
+    },
+    {
+      "type": 0,
+      "value": " ǿǿƒ ŧħḗḗ ŀȧȧşŧ "
+    },
+    {
+      "type": 1,
+      "value": "days"
+    },
+    {
+      "type": 0,
+      "value": " ḓȧȧẏş."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.fedDay": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 1,
+      "value": "date"
+    },
+    {
+      "type": 0,
+      "value": ": ƒḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.heading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ķīƞɠ’ş ħȧȧƀīŧş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.hourFed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.hourSeen": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "şḗḗḗḗƞ ǿǿƞƈḗḗ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "şḗḗḗḗƞ "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ŧīḿḗḗş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.hours": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħǿǿŭŭřş ẇīŧħ şǿǿḿḗḗŧħīƞɠ ŀǿǿɠɠḗḗḓ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.legendFed": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƒḗḗḗḗḓīƞɠş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.legendSeen": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Şḗḗḗḗƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.loading": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŀǿǿȧȧḓīƞɠ Ķīƞɠ’ş ħȧȧƀīŧş…"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.longestRun": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ŀǿǿƞɠḗḗşŧ řŭŭƞ: "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḓȧȧẏ."
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Ŀǿǿƞɠḗḗşŧ řŭŭƞ: "
+            },
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ḓȧȧẏş."
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.menu": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧħḗḗ řǿǿẏȧȧŀ ḿḗḗƞŭŭ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.menuCount": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 1,
+      "value": "feedings"
+    },
+    {
+      "type": 0,
+      "value": " ǿǿƒ "
+    },
+    {
+      "type": 6,
+      "value": "total",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠ"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 7
+            },
+            {
+              "type": 0,
+              "value": " ƒḗḗḗḗḓīƞɠş"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.menuEmpty": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƞǿǿ ƒḗḗḗḗḓīƞɠş ŀǿǿɠɠḗḗḓ ẏḗḗŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.menuList": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħǿǿẇ ǿǿƒŧḗḗƞ ḗḗȧȧƈħ ƒǿǿǿǿḓ ƈȧȧḿḗḗ ẇīŧħ ȧȧ ƒḗḗḗḗḓīƞɠ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.mood": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ƈǿǿƞŧḗḗƞŧ ǿǿř ħŭŭƞɠřẏ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.moodShare": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ħīş Ḿȧȧĵḗḗşŧẏ ẇȧȧş ƈǿǿƞŧḗḗƞŧ "
+    },
+    {
+      "type": 1,
+      "value": "content"
+    },
+    {
+      "type": 0,
+      "value": " ǿǿƒ ŧħḗḗ ŧīḿḗḗ — ƒḗḗḓ ẇīŧħīƞ ŧħḗḗ ŀȧȧşŧ "
+    },
+    {
+      "type": 1,
+      "value": "hours"
+    },
+    {
+      "type": 0,
+      "value": " ħǿǿŭŭřş — ȧȧƞḓ ȧȧẇȧȧīŧīƞɠ ȧȧ ƒḗḗȧȧşŧ ŧħḗḗ řḗḗşŧ."
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.tryAgain": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "habits.unfedDay": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 1,
+      "value": "date"
+    },
+    {
+      "type": 0,
+      "value": ": ƞǿǿŧ ƒḗḗḓ"
     },
     {
       "type": 0,
@@ -3126,20 +3763,6 @@
       "value": "]"
     }
   ],
-  "heat.range": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Ŧīḿḗḗ řȧȧƞɠḗḗ"
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
   "heat.seen": [
     {
       "type": 0,
@@ -3216,6 +3839,62 @@
     {
       "type": 0,
       "value": "Ŧřẏ ȧȧɠȧȧīƞ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "history.all": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ȧŀŀ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "history.days30": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "30 ḓȧȧẏş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "history.days7": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "7 ḓȧȧẏş"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "history.range": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧīḿḗḗ řȧȧƞɠḗḗ"
     },
     {
       "type": 0,
@@ -3602,20 +4281,6 @@
     {
       "type": 0,
       "value": "-ẏḗḗȧȧř-ǿǿŀḓ ŀǿǿƞɠ-ħȧȧīř ǿǿŭŭř ƞḗḗīɠħƀǿǿřħǿǿǿǿḓ ƈǿǿ-ƥȧȧřḗḗƞŧş. Ẇħǿǿ şȧȧẇ ħīḿ, ẇħḗḗřḗḗ, ȧȧƞḓ ẇħḗḗƞ ħḗḗ ŀȧȧşŧ ȧȧŧḗḗ."
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
-  "link.seePhotos": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Şḗḗḗḗ ḗḗṽḗḗřẏ ƥħǿǿŧǿǿ"
     },
     {
       "type": 0,
