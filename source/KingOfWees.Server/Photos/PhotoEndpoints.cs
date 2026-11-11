@@ -11,18 +11,19 @@ public static class PhotoEndpoints
     {
         king.MapGet("/photos", ListPhotos);
         king.MapGet("/photos/{id}", GetPhoto);
-        king.MapGet("/photos/{id}/full", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
-            ServeAsync(id, PhotoFiles.Full(id), photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
-        king.MapGet("/photos/{id}/thumb", (string id, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
-            ServeAsync(id, PhotoFiles.Thumbnail(id), photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
+        king.MapGet("/photos/{id}/full", (string id, HiddenSets hidden, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
+            ServeAsync(id, PhotoFiles.Full(id), hidden, photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
+        king.MapGet("/photos/{id}/thumb", (string id, HiddenSets hidden, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
+            ServeAsync(id, PhotoFiles.Thumbnail(id), hidden, photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
     }
 
     // Only while visible. Private and an hour at most, so a photo an admin hides leaves everyone's view soon after
     // (a shared cache, should a proxy ever sit in front, keeps nothing).
     private static async Task<Results<FileStreamHttpResult, NotFound>> ServeAsync(
-        string id, string fileName, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken cancellationToken)
+        string id, string fileName, HiddenSets hidden, IPhotoStore photos, IPhotoBlobStore files, HttpContext context,
+        CancellationToken cancellationToken)
     {
-        if (await photos.FindVisibleAsync(id, cancellationToken) is null
+        if (await photos.FindVisibleAsync(hidden, id, cancellationToken) is null
             || await files.OpenAsync(fileName, cancellationToken) is not { } content)
         {
             return TypedResults.NotFound();
@@ -33,35 +34,33 @@ public static class PhotoEndpoints
     }
 
     private static async Task<Ok<PhotosPage>> ListPhotos(
-        [AsParameters] PhotosQuery query, IPhotoStore photos, IKingEventStore events, ISpotStore spots, CancellationToken cancellationToken)
+        [AsParameters] PhotosQuery query, HiddenSets hidden, IPhotoStore photos, IKingEventStore events, EventViewer viewer,
+        CancellationToken cancellationToken)
     {
-        var limit = query.Limit ?? PhotosQuery.DefaultLimit;
+        var limit = query.Limit ?? Paging.DefaultLimit;
         // The validator has already checked that the cursor names a photo.
         var before = query.Before is null ? null : await photos.FindAsync(query.Before, cancellationToken);
-        // One extra tells whether an older page exists without a second query.
-        var found = await photos.GetPageAsync(before, limit + 1, cancellationToken);
-        var page = found.Take(limit).ToList();
-        return TypedResults.Ok(new PhotosPage(
-            await PhotoViews(page, events, spots, photos, cancellationToken), found.Count > limit ? page[^1].Id : null));
+        var (page, next) = Paging.Page(await photos.GetPageAsync(hidden, before, limit + 1, cancellationToken), limit, p => p.Id);
+        return TypedResults.Ok(new PhotosPage(await PhotoViews(viewer, page, events, cancellationToken), next));
     }
 
     // One photo, as the list shows it: a link to /photos/{id} may name one older than the page's first 50.
     private static async Task<Results<Ok<PhotoView>, NotFound>> GetPhoto(
-        string id, IKingEventStore events, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
+        string id, HiddenSets hidden, IKingEventStore events, IPhotoStore photos, EventViewer viewer, CancellationToken cancellationToken)
     {
-        if (await photos.FindVisibleAsync(id, cancellationToken) is not { } photo) return TypedResults.NotFound();
-        return TypedResults.Ok((await PhotoViews([photo], events, spots, photos, cancellationToken))[0]);
+        if (await photos.FindVisibleAsync(hidden, id, cancellationToken) is not { } photo) return TypedResults.NotFound();
+        return TypedResults.Ok((await PhotoViews(viewer, [photo], events, cancellationToken))[0]);
     }
 
     // Each photo with its entry, shown as in history. A visible photo's entry is visible too: same device, and a hidden
     // entry hides its photo.
     internal static async Task<IReadOnlyList<PhotoView>> PhotoViews(
-        IReadOnlyList<Photo> page, IKingEventStore events, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
+        EventViewer viewer, IReadOnlyList<Photo> page, IKingEventStore events, CancellationToken cancellationToken)
     {
         // One read for the page's entries, not one per photo: up to 100 photos on a public, anonymous page.
         var entries = (await events.FindManyAsync([.. page.Select(p => p.EventId).OfType<string>().Distinct()], cancellationToken))
             .ToDictionary(e => e.Id);
-        var view = await KingEndpoints.EventViews(spots, photos, entries.Values, cancellationToken);
+        var view = await viewer.ViewsAsync(entries.Values, cancellationToken);
         return [.. page.Select(p => new PhotoView(
             p.Id, p.PostedAt, p.ReporterName, p.EventId is { } id && entries.TryGetValue(id, out var entry) ? view(entry) : null))];
     }
@@ -84,10 +83,12 @@ public static class PhotoEndpoints
             .WithFormOptions(multipartBodyLengthLimit: PhotoRules.MaxRequestBytes);
 
     // A photo on one's own entry, within the undo window: sightings and feedings where King was seen; one per entry.
+    // Ten arguments at most: with a [FromForm] parameter, an eleventh makes the endpoint filter context fail to compile
+    // at the first request (every route is compiled then, so every test fails) — ASP.NET Core 10.0.
     private static async Task<Results<Created<PhotoView>, NotFound, ProblemHttpResult>> AddPhoto(
         string id, [FromForm] AddPhotoForm form, [FromHeader(Name = KingEndpoints.ReporterKeyHeader)] string reporterKey,
-        IKingEventStore events, ISpotStore spots, IPhotoStore photos, IPhotoBlobStore files, TimeProvider clock,
-        KingMetrics metrics, CancellationToken cancellationToken)
+        IKingEventStore events, IPhotoStore photos, IPhotoBlobStore files, TimeProvider clock, KingMetrics metrics, EventViewer viewer,
+        CancellationToken cancellationToken)
     {
         var kingEvent = await events.FindAsync(id, cancellationToken);
         switch (KingEndpoints.CheckOwnRecent(kingEvent?.ReporterKey, kingEvent?.OccurredAt, reporterKey, clock))
@@ -108,7 +109,7 @@ public static class PhotoEndpoints
         var photo = new Photo(Guid.CreateVersion7(now).ToString(), id, now, reporterKey, kingEvent.ReporterName);
         await StoreAsync(photo, form.Photo!, form.Thumbnail!, photos, files, cancellationToken);
         metrics.PhotoPosted(kingEvent.Kind == KingEventKind.Seen ? "sighting" : "feeding");
-        var view = await KingEndpoints.EventViews(spots, photos, [kingEvent], cancellationToken);
+        var view = await viewer.ViewsAsync([kingEvent], cancellationToken);
         return TypedResults.Created((string?)null, new PhotoView(photo.Id, photo.PostedAt, photo.ReporterName, view(kingEvent)));
     }
 

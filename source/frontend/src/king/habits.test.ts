@@ -35,8 +35,8 @@ describe('fedDays', () => {
     const { days, fedCount, longestRun, currentRun } = fedDays([], now);
 
     expect(days).toHaveLength(35);
-    expect(days[0].date).toEqual(new Date(2026, 9, 8));
-    expect(days[34].date).toEqual(new Date(2026, 10, 11));
+    expect(days[0]!.date).toEqual(new Date(2026, 9, 8));
+    expect(days[34]!.date).toEqual(new Date(2026, 10, 11));
     expect(days.every((d) => !d.fed)).toBe(true);
     expect({ fedCount, longestRun, currentRun }).toEqual({ fedCount: 0, longestRun: 0, currentRun: 0 });
   });
@@ -48,7 +48,7 @@ describe('fedDays', () => {
     );
 
     expect(days[34]).toEqual({ date: new Date(2026, 10, 11), fed: true });
-    expect(days[33].fed).toBe(false);
+    expect(days[33]!.fed).toBe(false);
     expect(fedCount).toBe(1);
   });
 

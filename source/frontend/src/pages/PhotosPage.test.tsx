@@ -75,7 +75,7 @@ describe('PhotosPage', () => {
       'Photo from a sighting by Sarah, Oct 7, 2026, 10:00 AM',
     ]);
     expect(links[0]).toHaveAttribute('href', '/api/king/photos/p-shared/full');
-    expect(within(links[0]).getByRole('img')).toHaveAttribute('src', '/api/king/photos/p-shared/thumb');
+    expect(within(links[0]!).getByRole('img')).toHaveAttribute('src', '/api/king/photos/p-shared/thumb');
     // Alt text is never shown on hover; the title is, on devices that hover.
     expect(links.map((l) => within(l).getByRole('img').getAttribute('title'))).toEqual([
       'Photo shared by Kael on Oct 8, 2026',
@@ -151,7 +151,7 @@ describe('PhotosPage — the viewer', () => {
   const openFirst = async (options: Options = {}) => {
     const rendered = renderPage(options);
     const link = (await shown('link'))[0];
-    const notPrevented = fireEvent.click(link);
+    const notPrevented = fireEvent.click(link!);
     return { ...rendered, link, notPrevented };
   };
 
@@ -175,8 +175,8 @@ describe('PhotosPage — the viewer', () => {
     renderPage();
     const link = (await shown('link'))[0];
 
-    expect(fireEvent.click(link, { metaKey: true })).toBe(true);
-    expect(fireEvent.click(link, { button: 1 })).toBe(true);
+    expect(fireEvent.click(link!, { metaKey: true })).toBe(true);
+    expect(fireEvent.click(link!, { button: 1 })).toBe(true);
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
@@ -216,7 +216,9 @@ describe('PhotosPage — the viewer', () => {
 
     // Opened by its address afterwards, closing replaces the address rather than stepping back.
     window.history.replaceState(null, '', '/photos/p-seen');
-    act(() => window.dispatchEvent(new PopStateEvent('popstate')));
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
     fireEvent.keyDown(await dialog(), { key: 'Escape' });
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -421,11 +423,11 @@ describe('PhotosPage — admin', () => {
     renderPage({ admin: session(adminApi) });
     const [first] = await shown('listitem');
 
-    await userEvent.click(within(first).getByRole('button', { name: 'Hide this photo' }));
-    expect(within(first).getByText('Hide this photo from everyone?')).toHaveFocus();
-    await userEvent.click(within(first).getByRole('radio', { name: 'Other' }));
-    await userEvent.type(within(first).getByRole('textbox', { name: 'Note (required for Other)' }), 'a thumb over the lens');
-    await userEvent.click(within(first).getByRole('button', { name: 'Hide photo' }));
+    await userEvent.click(within(first!).getByRole('button', { name: 'Hide this photo' }));
+    expect(within(first!).getByText('Hide this photo from everyone?')).toHaveFocus();
+    await userEvent.click(within(first!).getByRole('radio', { name: 'Other' }));
+    await userEvent.type(within(first!).getByRole('textbox', { name: 'Note (required for Other)' }), 'a thumb over the lens');
+    await userEvent.click(within(first!).getByRole('button', { name: 'Hide photo' }));
 
     expect(adminApi.hidePhoto).toHaveBeenCalledWith(SIGN_IN, 'p-shared', 'other', 'a thumb over the lens');
     expect(await screen.findByRole('status')).toHaveTextContent('Hidden. You can restore it on the admin page.');
@@ -437,9 +439,9 @@ describe('PhotosPage — admin', () => {
     renderPage({ admin: session() });
     const items = await shown('listitem');
 
-    await userEvent.click(within(items[1]).getByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(within(items[1]!).getByRole('button', { name: 'Hide this photo' }));
 
-    expect(within(items[1]).getByText('Hide this photo from everyone? The entry stays.')).toBeInTheDocument();
+    expect(within(items[1]!).getByText('Hide this photo from everyone? The entry stays.')).toBeInTheDocument();
   });
 
   it('Cancel puts focus back on “Hide this photo” and hides nothing', async () => {
@@ -447,10 +449,10 @@ describe('PhotosPage — admin', () => {
     renderPage({ admin: session(adminApi) });
     const [first] = await shown('listitem');
 
-    await userEvent.click(within(first).getByRole('button', { name: 'Hide this photo' }));
-    await userEvent.click(within(first).getByRole('button', { name: 'Cancel' }));
+    await userEvent.click(within(first!).getByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(within(first!).getByRole('button', { name: 'Cancel' }));
 
-    expect(within(first).getByRole('button', { name: 'Hide this photo' })).toHaveFocus();
+    expect(within(first!).getByRole('button', { name: 'Hide this photo' })).toHaveFocus();
     expect(adminApi.hidePhoto).not.toHaveBeenCalled();
   });
 
@@ -461,14 +463,14 @@ describe('PhotosPage — admin', () => {
     renderPage({ admin });
     const [first] = await shown('listitem');
 
-    await userEvent.click(within(first).getByRole('button', { name: 'Hide this photo' }));
-    await userEvent.click(within(first).getByRole('radio', { name: 'Rude or off-topic' }));
-    await userEvent.click(within(first).getByRole('button', { name: 'Hide photo' }));
-    expect(await within(first).findByRole('alert')).toHaveTextContent('Couldn’t hide it. Try again.');
+    await userEvent.click(within(first!).getByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(within(first!).getByRole('radio', { name: 'Rude or off-topic' }));
+    await userEvent.click(within(first!).getByRole('button', { name: 'Hide photo' }));
+    expect(await within(first!).findByRole('alert')).toHaveTextContent('Couldn’t hide it. Try again.');
 
-    await userEvent.click(within(first).getByRole('button', { name: 'Hide this photo' }));
-    await userEvent.click(within(first).getByRole('radio', { name: 'Rude or off-topic' }));
-    await userEvent.click(within(first).getByRole('button', { name: 'Hide photo' }));
+    await userEvent.click(within(first!).getByRole('button', { name: 'Hide this photo' }));
+    await userEvent.click(within(first!).getByRole('radio', { name: 'Rude or off-topic' }));
+    await userEvent.click(within(first!).getByRole('button', { name: 'Hide photo' }));
     await waitFor(() => expect(admin.onRejected).toHaveBeenCalled());
   });
 });
@@ -488,8 +490,8 @@ describe('PhotosPage — removing one’s own photo', () => {
     renderPage({ own: fakeOwnUndo(['p-shared']) });
 
     const [mine, onSighting] = (await shown('listitem')).map((li) => within(li));
-    expect(mine.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
-    expect(onSighting.queryByRole('button')).not.toBeInTheDocument();
+    expect(mine!.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
+    expect(onSighting!.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('removes it after asking, then says so and lets Home load again', async () => {
@@ -498,7 +500,7 @@ describe('PhotosPage — removing one’s own photo', () => {
     const [mine] = await shown('listitem');
     expect(screen.queryByText('Your photo was removed.')).not.toBeInTheDocument();
 
-    await userEvent.click(within(mine).getByRole('button', { name: 'Remove' }));
+    await userEvent.click(within(mine!).getByRole('button', { name: 'Remove' }));
     expect(screen.getByText('Remove this photo?')).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
 

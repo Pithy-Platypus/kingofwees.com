@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsedSince, kingAge, kingMood } from './time';
+import { CONTENT_HOURS, elapsedSince, kingAge, kingMood } from './time';
 
 const now = new Date('2026-10-08T12:00:00Z');
 const ago = (seconds: number) => new Date(now.getTime() - seconds * 1000);
@@ -28,12 +28,16 @@ describe('kingMood', () => {
     expect(kingMood(null, now)).toBe('hungry');
   });
 
-  it('is content up to and including 12 hours after a feeding', () => {
-    expect(kingMood(ago(12 * 3600), now)).toBe('content');
+  it('is content up to and including CONTENT_HOURS after a feeding', () => {
+    expect(kingMood(ago(CONTENT_HOURS * 3600), now)).toBe('content');
   });
 
-  it('is hungry after 12 hours', () => {
-    expect(kingMood(ago(12 * 3600 + 1), now)).toBe('hungry');
+  it('is hungry one second after CONTENT_HOURS', () => {
+    expect(kingMood(ago(CONTENT_HOURS * 3600 + 1), now)).toBe('hungry');
+  });
+
+  it('flips at the twelve hours the habits chart also uses', () => {
+    expect(CONTENT_HOURS).toBe(12);
   });
 });
 

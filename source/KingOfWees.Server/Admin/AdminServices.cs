@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using KingOfWees.Server.King;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
@@ -42,11 +43,7 @@ public static class AdminServices
                 return RateLimitPartition.GetNoLimiter("admin");
             }
 
-            var permits = context.RequestServices.GetRequiredService<IConfiguration>()
-                .GetValue("RateLimiting:AdminPerMinute", DefaultRequestsPerMinute);
-            return RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1) });
+            return KingServices.PerVisitor(context, "RateLimiting:AdminPerMinute", DefaultRequestsPerMinute);
         }));
 
         return services;

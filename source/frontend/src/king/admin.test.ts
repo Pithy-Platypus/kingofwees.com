@@ -165,7 +165,7 @@ describe('adminApi.renameSpot', () => {
       headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ spotId: 's/1', name: 'Front porch' }),
     });
-    expect(String(fetchMock.mock.calls[0][0])).not.toContain(KEY);
+    expect(String(fetchMock.mock.calls[0]![0])).not.toContain(KEY);
   });
 });
 
@@ -181,7 +181,7 @@ describe('the name typed at sign-in', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/admin/check', {
       headers: { Authorization: `Bearer ${KEY}`, 'X-Admin-Name': 'Jos%C3%A9%20%C3%9Cnal' },
     });
-    expect(fetchMock.mock.calls[1][1].headers).toEqual({
+    expect(fetchMock.mock.calls[1]![1].headers).toEqual({
       Authorization: `Bearer ${KEY}`,
       'X-Admin-Name': 'Jos%C3%A9%20%C3%9Cnal',
       'Content-Type': 'application/json',
@@ -216,6 +216,6 @@ describe('adminApi.mergeSpots', () => {
       headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ keepId: 's1', mergeIds: ['s2', 's3'], name: 'Front porch' }),
     });
-    expect(fetchMock.mock.calls[1][1].body).toBe(JSON.stringify({ keepId: 's1', mergeIds: ['s2'], name: null }));
+    expect(fetchMock.mock.calls[1]![1].body).toBe(JSON.stringify({ keepId: 's1', mergeIds: ['s2'], name: null }));
   });
 });

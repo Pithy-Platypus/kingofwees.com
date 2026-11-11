@@ -1,8 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
-import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
+import { defineMessages, useIntl } from 'react-intl';
 import { Footer } from './Footer';
 import { adminApi as liveAdminApi, loadAdminSignIn, saveAdminSignIn, type AdminApi, type AdminSession, type AdminSignIn } from './king/admin';
-import { ApiError, isPostingRefused, kingApi, type Food, type KingEventView, type KingStatus, type SpotView } from './king/api';
+import { ApiError, isPostingRefused, kingApi, type Food, type KingEventView, type SpotView } from './king/api';
 import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
 import { LoggedScreen } from './king/LoggedScreen';
@@ -14,8 +14,10 @@ import type { GeoPoint, Geolocator } from './king/location';
 import { loadLastSpotId, loadNickname, saveLastSpotId, saveNickname, type KeyValueStorage } from './king/reporter';
 import { SeenScreen } from './king/SeenScreen';
 import { SpotScreen } from './king/SpotScreen';
+import { useLoad } from './king/useLoad';
 import { AboutPage } from './pages/AboutPage';
 import { HistoryPage } from './pages/HistoryPage';
+import { LoadState } from './pages/LoadState';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { useRoute, type Route } from './routing/routes';
 
@@ -26,12 +28,11 @@ const PhotosPage = lazy(() => import('./pages/PhotosPage').then((module) => ({ d
 
 const m = defineMessages({
   loading: { id: 'app.loading', defaultMessage: 'Finding King…', description: 'Shown while the status loads' },
-  unreachable: {
+  failed: {
     id: 'app.unreachable',
     defaultMessage: 'Couldn’t reach King’s tracker. Check your connection and try again.',
     description: 'Shown when the status cannot be loaded',
   },
-  tryAgain: { id: 'app.tryAgain', defaultMessage: 'Try again', description: 'Retry loading the status' },
 });
 
 // Browser tab titles (WCAG 2.4.2): each page says what it is.
@@ -77,8 +78,6 @@ function App({
   now = () => new Date(),
   resize = resizePhoto,
 }: Props) {
-  const [status, setStatus] = useState<KingStatus | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [undoFailed, setUndoFailed] = useState(false);
   const [renameFailed, setRenameFailed] = useState(false);
@@ -100,18 +99,8 @@ function App({
     document.title = intl.formatMessage(titleOf(route));
   }, [route, intl]);
 
-  const load = useCallback(async () => {
-    try {
-      setStatus(await api.getStatus());
-      setLoadFailed(false);
-    } catch {
-      setLoadFailed(true);
-    }
-  }, [api]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const getStatus = useCallback(() => api.getStatus(), [api]);
+  const { data: status, failed: loadFailed, retry: load } = useLoad(getStatus);
 
   // Maps and spots are extras: if they fail to load, logging still works without them.
   useEffect(() => {
@@ -176,7 +165,8 @@ function App({
     setScreen({ name: 'home' });
   };
 
-  const goHome = () => run(showFreshHome);
+  // Each handler owns its errors through run(), so the screens' void callbacks can hold them.
+  const goHome = () => void run(showFreshHome);
 
   // Skipped (or never given) names are left out, so the entry reads "a neighbor".
   const reporter = (name: string | null) => ({ reporterKey, ...(name ? { reporterName: name } : {}) });
@@ -225,19 +215,19 @@ function App({
   };
 
   const logFeeding = (foods: Food[], sawKing: boolean) =>
-    run(async () => {
+    void run(async () => {
       const event = await api.logFeeding({ ...reporter(nickname), foods, sawKing, ...(spot ? { spotId: spot.id } : {}) });
       saveLastSpotId(storage, spot?.id ?? null);
       await showLogged(event);
     });
 
   const logSighting = (location?: GeoPoint) =>
-    run(async () => showLogged(await api.logSighting({ ...reporter(nickname), ...(location ? { location } : {}) })));
+    void run(async () => showLogged(await api.logSighting({ ...reporter(nickname), ...(location ? { location } : {}) })));
 
   // From Feed the new spot is picked for the feeding being filled in; from Seen it's the place, so the sighting logs
   // there at once like every other place choice. Only a feeding remembers a spot for next time.
   const addSpot = (from: 'feed' | 'seen', name: string, location: GeoPoint) =>
-    run(async () => {
+    void run(async () => {
       const added = await api.addSpot({ reporterKey, name, location });
       setSpots((current) => [...current, added]);
       if (from === 'feed') {
@@ -274,7 +264,7 @@ function App({
   };
 
   const undo = (event: KingEventView) =>
-    run(async () => {
+    void run(async () => {
       try {
         await own.undoEntry(event.id);
       } catch {
@@ -407,23 +397,10 @@ function App({
       />
     );
     withFooter = false;
-  } else if (loadFailed) {
+  } else if (loadFailed || !status) {
     content = (
       <main className="app-screen">
-        <div role="alert" className="alert alert-error">
-          <FormattedMessage {...m.unreachable} />
-        </div>
-        <button type="button" className="done-button" onClick={() => void load()}>
-          <FormattedMessage {...m.tryAgain} />
-        </button>
-      </main>
-    );
-  } else if (!status) {
-    content = (
-      <main className="app-screen">
-        <p role="status">
-          <FormattedMessage {...m.loading} />
-        </p>
+        <LoadState data={status} failed={loadFailed} onRetry={load} messages={m} />
       </main>
     );
   } else {

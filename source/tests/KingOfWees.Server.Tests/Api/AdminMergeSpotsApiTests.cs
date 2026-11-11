@@ -1,3 +1,6 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.TestHost;
+using KingOfWees.Server.Tests.King;
 using System.Diagnostics.Metrics;
 using System.Net;
 using System.Net.Http.Headers;
@@ -33,19 +36,17 @@ public sealed class AdminMergeSpotsApiTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await _factory.DisposeAsync();
 
-    private async Task<string> Log(string path, object body)
+    // A minute apart, so the order is the clock's.
+    private async Task<string> Logged(Task<string> post)
     {
-        var response = await _public.PostAsJsonAsync(path, body, Ct);
-        response.EnsureSuccessStatusCode();
+        var id = await post;
         _factory.Clock.Advance(TimeSpan.FromMinutes(1));
-        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetString()!;
+        return id;
     }
 
-    private Task<string> AddSpot(string name, string device = Neighbor) =>
-        Log("/api/king/spots", new { reporterKey = device, name, location = new { latitude = 45.523, longitude = -122.677 } });
+    private Task<string> AddSpot(string name, string device = Neighbor) => Logged(_public.AddSpotAsync(device, name, Ct));
 
-    private Task<string> Feed(string spotId, string device = Neighbor) =>
-        Log("/api/king/feedings", new { reporterKey = device, spotId });
+    private Task<string> Feed(string spotId, string device = Neighbor) => Logged(_public.FeedAsync(device, spotId, name: null, Ct));
 
     private Task<HttpResponseMessage> Merge(HttpClient client, string keepId, string[] mergeIds, string? name = null) =>
         client.PostAsJsonAsync("/api/admin/spots/merge", new { keepId, mergeIds, name }, Ct);
@@ -222,5 +223,48 @@ public sealed class AdminMergeSpotsApiTests : IAsyncLifetime
         await Merge(_admin, porch, [steps]);
 
         Assert.Equal(["spot"], merges.GetMeasurementSnapshot().Select(m => m.Tags["target"]));
+    }
+
+    // Two admins merge at once: a place the validator found is gone by the time the handler looks for it. The store
+    // finds the place once more (the validator's look), then no longer.
+    [Theory]
+    [InlineData("kept", "keepId.unknown")]
+    [InlineData("merged", "mergeIds.unknown")]
+    public async Task A_place_gone_between_validation_and_the_merge_is_a_404_with_the_validator_s_code(string gone, string code)
+    {
+        var spots = new VanishingSpotStore(new InMemorySpotStore());
+        await using var factory = new KingApiFactory(settings: [("King:Admin:KeyHash", AdminKeyHasher.Hash(AdminKey))])
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.Replace(ServiceDescriptor.Singleton<ISpotStore>(spots))));
+        var neighbor = factory.CreateClient();
+        var keepId = await neighbor.AddSpotAsync(Neighbor, "Porch", Ct);
+        var mergedId = await neighbor.AddSpotAsync(Neighbor, "Steps", Ct);
+        spots.FoundOnceMoreThenGone = gone == "kept" ? keepId : mergedId;
+        var admin = factory.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AdminKey);
+
+        var response = await Merge(admin, keepId, [mergedId]);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(code, (await response.JsonAsync(Ct)).GetProperty("type").GetString());
+    }
+
+    private sealed class VanishingSpotStore(ISpotStore inner) : ISpotStore
+    {
+        private int _finds;
+
+        public string? FoundOnceMoreThenGone { get; set; }
+
+        public Task<Spot?> FindAsync(string id, CancellationToken cancellationToken) =>
+            id == FoundOnceMoreThenGone && Interlocked.Increment(ref _finds) > 1 ? Task.FromResult<Spot?>(null) : inner.FindAsync(id, cancellationToken);
+
+        public Task AddAsync(Spot spot, CancellationToken cancellationToken) => inner.AddAsync(spot, cancellationToken);
+        public Task<bool> RenameAsync(string id, string name, CancellationToken cancellationToken) => inner.RenameAsync(id, name, cancellationToken);
+        public Task<bool> NameTakenAsync(string name, IReadOnlyCollection<string> exceptIds, CancellationToken cancellationToken) =>
+            inner.NameTakenAsync(name, exceptIds, cancellationToken);
+        public Task<int> DeleteAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken) => inner.DeleteAsync(ids, cancellationToken);
+        public Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) => inner.CountByReporterAsync(reporterKey, cancellationToken);
+        public Task<IReadOnlyList<Spot>> ListAsync(HiddenSets hidden, CancellationToken cancellationToken) => inner.ListAsync(hidden, cancellationToken);
+        public Task<IReadOnlyList<Spot>> ListEveryAsync(CancellationToken cancellationToken) => inner.ListEveryAsync(cancellationToken);
     }
 }

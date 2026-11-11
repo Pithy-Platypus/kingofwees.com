@@ -22,8 +22,8 @@ public interface ISpotStore
     /// <summary>Spots one device added, hidden or not (admin).</summary>
     Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken);
 
-    /// <summary>Oldest first, leaving out spots from hidden devices; the client sorts by name in the reader's language.</summary>
-    Task<IReadOnlyList<Spot>> ListAsync(CancellationToken cancellationToken);
+    /// <summary>Oldest first, leaving out spots from the devices <paramref name="hidden"/> names; the client sorts by name in the reader's language.</summary>
+    Task<IReadOnlyList<Spot>> ListAsync(HiddenSets hidden, CancellationToken cancellationToken);
 
     /// <summary>Every spot, hidden devices' too, oldest first (admin: renaming any place).</summary>
     Task<IReadOnlyList<Spot>> ListEveryAsync(CancellationToken cancellationToken);

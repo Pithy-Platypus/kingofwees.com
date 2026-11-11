@@ -44,6 +44,24 @@ describe('createReporter', () => {
     ]);
   });
 
+  it('describes a thrown value of any other type in words, never as [object Object]', () => {
+    // Two page loads: a reporter sends at most MAX_REPORTS.
+    const primitives = reporter();
+    const others = reporter();
+    const fail = () => {};
+
+    primitives.report('rejection', 42);
+    primitives.report('rejection', false);
+    primitives.report('rejection', 7n);
+    primitives.report('rejection', Symbol('token'));
+    others.report('rejection', { code: 7 });
+    others.report('rejection', null);
+    others.report('rejection', fail);
+
+    expect(primitives.sent.map((s) => s.message)).toEqual(['42', 'false', '7', 'Symbol(token)']);
+    expect(others.sent.map((s) => s.message)).toEqual(['{"code":7}', 'null', 'fail']);
+  });
+
   it('cuts text to what the server accepts', () => {
     const { report, sent } = reporter('/' + 'p'.repeat(300));
     const error = new Error('m'.repeat(600));
@@ -84,7 +102,7 @@ describe('sendDiagnostic', () => {
 
     sendDiagnostic('{"kind":"error"}');
 
-    const [url, data] = sendBeacon.mock.calls[0];
+    const [url, data] = sendBeacon.mock.calls[0]!;
     expect(url).toBe('/api/client-diagnostics');
     expect(data.type).toBe('application/json');
     expect(await data.text()).toBe('{"kind":"error"}');

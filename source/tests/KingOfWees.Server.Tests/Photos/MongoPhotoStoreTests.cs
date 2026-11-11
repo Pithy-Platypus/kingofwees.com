@@ -11,9 +11,7 @@ public sealed class MongoPhotoStoreTests(MongoAppFixture mongo) : PhotoStoreCont
     protected override (IPhotoStore Photos, IKingEventStore Events, IHiddenReporterStore Hidden) CreateStores()
     {
         var database = mongo.NewDatabase();
-        var hidden = new MongoHiddenReporterStore(database);
-        var events = new MongoKingEventStore(database, hidden);
-        return (new MongoPhotoStore(database, events, hidden), events, hidden);
+        return (new MongoPhotoStore(database), new MongoKingEventStore(database), new MongoHiddenReporterStore(database));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -21,8 +19,7 @@ public sealed class MongoPhotoStoreTests(MongoAppFixture mongo) : PhotoStoreCont
     private (IMongoDatabase Database, MongoPhotoStore Photos) Store()
     {
         var database = mongo.NewDatabase();
-        var hidden = new MongoHiddenReporterStore(database);
-        return (database, new MongoPhotoStore(database, new MongoKingEventStore(database, hidden), hidden));
+        return (database, new MongoPhotoStore(database));
     }
 
     // The reader can't tell (a shown photo reads back with no reason either way), but a note left in the document would
@@ -53,7 +50,7 @@ public sealed class MongoPhotoStoreTests(MongoAppFixture mongo) : PhotoStoreCont
             { "ReporterName", "Sarah" }, { "Hidden", true },
         }, cancellationToken: Ct);
 
-        Assert.Null(await photos.FindVisibleAsync(id, Ct));
+        Assert.Null(await photos.FindVisibleAsync(new HiddenSets(new MongoHiddenReporterStore(database), new MongoKingEventStore(database)), id, Ct));
         var listed = Assert.Single(await photos.GetHiddenAsync(Ct));
         Assert.Equal(id, listed.Id);
         Assert.Null(listed.Hiding);

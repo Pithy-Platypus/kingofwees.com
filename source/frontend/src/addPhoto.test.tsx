@@ -56,7 +56,7 @@ describe('App — adding a photo while logging', () => {
     await logWithoutPlace();
 
     await waitFor(() => expect(api.addPhoto).toHaveBeenCalledWith('new-seen', KEY, RESIZED));
-    expect(api.logSighting.mock.invocationCallOrder[0]).toBeLessThan(api.addPhoto.mock.invocationCallOrder[0]);
+    expect(api.logSighting.mock.invocationCallOrder[0]).toBeLessThan(api.addPhoto.mock.invocationCallOrder[0]!);
     expect(await screen.findByText('Photo added')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'The photo you added' })).toBeInTheDocument();
   });

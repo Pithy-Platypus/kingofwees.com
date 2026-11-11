@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import type { HeatCell, HeatLayer, HeatRange, kingApi, SpotView } from '../king/api';
 import { describeCell, heatLevel, mergeNearSpots } from '../king/heat';
 import type { GeoPoint } from '../king/location';
 import { MapView } from '../king/LazyMapView';
 import type { MapMarker } from '../king/MapView';
+import { useLoad } from '../king/useLoad';
 import { ChoiceGroup, type Choice } from './ChoiceGroup';
+import { LoadState } from './LoadState';
 
 type Values = {
   heading: NoMessageValues;
@@ -23,7 +25,6 @@ type Values = {
   empty: NoMessageValues;
   loading: NoMessageValues;
   failed: NoMessageValues;
-  tryAgain: NoMessageValues;
 };
 
 const m = defineMessages<Values>({
@@ -58,7 +59,6 @@ const m = defineMessages<Values>({
   empty: { id: 'heat.empty', defaultMessage: 'Nothing with a place logged in this time.', description: 'Heat map has no places for the chosen layer and range' },
   loading: { id: 'heat.loading', defaultMessage: 'Loading the heat map…', description: 'Shown while the heat map loads' },
   failed: { id: 'heat.failed', defaultMessage: 'Couldn’t load the heat map.', description: 'Shown when the heat map cannot be loaded' },
-  tryAgain: { id: 'heat.tryAgain', defaultMessage: 'Try again', description: 'Retry loading the heat map' },
 });
 
 const layers: Choice<HeatLayer>[] = [
@@ -71,22 +71,9 @@ type Props = { api: Pick<typeof kingApi, 'getHeat'>; spots: SpotView[]; mapCente
 export function HeatMapSection({ api, spots, mapCenter, range }: Props) {
   const intl = useIntl();
   const [layer, setLayer] = useState<HeatLayer>('seen');
-  const [cells, setCells] = useState<HeatCell[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-
-  // Only the latest choice may land: a slow answer to an earlier one is dropped.
-  useEffect(() => {
-    let latest = true;
-    setFailed(false);
-    api.getHeat(layer, range).then(
-      (loaded) => latest && setCells(loaded),
-      () => latest && setFailed(true),
-    );
-    return () => {
-      latest = false;
-    };
-  }, [api, layer, range, attempt]);
+  // Only the latest choice may land: a slow answer to an earlier one is dropped (useLoad).
+  const getHeat = useCallback(() => api.getHeat(layer, range), [api, layer, range]);
+  const { data: cells, failed, retry } = useLoad(getHeat);
 
   // The server counts per block; neighbors think in spots, so each spot's surroundings are one place.
   const places = useMemo(() => (cells ? mergeNearSpots(cells, spots) : null), [cells, spots]);
@@ -106,44 +93,22 @@ export function HeatMapSection({ api, spots, mapCenter, range }: Props) {
     return intl.formatMessage(m.nowhere);
   };
 
-  let body;
-  if (failed) {
-    body = (
-      <>
-        <div role="alert" className="alert alert-error">
-          <FormattedMessage {...m.failed} />
-        </div>
-        <button type="button" className="done-button" onClick={() => setAttempt((a) => a + 1)}>
-          <FormattedMessage {...m.tryAgain} />
-        </button>
-      </>
-    );
-  } else if (!places) {
-    body = (
-      <p role="status">
-        <FormattedMessage {...m.loading} />
-      </p>
-    );
-  } else if (places.length === 0) {
-    body = (
-      <p className="activity-detail">
-        <FormattedMessage {...m.empty} />
-      </p>
-    );
-  } else {
-    body = (
-      <ol className="heat-places" aria-label={intl.formatMessage(m.places)}>
-        {places.map((c) => (
-          <li key={`${c.location.latitude},${c.location.longitude},${c.spotName}`} className="heat-place">
-            <span className="heat-place-name">{placeName(c)}</span>
-            <span className="heat-place-count">
-              <FormattedMessage {...(layer === 'seen' ? m.sightings : m.feedings)} values={{ count: c.count }} />
-            </span>
-          </li>
-        ))}
-      </ol>
-    );
-  }
+  const body = (
+    <LoadState data={places} failed={failed} onRetry={retry} messages={m} isEmpty={(shown) => shown.length === 0}>
+      {(shown) => (
+        <ol className="stat-list" aria-label={intl.formatMessage(m.places)}>
+          {shown.map((c) => (
+            <li key={`${c.location.latitude},${c.location.longitude},${c.spotName}`} className="stat-row">
+              <span className="stat-name">{placeName(c)}</span>
+              <span className="stat-count">
+                <FormattedMessage {...(layer === 'seen' ? m.sightings : m.feedings)} values={{ count: c.count }} />
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </LoadState>
+  );
 
   return (
     <section aria-labelledby="heat-heading" className="heat-section">

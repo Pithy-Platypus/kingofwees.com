@@ -20,8 +20,8 @@ describe('roundToBlock', () => {
   it('keeps nothing finer than three decimals, whatever the GPS reports', () => {
     const { latitude, longitude } = roundToBlock({ latitude: 45.52345678901, longitude: -122.67654321098 });
 
-    expect(String(latitude).split('.')[1].length).toBeLessThanOrEqual(3);
-    expect(String(longitude).split('.')[1].length).toBeLessThanOrEqual(3);
+    expect(String(latitude).split('.')[1]!.length).toBeLessThanOrEqual(3);
+    expect(String(longitude).split('.')[1]!.length).toBeLessThanOrEqual(3);
   });
 });
 
@@ -42,7 +42,7 @@ describe('currentPosition', () => {
 
     void currentPosition(geolocation);
 
-    expect(geolocation.getCurrentPosition.mock.calls[0][2]).toMatchObject({
+    expect(geolocation.getCurrentPosition.mock.calls[0]![2]).toMatchObject({
       enableHighAccuracy: false,
       timeout: expect.any(Number),
     });

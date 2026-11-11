@@ -34,6 +34,7 @@ export type KingStatus = {
 /** `next` is the id to pass as `before` for the older page; null on the last page. */
 export type PhotosPage = { photos: PhotoView[]; next: string | null };
 export type HeatLayer = 'seen' | 'fed';
+// 7 or 30 days, or all time: the server's HeatQuery.Ranges (KingContracts.cs) is the same pair — change both.
 export type HeatRange = 7 | 30 | 'all';
 export type HeatCell = { location: GeoPoint; count: number; spotName: string | null };
 /** `/api/king/habits`: what the habit charts need of an entry and nothing else. */

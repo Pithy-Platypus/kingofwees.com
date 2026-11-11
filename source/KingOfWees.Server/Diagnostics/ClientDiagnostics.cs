@@ -1,3 +1,4 @@
+using KingOfWees.Server.King;
 using System.Threading.RateLimiting;
 using FluentValidation;
 using KingOfWees.Server.Validation;
@@ -92,20 +93,14 @@ public static partial class ClientDiagnosticsEndpoints
     public static IServiceCollection AddClientDiagnostics(this IServiceCollection services)
     {
         services.AddSingleton<ClientDiagnosticsBudget>();
-        services.AddRateLimiter(options => options.AddPolicy(Policy, context =>
-        {
-            var permits = context.RequestServices.GetRequiredService<IConfiguration>()
-                .GetValue("RateLimiting:ClientDiagnosticsPerMinute", DefaultPerMinute);
-            return RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1) });
-        }));
+        services.AddRateLimiter(options => options.AddPolicy(Policy,
+            context => KingServices.PerVisitor(context, "RateLimiting:ClientDiagnosticsPerMinute", DefaultPerMinute)));
         return services;
     }
 
-    public static void MapClientDiagnostics(this WebApplication app) =>
-        app.MapGroup("/api").AddEndpointFilter<ValidationFilter>()
-            .MapPost("/client-diagnostics", Report).RequireRateLimiting(Policy);
+    /// <summary>On the validated <c>/api</c> group (<c>Program.cs</c>); not in the writes group: open to every country.</summary>
+    public static void MapClientDiagnostics(this IEndpointRouteBuilder api) =>
+        api.MapPost("/client-diagnostics", Report).RequireRateLimiting(Policy);
 
     private static Results<NoContent, StatusCodeHttpResult> Report(
         ClientDiagnostic diagnostic, ClientDiagnosticsBudget budget, ILogger<ClientDiagnostic> logger)

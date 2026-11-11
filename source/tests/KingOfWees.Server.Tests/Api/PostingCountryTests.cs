@@ -83,7 +83,7 @@ public sealed class PostingCountryTests
         var status = await client.GetFromJsonAsync<JsonElement>("/api/king/status", Ct);
         Assert.Empty(status.GetProperty("recent").EnumerateArray());
         Assert.Empty((await client.GetFromJsonAsync<JsonElement>("/api/king/spots", Ct)).EnumerateArray());
-        Assert.Empty(await factory.Photos.GetPageAsync(null, 50, Ct));
+        Assert.Empty(await factory.Photos.GetPageAsync(factory.Sets, null, 50, Ct));
     }
 
     [Theory]

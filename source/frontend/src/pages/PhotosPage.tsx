@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import { isKeyRejected, type AdminSession, type HideReason } from '../king/admin';
 import { isPostingRefused, photoUrl, type kingApi, type PhotoView, type SpotView } from '../king/api';
@@ -8,10 +8,12 @@ import type { PhotoFiles, PhotoResizer } from '../king/photo';
 import { PhotoPicker } from '../king/PhotoSlot';
 import { ownMessages } from '../king/ownMessages';
 import { UndoOwnPost } from '../king/UndoOwnPost';
+import { useLoad } from '../king/useLoad';
 import { Link } from '../routing/Link';
 import { pathOf, photoPath, usePhotoId } from '../routing/routes';
 import { adminMessages } from './adminMessages';
 import { HidePhotoForm } from './HidePhotoForm';
+import { LoadState } from './LoadState';
 import { PageShell } from './PageShell';
 import { PhotoViewer } from './PhotoViewer';
 import { viewerMessages } from './viewerMessages';
@@ -27,7 +29,6 @@ type Values = {
   loading: NoMessageValues;
   failed: NoMessageValues;
   olderFailed: NoMessageValues;
-  tryAgain: NoMessageValues;
   showOlder: NoMessageValues;
 };
 
@@ -46,7 +47,6 @@ const m = defineMessages<Values>({
   loading: { id: 'photos.loading', defaultMessage: 'Loading photos…', description: 'Shown while the photos load' },
   failed: { id: 'photos.failed', defaultMessage: 'Couldn’t load the photos.', description: 'Shown when the photos cannot be loaded' },
   olderFailed: { id: 'photos.olderFailed', defaultMessage: 'Couldn’t load older photos.', description: 'Shown when Show older fails' },
-  tryAgain: { id: 'photos.tryAgain', defaultMessage: 'Try again', description: 'Retry loading the photos' },
   showOlder: { id: 'photos.showOlder', defaultMessage: 'Show older', description: 'Loads the next, older photos' },
 });
 
@@ -147,12 +147,12 @@ export function PhotosPage({
   own,
 }: Props) {
   const intl = useIntl();
-  const [photos, setPhotos] = useState<PhotoView[] | null>(null);
-  const [next, setNext] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const getPhotos = useCallback(() => api.getPhotos(), [api]);
+  const { data: page, setData: setPage, failed, retry: reload } = useLoad(getPhotos);
+  const photos = page?.photos ?? null;
+  const next = page?.next ?? null;
   const [olderFailed, setOlderFailed] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [attempt, setAttempt] = useState(0);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [share, setShare] = useState<Share | null>(null);
   const [hidCount, setHidCount] = useState(0);
@@ -172,17 +172,6 @@ export function PhotosPage({
   const sharedNotice = useRef<HTMLParagraphElement>(null);
   const retry = useRef<HTMLButtonElement>(null);
   const hiddenNotice = useRef<HTMLParagraphElement>(null);
-
-  useEffect(() => {
-    setFailed(false);
-    api.getPhotos().then(
-      (page) => {
-        setPhotos(page.photos);
-        setNext(page.next);
-      },
-      () => setFailed(true),
-    );
-  }, [api, attempt]);
 
   useEffect(() => {
     // Not while the viewer is open: a modal dialog keeps focus, and the viewer's own photo gets it on close.
@@ -223,16 +212,18 @@ export function PhotosPage({
     if (removedCount > 0) removedNotice.current?.focus();
   }, [removedCount]);
 
+  /** Loads the next older page; answers the first older photo's id (null when the page failed or was empty). */
   const showOlder = async (before: string) => {
     setLoadingOlder(true);
     try {
-      const page = await api.getPhotos(before);
-      setPhotos((shown) => [...(shown ?? []), ...page.photos]);
-      setNext(page.next);
+      const older = await api.getPhotos(before);
+      setPage((shown) => shown && { photos: [...shown.photos, ...older.photos], next: older.next });
       setOlderFailed(false);
-      setFocusId(page.photos[0]?.id ?? null);
+      setFocusId(older.photos[0]?.id ?? null);
+      return older.photos[0]?.id ?? null;
     } catch {
       setOlderFailed(true);
+      return null;
     } finally {
       setLoadingOlder(false);
     }
@@ -243,7 +234,7 @@ export function PhotosPage({
     try {
       const added = await api.sharePhoto({ reporterKey, ...(nickname ? { reporterName: nickname } : {}) }, files);
       own?.remember(added.id, added.postedAt);
-      setPhotos((shown) => [added, ...(shown ?? [])]);
+      setPage((shown) => ({ photos: [added, ...(shown?.photos ?? [])], next: shown?.next ?? null }));
       setShare({ status: 'shared' });
       onPhotosChanged();
     } catch (error) {
@@ -287,21 +278,21 @@ export function PhotosPage({
       announce();
     }
   };
-  // The address named a photo that isn't there: back to the grid, which says so.
+  // The address named a photo that isn't there: back to the grid, which says so. An effect event: closeViewer changes
+  // with every render; what matters is the address and the answer.
+  const closeGoneViewer = useEffectEvent(closeViewer);
   useEffect(() => {
-    if (photoId && alone?.id === photoId && alone.photo === null) closeViewer();
-    // closeViewer changes with every render; what matters is the address and the answer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (photoId && alone?.id === photoId && alone.photo === null) closeGoneViewer();
   }, [photoId, alone]);
 
   const hidden = (id: string) => {
-    setPhotos((shown) => (shown ?? []).filter((p) => p.id !== id));
+    setPage((shown) => shown && { ...shown, photos: shown.photos.filter((p) => p.id !== id) });
     setHidCount((n) => n + 1);
     onPhotosChanged();
   };
 
   const removed = (id: string) => {
-    setPhotos((shown) => (shown ?? []).filter((p) => p.id !== id));
+    setPage((shown) => shown && { ...shown, photos: shown.photos.filter((p) => p.id !== id) });
     setRemovedCount((n) => n + 1);
     onPhotosChanged();
   };
@@ -338,75 +329,53 @@ export function PhotosPage({
     );
   }
 
-  let body;
-  if (failed) {
-    body = (
-      <>
-        <div role="alert" className="alert alert-error">
-          <FormattedMessage {...m.failed} />
-        </div>
-        <button type="button" className="done-button" onClick={() => setAttempt((a) => a + 1)}>
-          <FormattedMessage {...m.tryAgain} />
-        </button>
-      </>
-    );
-  } else if (!photos) {
-    body = (
-      <p role="status">
-        <FormattedMessage {...m.loading} />
-      </p>
-    );
-  } else if (photos.length === 0) {
-    body = (
-      <p className="activity-detail">
-        <FormattedMessage {...m.empty} />
-      </p>
-    );
-  } else {
-    body = (
-      <>
-        <ul className="photo-grid" aria-labelledby="photos-title">
-          {photos.map((p) => {
-            // The title shows the description on hover; alt text never does.
-            const description = photoAlt(intl, p, spots);
-            return (
-              <li key={p.id} className="photo-grid-item">
-                <a
-                  ref={(element) => {
-                    if (element) links.current.set(p.id, element);
-                    else links.current.delete(p.id);
-                    if (p.id === focusId) firstNew.current = element;
-                  }}
-                  href={photoUrl(p.id, 'full')}
-                  className="photo-grid-link"
-                  onClick={(e) => {
-                    // A plain tap opens the viewer; a modified click (a new tab) keeps the link to the file.
-                    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-                    e.preventDefault();
-                    openViewer(p.id);
-                  }}
-                >
-                  <img src={photoUrl(p.id, 'thumb')} alt={description} title={description} loading="lazy" className="photo-grid-image" />
-                </a>
-                {own?.canUndo(p.id) && <UndoOwnPost what="photo" onConfirm={() => own.removePhoto(p.id)} onDone={() => removed(p.id)} />}
-                {admin && <HidePhoto photo={p} admin={admin} onHidden={() => hidden(p.id)} />}
-              </li>
-            );
-          })}
-        </ul>
-        {olderFailed && (
-          <div role="alert" className="alert alert-error">
-            <FormattedMessage {...m.olderFailed} />
-          </div>
-        )}
-        {next !== null && (
-          <button type="button" className="done-button" disabled={loadingOlder} onClick={() => void showOlder(next)}>
-            <FormattedMessage {...m.showOlder} />
-          </button>
-        )}
-      </>
-    );
-  }
+  const body = (
+    <LoadState data={page} failed={failed} onRetry={reload} messages={m} isEmpty={(shown) => shown.photos.length === 0}>
+      {({ photos: loaded, next: more }) => (
+        <>
+          <ul className="photo-grid" aria-labelledby="photos-title">
+            {loaded.map((p) => {
+              // The title shows the description on hover; alt text never does.
+              const description = photoAlt(intl, p, spots);
+              return (
+                <li key={p.id} className="photo-grid-item">
+                  <a
+                    ref={(element) => {
+                      if (element) links.current.set(p.id, element);
+                      else links.current.delete(p.id);
+                      if (p.id === focusId) firstNew.current = element;
+                    }}
+                    href={photoUrl(p.id, 'full')}
+                    className="photo-grid-link"
+                    onClick={(e) => {
+                      // A plain tap opens the viewer; a modified click (a new tab) keeps the link to the file.
+                      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                      e.preventDefault();
+                      openViewer(p.id);
+                    }}
+                  >
+                    <img src={photoUrl(p.id, 'thumb')} alt={description} title={description} loading="lazy" className="photo-grid-image" />
+                  </a>
+                  {own?.canUndo(p.id) && <UndoOwnPost what="photo" onConfirm={() => own.removePhoto(p.id)} onDone={() => removed(p.id)} />}
+                  {admin && <HidePhoto photo={p} admin={admin} onHidden={() => hidden(p.id)} />}
+                </li>
+              );
+            })}
+          </ul>
+          {olderFailed && (
+            <div role="alert" className="alert alert-error">
+              <FormattedMessage {...m.olderFailed} />
+            </div>
+          )}
+          {more !== null && (
+            <button type="button" className="done-button" disabled={loadingOlder} onClick={() => void showOlder(more)}>
+              <FormattedMessage {...m.showOlder} />
+            </button>
+          )}
+        </>
+      )}
+    </LoadState>
+  );
 
   const index = photoId && photos ? photos.findIndex((p) => p.id === photoId) : -1;
   let viewer = null;
@@ -418,9 +387,13 @@ export function PhotosPage({
         spots={spots}
         hasOlder={next !== null}
         loadingOlder={loadingOlder}
-        onIndex={(i) => moveViewer(photos[i].id)}
+        onIndex={(i) => {
+          const shown = photos[i];
+          if (shown) moveViewer(shown.id);
+        }}
         onLoadOlder={() => {
-          if (next !== null) void showOlder(next);
+          // Past the last loaded photo: the first older one is the next.
+          if (next !== null) void showOlder(next).then((first) => first && moveViewer(first));
         }}
         onClose={closeViewer}
       />

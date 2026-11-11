@@ -10,7 +10,11 @@ public abstract class SpotStoreContract
     // Both share state: the spot store leaves out spots from devices the hidden-reporter store has hidden.
     protected abstract (ISpotStore Spots, IHiddenReporterStore Hidden) CreateStores();
 
-    private ISpotStore CreateStore() => CreateStores().Spots;
+    // One pair per test (xunit makes a new instance per test); Sets() is what a request's reads get: a fresh view of them.
+    private (ISpotStore Spots, IHiddenReporterStore Hidden)? _stores;
+    private (ISpotStore Spots, IHiddenReporterStore Hidden) Stores => _stores ??= CreateStores();
+    private ISpotStore CreateStore() => Stores.Spots;
+    private HiddenSets Sets() => new(Stores.Hidden, new InMemoryKingEventStore());
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -55,7 +59,7 @@ public abstract class SpotStoreContract
     [Fact]
     public async Task Renaming_a_hidden_device_s_spot_works_and_an_unknown_id_is_refused()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var spam = NewSpot("Spam spot", 0, device: "spammer");
         await store.AddAsync(spam, Ct);
         await hidden.HideAsync("spammer", T0, Ct);
@@ -68,7 +72,7 @@ public abstract class SpotStoreContract
     [Fact]
     public async Task A_name_is_taken_by_another_spot_ignoring_case_hidden_or_not_but_not_by_the_spot_itself()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var porch = NewSpot("Porch", 0);
         var spam = NewSpot("Spam spot", 1, device: "spammer");
         await store.AddAsync(porch, Ct);
@@ -98,7 +102,7 @@ public abstract class SpotStoreContract
     [Fact]
     public async Task Deleting_spots_removes_only_those_hidden_or_not_and_counts_them()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var porch = NewSpot("Porch", 0);
         var spam = NewSpot("Spam spot", 1, device: "spammer");
         var corner = NewSpot("Corner", 2);
@@ -120,13 +124,13 @@ public abstract class SpotStoreContract
         await store.AddAsync(newer, Ct);
         await store.AddAsync(older, Ct);
 
-        Assert.Equal([older, newer], await store.ListAsync(Ct));
+        Assert.Equal([older, newer], await store.ListAsync(Sets(), Ct));
     }
 
     [Fact]
     public async Task A_hidden_device_s_spots_leave_the_list_but_are_still_found_by_id()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var porch = NewSpot("Porch", 1, device: "neighbor");
         var spam = NewSpot("Spam spot", 2, device: "spammer");
         await store.AddAsync(porch, Ct);
@@ -136,14 +140,14 @@ public abstract class SpotStoreContract
         var later = NewSpot("More spam", 3, device: "spammer");
         await store.AddAsync(later, Ct);
 
-        Assert.Equal([porch], await store.ListAsync(Ct));
+        Assert.Equal([porch], await store.ListAsync(Sets(), Ct));
         Assert.Equal(spam, await store.FindAsync(spam.Id, Ct));
     }
 
     [Fact]
     public async Task The_full_list_has_every_spot_hidden_or_not_oldest_first()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var spam = NewSpot("Spam spot", 2, device: "spammer");
         var porch = NewSpot("Porch", 1);
         await store.AddAsync(spam, Ct);
@@ -156,20 +160,20 @@ public abstract class SpotStoreContract
     [Fact]
     public async Task Restoring_a_device_brings_its_spots_back()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var spot = NewSpot("Porch", 1, device: "spammer");
         await store.AddAsync(spot, Ct);
         var record = await hidden.HideAsync("spammer", T0, Ct);
 
         await hidden.RestoreAsync(record.Id, Ct);
 
-        Assert.Equal([spot], await store.ListAsync(Ct));
+        Assert.Equal([spot], await store.ListAsync(Sets(), Ct));
     }
 
     [Fact]
     public async Task Spots_are_counted_per_device_hidden_or_not()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         await store.AddAsync(NewSpot("Spam 1", 1, device: "spammer"), Ct);
         await store.AddAsync(NewSpot("Spam 2", 2, device: "spammer"), Ct);
         await store.AddAsync(NewSpot("Porch", 3, device: "neighbor"), Ct);

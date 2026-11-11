@@ -94,20 +94,22 @@ describe('PhotoViewer', () => {
     expect(onLoadOlder).not.toHaveBeenCalled();
   });
 
-  it('on the last photo with older ones unloaded, Next asks for them once and moves on when they arrive', async () => {
+  it('on the last photo with older ones unloaded, Next asks the page for them, and not again while they load', async () => {
     const { onIndex, onLoadOlder, again } = renderViewer({ index: 2, hasOlder: true });
     expect(next()).toBeEnabled();
 
     await userEvent.click(next());
-    await userEvent.click(next());
-
     expect(onLoadOlder).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Loading older photos…')).toBeInTheDocument();
     expect(onIndex).not.toHaveBeenCalled();
 
-    again({ photos: [...three, photo({ id: 'p0', postedAt: day(5) })], hasOlder: false });
+    again({ loadingOlder: true });
+    expect(screen.getByText('Loading older photos…')).toBeInTheDocument();
+    await userEvent.click(next());
+    expect(onLoadOlder).toHaveBeenCalledTimes(1);
 
-    expect(onIndex).toHaveBeenCalledWith(3);
+    // The page moves the viewer onto the first older photo (PhotosPage.test); the viewer itself stays put.
+    again({ photos: [...three, photo({ id: 'p0', postedAt: day(5) })], hasOlder: false, loadingOlder: false });
+    expect(onIndex).not.toHaveBeenCalled();
   });
 
   it('closes with the button, Escape, the dialog cancelling, and a tap beside the photo', async () => {

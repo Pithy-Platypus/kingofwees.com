@@ -8,8 +8,6 @@ public sealed class InMemoryPhotoStoreTests : PhotoStoreContract
 {
     protected override (IPhotoStore Photos, IKingEventStore Events, IHiddenReporterStore Hidden) CreateStores()
     {
-        var hidden = new InMemoryHiddenReporterStore();
-        var events = new InMemoryKingEventStore(hidden);
-        return (new InMemoryPhotoStore(events, hidden), events, hidden);
+        return (new InMemoryPhotoStore(), new InMemoryKingEventStore(), new InMemoryHiddenReporterStore());
     }
 }

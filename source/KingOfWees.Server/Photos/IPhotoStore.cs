@@ -1,3 +1,5 @@
+using KingOfWees.Server.King;
+
 namespace KingOfWees.Server.Photos;
 
 // A photo on an entry (EventId) or shared on its own (no EventId). Its files are named after Id (PhotoFiles).
@@ -13,7 +15,8 @@ public sealed record PhotoHiding(HideReason Reason, string? Note, DateTimeOffset
 
 /// <summary>
 /// Photo records. Public reads leave out photos hidden one by one, photos from hidden devices and photos on hidden
-/// entries. <see cref="FindAsync"/> and <see cref="FindByEventAsync"/> deliberately don't (undo, one photo per entry).
+/// entries: the reads that take the request's <see cref="HiddenSets"/>. <see cref="FindAsync"/> and
+/// <see cref="FindByEventAsync"/> deliberately don't (undo, one photo per entry).
 /// </summary>
 public interface IPhotoStore
 {
@@ -25,13 +28,13 @@ public interface IPhotoStore
     Task<Photo?> FindByEventAsync(string eventId, CancellationToken cancellationToken);
 
     /// <summary>The photo if a visitor may see it, else null.</summary>
-    Task<Photo?> FindVisibleAsync(string id, CancellationToken cancellationToken);
+    Task<Photo?> FindVisibleAsync(HiddenSets hidden, string id, CancellationToken cancellationToken);
 
     /// <summary>Visible photos newest first, by time then id; <paramref name="before"/> (null = from the newest) is the last photo of the previous page.</summary>
-    Task<IReadOnlyList<Photo>> GetPageAsync(Photo? before, int count, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Photo>> GetPageAsync(HiddenSets hidden, Photo? before, int count, CancellationToken cancellationToken);
 
     /// <summary>The visible photos on these entries.</summary>
-    Task<IReadOnlyList<Photo>> ForEventsAsync(IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Photo>> ForEventsAsync(HiddenSets hidden, IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken);
 
     /// <summary>Hides one photo from every public read (admin), keeping why and by whom.</summary>
     /// <returns>True when the photo exists.</returns>

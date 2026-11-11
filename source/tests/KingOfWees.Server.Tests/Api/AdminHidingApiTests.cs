@@ -34,21 +34,13 @@ public sealed class AdminHidingApiTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await _factory.DisposeAsync();
 
-    private async Task<string> Log(string path, object body)
-    {
-        var response = await _public.PostAsJsonAsync(path, body, Ct);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetString()!;
-    }
+    private Task<string> Log(string path, object body) => _public.LogAsync(path, body, Ct);
 
-    private Task<string> Feed(string device, string? name = null, string? spotId = null) =>
-        Log("/api/king/feedings", new { reporterKey = device, reporterName = name, spotId });
+    private Task<string> Feed(string device, string? name = null, string? spotId = null) => _public.FeedAsync(device, spotId, name, Ct);
 
-    private Task<string> See(string device, string? name = null) =>
-        Log("/api/king/sightings", new { reporterKey = device, reporterName = name });
+    private Task<string> See(string device, string? name = null) => _public.SeeAsync(device, name, Ct);
 
-    private Task<string> AddSpot(string device, string name) =>
-        Log("/api/king/spots", new { reporterKey = device, name, location = new { latitude = 45.523, longitude = -122.677 } });
+    private Task<string> AddSpot(string device, string name) => _public.AddSpotAsync(device, name, Ct);
 
     private async Task<string[]> PublicHistoryIds() =>
         [.. (await _public.GetFromJsonAsync<JsonElement>("/api/king/history", Ct)).GetProperty("events").EnumerateArray()
@@ -57,7 +49,7 @@ public sealed class AdminHidingApiTests : IAsyncLifetime
     private async Task<JsonElement> Json(HttpResponseMessage response)
     {
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        return await response.JsonAsync(Ct);
     }
 
     [Fact]

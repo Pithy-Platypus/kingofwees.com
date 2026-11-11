@@ -439,10 +439,6 @@
     "defaultMessage": "King of Wees",
     "description": "Site name shown in the header"
   },
-  "app.tryAgain": {
-    "defaultMessage": "Try again",
-    "description": "Retry loading the status"
-  },
   "app.unreachable": {
     "defaultMessage": "Couldn’t reach King’s tracker. Check your connection and try again.",
     "description": "Shown when the status cannot be loaded"
@@ -458,6 +454,10 @@
   "broken.title": {
     "defaultMessage": "Something went wrong",
     "description": "Heading shown instead of a page that failed to draw"
+  },
+  "common.tryAgain": {
+    "defaultMessage": "Try again",
+    "description": "Retry loading what could not be loaded: the status, the heat map, the charts, the log or the photos"
   },
   "feed.back": {
     "defaultMessage": "Back",
@@ -647,10 +647,6 @@
     "defaultMessage": "His Majesty was content {content} of the time — fed within the last {hours} hours — and awaiting a feast the rest.",
     "description": "Sentence under the content-or-hungry bar; {content} is a percentage like “41%”, {hours} the threshold (12)"
   },
-  "habits.tryAgain": {
-    "defaultMessage": "Try again",
-    "description": "Retry loading the charts"
-  },
   "habits.unfedDay": {
     "defaultMessage": "{date}: not fed",
     "description": "Accessible text of a calendar day with no feeding; {date} is e.g. “Wed, Nov 11”"
@@ -714,10 +710,6 @@
   "heat.sightings": {
     "defaultMessage": "{count, plural, one {# sighting} other {# sightings}}",
     "description": "How many times King was seen at one place"
-  },
-  "heat.tryAgain": {
-    "defaultMessage": "Try again",
-    "description": "Retry loading the heat map"
   },
   "history.all": {
     "defaultMessage": "All",
@@ -866,10 +858,6 @@
   "log.today": {
     "defaultMessage": "Today",
     "description": "Day heading in the log"
-  },
-  "log.tryAgain": {
-    "defaultMessage": "Try again",
-    "description": "Retry loading the log"
   },
   "log.yesterday": {
     "defaultMessage": "Yesterday",
@@ -1082,10 +1070,6 @@
   "photos.title": {
     "defaultMessage": "Photos of King",
     "description": "Heading of the page with every photo of King"
-  },
-  "photos.tryAgain": {
-    "defaultMessage": "Try again",
-    "description": "Retry loading the photos"
   },
   "place.back": {
     "defaultMessage": "Back",

@@ -11,6 +11,7 @@ export const common = defineMessages({
   foodDry: { id: 'food.dry', defaultMessage: 'Dry food', description: 'Kibble' },
   foodTreats: { id: 'food.treats', defaultMessage: 'Treats', description: 'Cat treats' },
   aNeighbor: { id: 'home.aNeighbor', defaultMessage: 'a neighbor', description: 'Used as {name} when the reporter gave no name' },
+  tryAgain: { id: 'common.tryAgain', defaultMessage: 'Try again', description: 'Retry loading what could not be loaded: the status, the heat map, the charts, the log or the photos' },
 });
 
 export const foodMessage = (food: Food) =>

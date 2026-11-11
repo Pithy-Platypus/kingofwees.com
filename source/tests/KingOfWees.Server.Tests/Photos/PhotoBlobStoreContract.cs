@@ -21,8 +21,9 @@ public abstract class PhotoBlobStoreContract
         }
     }
 
+    // Nothing to see through the interface: Azure lists one page, the double counts; only that neither throws.
     [Fact]
-    public async Task Warming_up_succeeds_with_or_without_files()
+    public async Task Warming_up_does_not_throw_with_or_without_files()
     {
         var store = CreateStore();
 

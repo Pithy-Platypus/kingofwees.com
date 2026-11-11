@@ -36,7 +36,7 @@ export function HidePhotoForm({ onEntry, busy, onHide, onCancel }: Props) {
 
   return (
     <>
-      <p ref={question} tabIndex={-1} className="admin-question">
+      <p ref={question} tabIndex={-1} className="confirm-question">
         <FormattedMessage {...(onEntry ? adminMessages.confirmPhoto : m.confirmShared)} />
       </p>
       <fieldset className="hide-reasons">
@@ -45,7 +45,7 @@ export function HidePhotoForm({ onEntry, busy, onHide, onCancel }: Props) {
         </legend>
         {HIDE_REASONS.map((r) => (
           <label key={r} className="hide-reason">
-            <input type="radio" className="hide-reason-radio" name={name} checked={reason === r} onChange={() => setReason(r)} />
+            <input type="radio" className="choice-radio" name={name} checked={reason === r} onChange={() => setReason(r)} />
             <FormattedMessage {...adminMessages[r]} />
           </label>
         ))}
@@ -61,7 +61,7 @@ export function HidePhotoForm({ onEntry, busy, onHide, onCancel }: Props) {
         required={noteRequired}
         onChange={(e) => setNote(e.target.value)}
       />
-      <div className="admin-buttons">
+      <div className="confirm-buttons">
         <button
           type="button"
           className="admin-confirm-button"

@@ -6,7 +6,6 @@ public sealed class InMemorySpotStoreTests : SpotStoreContract
 {
     protected override (ISpotStore Spots, IHiddenReporterStore Hidden) CreateStores()
     {
-        var hidden = new InMemoryHiddenReporterStore();
-        return (new InMemorySpotStore(hidden), hidden);
+        return (new InMemorySpotStore(), new InMemoryHiddenReporterStore());
     }
 }

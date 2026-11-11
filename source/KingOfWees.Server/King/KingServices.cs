@@ -32,6 +32,9 @@ public static class KingServices
         services.AddSingleton<IKingEventStore, MongoKingEventStore>();
         services.AddSingleton<ISpotStore, MongoSpotStore>();
         services.AddSingleton<IHiddenReporterStore, MongoHiddenReporterStore>();
+        // Scoped: the hidden devices and entries every public read leaves out, loaded once per request.
+        services.AddScoped<HiddenSets>();
+        services.AddScoped<EventViewer>();
         services.AddSingleton<KingMetrics>();
         services.AddOptions<MapOptions>().BindConfiguration(MapOptions.Section);
         services.AddOptions<PostingOptions>()
@@ -73,7 +76,8 @@ public static class KingServices
         return services;
     }
 
-    private static RateLimitPartition<string> PerVisitor(HttpContext context, string setting, int defaultPermits)
+    /// <summary>A fixed window per visitor address (the admin and client-diagnostics limits share it): <paramref name="setting"/> permits a minute.</summary>
+    internal static RateLimitPartition<string> PerVisitor(HttpContext context, string setting, int defaultPermits)
     {
         // Read per request so configuration (and tests) can change the limit.
         var permits = context.RequestServices.GetRequiredService<IConfiguration>().GetValue(setting, defaultPermits);

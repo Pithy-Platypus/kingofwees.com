@@ -33,8 +33,7 @@ public sealed class HeatApiTests : IAsyncDisposable
     private async Task<HttpResponseMessage> Heat(string query) =>
         await _factory.CreateClient().GetAsync($"/api/king/heat{query}", Ct);
 
-    private static async Task<JsonElement> Json(HttpResponseMessage response) =>
-        await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+    private static Task<JsonElement> Json(HttpResponseMessage response) => response.JsonAsync(Ct);
 
     private async Task<(double Latitude, double Longitude, int Count, string? SpotName)[]> Cells(string query)
     {
@@ -49,9 +48,6 @@ public sealed class HeatApiTests : IAsyncDisposable
                 c.TryGetProperty("spotName", out var name) ? name.GetString() : null)),
         ];
     }
-
-    private static IEnumerable<string?> ErrorCodes(JsonElement problem) =>
-        problem.GetProperty("errors").EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString());
 
     [Fact]
     public async Task Seen_layer_counts_sightings_and_seen_feedings_per_block_most_first()
@@ -131,6 +127,6 @@ public sealed class HeatApiTests : IAsyncDisposable
         var response = await Heat(query);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains(code, ErrorCodes(await Json(response)));
+        Assert.Contains(code, (await Json(response)).ErrorCodes());
     }
 }

@@ -41,16 +41,17 @@ public sealed class AdminActivityApiTests : IAsyncLifetime
         return client;
     }
 
-    private async Task<string> Log(string path, object body)
+    // A minute apart, so the order is the clock's.
+    private async Task<string> Logged(Task<string> post)
     {
-        var response = await _public.PostAsJsonAsync(path, body, Ct);
-        response.EnsureSuccessStatusCode();
+        var id = await post;
         _factory.Clock.Advance(TimeSpan.FromMinutes(1));
-        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetString()!;
+        return id;
     }
 
-    private Task<string> AddSpot(string device, string name) =>
-        Log("/api/king/spots", new { reporterKey = device, name, location = new { latitude = 45.523, longitude = -122.677 } });
+    private Task<string> Log(string path, object body) => Logged(_public.LogAsync(path, body, Ct));
+
+    private Task<string> AddSpot(string device, string name) => Logged(_public.AddSpotAsync(device, name, Ct));
 
     private async Task Send(HttpMethod method, string path, object? body = null)
     {

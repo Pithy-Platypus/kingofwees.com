@@ -38,11 +38,7 @@ public sealed record SharePhotoForm
 public sealed record PhotoView(string Id, DateTimeOffset PostedAt, string? ReporterName, EventView? Event);
 
 // Bound from the query string with [AsParameters]; Before is the id of the last photo already shown.
-public sealed record PhotosQuery(string? Before, int? Limit)
-{
-    public const int DefaultLimit = 50;
-    public const int MaxLimit = 100;
-}
+public sealed record PhotosQuery(string? Before, int? Limit);
 
 public sealed record PhotosPage(IReadOnlyList<PhotoView> Photos, string? Next);
 
@@ -100,11 +96,8 @@ public sealed class PhotosQueryValidator : AbstractValidator<PhotosQuery>
 {
     public PhotosQueryValidator(IPhotoStore photos)
     {
-        RuleFor(q => q.Limit).InclusiveBetween(1, PhotosQuery.MaxLimit).WithErrorCode("limit.outOfRange");
-        RuleFor(q => q.Before)
-            .MustAsync(async (id, ct) => await photos.FindAsync(id!, ct) is not null)
-            .When(q => q.Before is not null)
-            .WithErrorCode("before.unknown");
+        RuleFor(q => q.Limit).ValidLimit();
+        RuleFor(q => q.Before).KnownCursor(photos.FindAsync);
     }
 }
 

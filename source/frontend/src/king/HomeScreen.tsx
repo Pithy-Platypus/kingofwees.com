@@ -129,6 +129,7 @@ export function HomeScreen({
   const placed = useMemo(() => placedFor(status), [status]);
   const latest = status.latestPhoto && { photo: status.latestPhoto, description: photoAlt(intl, status.latestPhoto, spots) };
   const markers = useMemo(() => placed.map((p) => p.marker), [placed]);
+  const firstMarker = markers[0];
   // Words for each marker, so the map never relies on color alone (WCAG 1.4.1).
   const keyOf = ({ event, marker, fedAndSeen }: Placed) => {
     const message = fedAndSeen ? m.fedAndSeenAgo : marker.kind === 'fed' ? m.fedAgo : m.seenAgo;
@@ -209,12 +210,12 @@ export function HomeScreen({
         </p>
       )}
 
-      {mapCenter && markers.length > 0 && (
+      {mapCenter && firstMarker && (
         <div className="home-map-section">
           <h2 className="section-title">
             <FormattedMessage {...m.mapTitle} />
           </h2>
-          <MapView center={markers[0].point} label={intl.formatMessage(m.mapTitle)} markers={markers} fit zoomOnly className="home-map" />
+          <MapView center={firstMarker.point} label={intl.formatMessage(m.mapTitle)} markers={markers} fit zoomOnly className="home-map" />
           <ul className="map-key" aria-label={intl.formatMessage(m.mapKey)}>
             {placed.map((p) => (
               <li key={p.marker.kind} className="map-key-item">

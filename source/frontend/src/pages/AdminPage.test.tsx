@@ -435,7 +435,7 @@ describe('AdminPage — activity', () => {
 
     const items = await activityItems();
 
-    expect(items.map((text) => text?.split('Wallie')[0].split('no name')[0])).toEqual([
+    expect(items.map((text) => text?.split('Wallie')[0]?.split('no name')[0])).toEqual([
       'Merged Steps and Stoop into Porch (1 feeding moved)',
       'Merged PORCH into porch, now called Porch (3 feedings moved)',
       'Renamed Porch to Front porch',

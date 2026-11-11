@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using KingOfWees.Server.Photos;
-using KingOfWees.Server.Validation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -12,10 +11,11 @@ public static class KingEndpoints
     public static readonly TimeSpan UndoWindow = TimeSpan.FromMinutes(10);
     private const int RecentCount = 10;
 
+    /// <summary>On the validated <c>/api</c> group (<c>Program.cs</c>).</summary>
     public static IEndpointRouteBuilder MapKingEndpoints(this IEndpointRouteBuilder routes)
     {
         // The innermost limit wins: writes and photo files count only against their own.
-        var king = routes.MapGroup("/api/king").AddEndpointFilter<ValidationFilter>().RequireRateLimiting(KingPolicies.Reads);
+        var king = routes.MapGroup("/king").RequireRateLimiting(KingPolicies.Reads);
         king.MapGet("/status", GetStatus);
         king.MapGet("/history", GetHistory);
         king.MapGet("/heat", GetHeat);
@@ -41,60 +41,47 @@ public static class KingEndpoints
     }
 
     private static async Task<Ok<KingStatus>> GetStatus(
-        IKingEventStore store, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
+        HiddenSets hidden, IKingEventStore store, IPhotoStore photos, EventViewer viewer, CancellationToken cancellationToken)
     {
-        var lastFed = await store.GetLatestAsync(KingEventKind.Fed, cancellationToken);
-        var lastSeen = await store.GetLatestSightingAsync(cancellationToken);
-        var recent = await store.GetPageAsync(before: null, RecentCount, cancellationToken);
-        var view = await EventViews(spots, photos, [.. recent, .. new[] { lastFed, lastSeen }.OfType<KingEvent>()], cancellationToken);
-        var latestPhoto = await photos.GetPageAsync(before: null, 1, cancellationToken);
+        var lastFed = await store.GetLatestAsync(hidden, KingEventKind.Fed, cancellationToken);
+        var lastSeen = await store.GetLatestSightingAsync(hidden, cancellationToken);
+        var recent = await store.GetPageAsync(hidden, before: null, RecentCount, cancellationToken);
+        var view = await viewer.ViewsAsync([.. recent, .. new[] { lastFed, lastSeen }.OfType<KingEvent>()], cancellationToken);
+        var latestPhoto = await photos.GetPageAsync(hidden, before: null, 1, cancellationToken);
 
         return TypedResults.Ok(new KingStatus(
             lastFed is null ? null : view(lastFed),
             lastSeen is null ? null : view(lastSeen),
             [.. recent.Select(view)],
-            (await PhotoEndpoints.PhotoViews(latestPhoto, store, spots, photos, cancellationToken)).FirstOrDefault()));
-    }
-
-    // A street has a handful of spots; one read beats a lookup per event. Photos: one read for the events shown.
-    internal static async Task<Func<KingEvent, EventView>> EventViews(
-        ISpotStore spots, IPhotoStore photos, IReadOnlyCollection<KingEvent> events, CancellationToken cancellationToken)
-    {
-        var spotsById = (await spots.ListAsync(cancellationToken)).ToDictionary(s => s.Id);
-        var photoIds = (await photos.ForEventsAsync([.. events.Select(e => e.Id).Distinct()], cancellationToken))
-            .ToDictionary(p => p.EventId!, p => p.Id);
-        return e => EventView.From(e, e.SpotId is null ? null : spotsById.GetValueOrDefault(e.SpotId), photoIds.GetValueOrDefault(e.Id));
+            (await PhotoEndpoints.PhotoViews(viewer, latestPhoto, store, cancellationToken)).FirstOrDefault()));
     }
 
     private static async Task<Ok<HistoryPage>> GetHistory(
-        [AsParameters] HistoryQuery query, IKingEventStore store, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
+        [AsParameters] HistoryQuery query, HiddenSets hidden, IKingEventStore store, EventViewer viewer, CancellationToken cancellationToken)
     {
-        var limit = query.Limit ?? HistoryQuery.DefaultLimit;
+        var limit = query.Limit ?? Paging.DefaultLimit;
         // The validator has already checked that the cursor names an event.
         var before = query.Before is null ? null : await store.FindAsync(query.Before, cancellationToken);
-        // One extra tells whether an older page exists without a second query.
-        var events = await store.GetPageAsync(before, limit + 1, cancellationToken);
-        var page = events.Take(limit).ToList();
-        var view = await EventViews(spots, photos, page, cancellationToken);
+        var (page, next) = Paging.Page(await store.GetPageAsync(hidden, before, limit + 1, cancellationToken), limit, e => e.Id);
+        var view = await viewer.ViewsAsync(page, cancellationToken);
 
-        return TypedResults.Ok(new HistoryPage(
-            [.. page.Select(view)], events.Count > limit ? page[^1].Id : null));
+        return TypedResults.Ok(new HistoryPage([.. page.Select(view)], next));
     }
 
     private static async Task<Ok<HeatMap>> GetHeat(
-        [AsParameters] HeatQuery query, IKingEventStore store, ISpotStore spots, TimeProvider clock,
+        [AsParameters] HeatQuery query, HiddenSets hidden, IKingEventStore store, ISpotStore spots, TimeProvider clock,
         CancellationToken cancellationToken)
     {
         DateTimeOffset? since = query.Days is { } days ? clock.GetUtcNow().AddDays(-days) : null;
-        var spotsById = (await spots.ListAsync(cancellationToken)).ToDictionary(s => s.Id);
+        var spotsById = (await spots.ListAsync(hidden, cancellationToken)).ToDictionary(s => s.Id);
         var seen = query.Layer == HeatQuery.Seen;
         // A spot that no longer exists has no place to show.
-        var feedings = (await store.CountFeedingsBySpotAsync(since, seenOnly: seen, cancellationToken))
+        var feedings = (await store.CountFeedingsBySpotAsync(hidden, since, seenOnly: seen, cancellationToken))
             .Where(c => spotsById.ContainsKey(c.SpotId))
             .Select(c => (Spot: spotsById[c.SpotId], c.Count));
 
         IEnumerable<HeatCell> cells = seen
-            ? (await store.CountSightingsByPlaceAsync(since, cancellationToken))
+            ? (await store.CountSightingsByPlaceAsync(hidden, since, cancellationToken))
                 .Select(c => (c.Place, c.Count))
                 .Concat(feedings.Select(f => (Place: f.Spot.Location, f.Count)))
                 .GroupBy(c => c.Place, (place, group) => new HeatCell(place, group.Sum(c => c.Count), SpotName: null))
@@ -105,10 +92,10 @@ public static class KingEndpoints
     }
 
     private static async Task<Ok<HabitsView>> GetHabits(
-        [AsParameters] HabitsQuery query, IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken)
+        [AsParameters] HabitsQuery query, HiddenSets hidden, IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken)
     {
         DateTimeOffset? since = query.Days is { } days ? clock.GetUtcNow().AddDays(-days) : null;
-        var events = await store.GetPageAsync(null, HabitsView.MaxEntries, cancellationToken);
+        var events = await store.GetPageAsync(hidden, null, HabitsView.MaxEntries, cancellationToken);
         return TypedResults.Ok(new HabitsView([.. events.Select(HabitEntry.From)], HabitsView.CourtOf(events, since)));
     }
 
@@ -116,8 +103,8 @@ public static class KingEndpoints
     private static Results<Ok<MapView>, NotFound> GetMap(IOptions<MapOptions> options) =>
         options.Value.Center is { } center ? TypedResults.Ok(new MapView(center)) : TypedResults.NotFound();
 
-    private static async Task<Ok<SpotView[]>> ListSpots(ISpotStore spots, CancellationToken cancellationToken) =>
-        TypedResults.Ok((await spots.ListAsync(cancellationToken)).Select(SpotView.From).ToArray());
+    private static async Task<Ok<SpotView[]>> ListSpots(HiddenSets hidden, ISpotStore spots, CancellationToken cancellationToken) =>
+        TypedResults.Ok((await spots.ListAsync(hidden, cancellationToken)).Select(SpotView.From).ToArray());
 
     private static async Task<Created<SpotView>> AddSpot(
         AddSpotRequest request, ISpotStore spots, TimeProvider clock, CancellationToken cancellationToken)

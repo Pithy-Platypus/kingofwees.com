@@ -5,7 +5,7 @@ using KingOfWees.Server.Photos;
 namespace KingOfWees.Server.Tests.Photos;
 
 // Test double for API tests; held to the same PhotoStoreContract as the Mongo store.
-public sealed class InMemoryPhotoStore(IKingEventStore events, IHiddenReporterStore hiddenReporters) : IPhotoStore
+public sealed class InMemoryPhotoStore : IPhotoStore
 {
     private readonly ConcurrentDictionary<string, Photo> _photos = new();
     private readonly ConcurrentDictionary<string, bool> _hiddenIds = new();
@@ -21,23 +21,22 @@ public sealed class InMemoryPhotoStore(IKingEventStore events, IHiddenReporterSt
     public Task<Photo?> FindByEventAsync(string eventId, CancellationToken cancellationToken) =>
         Task.FromResult(_photos.Values.FirstOrDefault(p => p.EventId == eventId));
 
-    public Task<Photo?> FindVisibleAsync(string id, CancellationToken cancellationToken) =>
-        Task.FromResult(Visible().FirstOrDefault(p => p.Id == id));
+    public async Task<Photo?> FindVisibleAsync(HiddenSets hidden, string id, CancellationToken cancellationToken) =>
+        (await Visible(hidden, cancellationToken)).FirstOrDefault(p => p.Id == id);
 
     // Ordinal, like Mongo's string comparison.
-    public Task<IReadOnlyList<Photo>> GetPageAsync(Photo? before, int count, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Photo>>(
-        [
-            .. Visible()
-                .Where(p => before is null || p.PostedAt < before.PostedAt
-                    || (p.PostedAt == before.PostedAt && string.CompareOrdinal(p.Id, before.Id) < 0))
-                .OrderByDescending(p => p.PostedAt)
-                .ThenByDescending(p => p.Id, StringComparer.Ordinal)
-                .Take(count),
-        ]);
+    public async Task<IReadOnlyList<Photo>> GetPageAsync(HiddenSets hidden, Photo? before, int count, CancellationToken cancellationToken) =>
+    [
+        .. (await Visible(hidden, cancellationToken))
+            .Where(p => before is null || p.PostedAt < before.PostedAt
+                || (p.PostedAt == before.PostedAt && string.CompareOrdinal(p.Id, before.Id) < 0))
+            .OrderByDescending(p => p.PostedAt)
+            .ThenByDescending(p => p.Id, StringComparer.Ordinal)
+            .Take(count),
+    ];
 
-    public Task<IReadOnlyList<Photo>> ForEventsAsync(IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<Photo>>([.. Visible().Where(p => p.EventId is { } id && eventIds.Contains(id))]);
+    public async Task<IReadOnlyList<Photo>> ForEventsAsync(HiddenSets hidden, IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken) =>
+        [.. (await Visible(hidden, cancellationToken)).Where(p => p.EventId is { } id && eventIds.Contains(id))];
 
     public Task<bool> HideAsync(string id, PhotoHiding hiding, CancellationToken cancellationToken)
     {
@@ -67,10 +66,10 @@ public sealed class InMemoryPhotoStore(IKingEventStore events, IHiddenReporterSt
     public Task<bool> DeleteAsync(string id, CancellationToken cancellationToken) => Task.FromResult(_photos.TryRemove(id, out _));
 
     // What a visitor may see: not hidden, not from a hidden device, not on a hidden entry.
-    private IEnumerable<Photo> Visible()
+    private async Task<IEnumerable<Photo>> Visible(HiddenSets hidden, CancellationToken cancellationToken)
     {
-        var hiddenKeys = hiddenReporters.ListAsync(CancellationToken.None).Result.Select(h => h.ReporterKey).ToHashSet();
-        var hiddenEntries = events.GetHiddenEntriesAsync(CancellationToken.None).Result.Select(e => e.Id).ToHashSet();
+        var hiddenKeys = await hidden.DevicesAsync(cancellationToken);
+        var hiddenEntries = await hidden.EntriesAsync(cancellationToken);
         return _photos.Values.Where(p => !_hiddenIds.ContainsKey(p.Id)
             && !hiddenKeys.Contains(p.ReporterKey)
             && (p.EventId is null || !hiddenEntries.Contains(p.EventId)));

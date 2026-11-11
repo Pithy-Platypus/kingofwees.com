@@ -296,7 +296,7 @@ describe('HomeScreen — the “Last fed & seen” map', () => {
     renderInEnglish(<HomeScreen status={{ ...emptyStatus, lastFed: feeding, recent: [feeding] }} mapCenter={CENTER} now={NOW} onFed={noop} onSeen={noop} />);
     await screen.findByRole('region', { name: 'Last fed & seen' });
 
-    const map = create.mock.results[0].value as L.Map;
+    const map = create.mock.results[0]!.value as L.Map;
     expect(map.dragging.enabled()).toBe(false);
     expect(map.options.scrollWheelZoom).toBe('center');
     create.mockRestore();
@@ -311,8 +311,8 @@ describe('HomeScreen — undoing one’s own entries', () => {
   it('offers Undo in Lately only on this device’s own recent entries', () => {
     renderInEnglish(<HomeScreen status={status} now={NOW} onFed={noop} onSeen={noop} own={fakeOwnUndo(['mine'])} />);
 
-    expect(within(lately()[0]).getByRole('button', { name: 'Undo' })).toBeInTheDocument();
-    expect(within(lately()[1]).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(lately()[0]!).getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(within(lately()[1]!).queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('undoes after asking, then says so and lets Home load again', async () => {
@@ -321,7 +321,7 @@ describe('HomeScreen — undoing one’s own entries', () => {
     renderInEnglish(<HomeScreen status={status} now={NOW} onFed={noop} onSeen={noop} own={own} onUndone={onUndone} />);
     expect(screen.queryByText('Your entry was undone.')).not.toBeInTheDocument();
 
-    await userEvent.click(within(lately()[0]).getByRole('button', { name: 'Undo' }));
+    await userEvent.click(within(lately()[0]!).getByRole('button', { name: 'Undo' }));
     await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
 
     expect(own.undoEntry).toHaveBeenCalledWith('mine');

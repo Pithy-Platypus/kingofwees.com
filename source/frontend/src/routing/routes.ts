@@ -23,8 +23,8 @@ export function routeFromPath(pathname: string): Route {
 export const photoPath = (id: string) => `${paths.photos}/${encodeURIComponent(id)}`;
 
 export function photoIdFromPath(pathname: string): string | null {
-  const match = /^\/photos\/([^/]+)$/.exec(pathname);
-  return match ? decodeURIComponent(match[1]) : null;
+  const id = /^\/photos\/([^/]+)$/.exec(pathname)?.[1];
+  return id === undefined ? null : decodeURIComponent(id);
 }
 
 /** The photo the address names, following the browser's Back and Forward (and the page's own pushes, which announce themselves). */

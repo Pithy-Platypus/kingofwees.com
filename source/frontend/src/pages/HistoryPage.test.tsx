@@ -258,7 +258,7 @@ describe('HistoryPage — hiding, for admins', () => {
     );
     return { api, adminApi, onRejected };
   };
-  const firstEntry = async () => within((await screen.findAllByRole('listitem'))[0]);
+  const firstEntry = async () => within((await screen.findAllByRole('listitem'))[0]!);
   const withPhoto = { events: [event({ id: 'e1', kind: 'seen', photoId: 'p1' }), event({ id: 'e2' })], next: null };
 
   it('offers nothing to visitors', async () => {
@@ -328,8 +328,8 @@ describe('HistoryPage — hiding, for admins', () => {
     renderAsAdmin(fakeAdminApi(), fakeApi(undefined, { history: withPhoto }));
 
     const [first, second] = (await screen.findAllByRole('listitem')).map((li) => within(li));
-    expect(first.getByRole('button', { name: 'Hide this photo' })).toBeInTheDocument();
-    expect(second.queryByRole('button', { name: 'Hide this photo' })).not.toBeInTheDocument();
+    expect(first!.getByRole('button', { name: 'Hide this photo' })).toBeInTheDocument();
+    expect(second!.queryByRole('button', { name: 'Hide this photo' })).not.toBeInTheDocument();
   });
 
   it('hides just the photo after asking, then reloads the log', async () => {
@@ -395,8 +395,8 @@ describe('HistoryPage — undoing one’s own entries', () => {
     renderInEnglish(<HistoryPage api={fakeApi(undefined, { history })} spots={[]} mapCenter={null} now={NOW} own={fakeOwnUndo(['mine'])} />);
 
     const [mine, theirs] = await entries();
-    expect(mine.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
-    expect(theirs.queryByRole('button')).not.toBeInTheDocument();
+    expect(mine!.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(theirs!.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('undoes after asking, then shows the log without it, says so and lets Home load again', async () => {
@@ -407,7 +407,7 @@ describe('HistoryPage — undoing one’s own entries', () => {
 
     const [mine] = await entries();
     expect(screen.queryByText('Your entry was undone.')).not.toBeInTheDocument();
-    await userEvent.click(mine.getByRole('button', { name: 'Undo' }));
+    await userEvent.click(mine!.getByRole('button', { name: 'Undo' }));
     expect(screen.getByText('Undo this feeding?')).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
 
@@ -415,6 +415,33 @@ describe('HistoryPage — undoing one’s own entries', () => {
     await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
     expect(onUndone).toHaveBeenCalledOnce();
     expect(screen.getByText('Your entry was undone.')).toHaveFocus();
+  });
+
+  it('keeps the latest page when the reload after an earlier undo arrives late', async () => {
+    const both = { events: [event({ id: 'a' }), event({ id: 'b' })], next: null };
+    const api = fakeApi(undefined, { history: both });
+    let answerStale: (page: HistoryPageData) => void = () => {};
+    api.getHistory.mockResolvedValueOnce(both);
+    api.getHistory.mockImplementationOnce(() => new Promise((resolve) => (answerStale = resolve)));
+    api.getHistory.mockResolvedValueOnce({ events: [], next: null });
+    renderInEnglish(<HistoryPage api={api} spots={[]} mapCenter={null} now={NOW} own={fakeOwnUndo(['a', 'b'])} />);
+
+    const undo = async (item: ReturnType<typeof within>) => {
+      await userEvent.click(item.getByRole('button', { name: 'Undo' }));
+      await userEvent.click(item.getByRole('button', { name: 'Undo it' }));
+    };
+    const [a, b] = await entries();
+    await undo(a);
+    await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(2));
+    await undo(b);
+    await waitFor(() => expect(api.getHistory).toHaveBeenCalledTimes(3));
+    expect(await screen.findByText('Nothing logged yet.')).toBeInTheDocument();
+
+    // The page from before the second undo still lists b: it must not land.
+    answerStale({ events: [event({ id: 'b' })], next: null });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText('Nothing logged yet.')).toBeInTheDocument();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
   it('gives an admin’s own entry both Undo and the admin’s buttons', async () => {
@@ -430,8 +457,8 @@ describe('HistoryPage — undoing one’s own entries', () => {
     );
 
     const [mine, theirs] = await entries();
-    expect(mine.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
-    expect(mine.getByRole('button', { name: 'Hide this entry' })).toBeInTheDocument();
-    expect(theirs.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    expect(mine!.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(mine!.getByRole('button', { name: 'Hide this entry' })).toBeInTheDocument();
+    expect(theirs!.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
 });

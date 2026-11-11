@@ -21,14 +21,16 @@ public sealed class KingApiFactory(int writesPerMinute = 100, params (string Key
 
     public InMemoryHiddenReporterStore Hidden { get; } = new();
 
-    // Both read Hidden, so a device hidden there leaves their reads.
-    public InMemoryKingEventStore Store => field ??= new(Hidden);
+    public InMemoryKingEventStore Store { get; } = new();
 
-    public InMemorySpotStore Spots => field ??= new(Hidden);
+    public InMemorySpotStore Spots { get; } = new();
 
     public InMemoryAdminLogStore AdminLog { get; } = new();
 
-    public InMemoryPhotoStore Photos => field ??= new(Store, Hidden);
+    public InMemoryPhotoStore Photos { get; } = new();
+
+    // What one request's public reads leave out: fresh each time, as each request's is.
+    public HiddenSets Sets => new(Hidden, Store);
 
     public InMemoryPhotoBlobStore PhotoFiles { get; } = new();
 

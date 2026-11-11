@@ -31,17 +31,12 @@ public sealed class AdminRenameSpotApiTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await _factory.DisposeAsync();
 
-    private async Task<string> Log(string path, object body)
-    {
-        var response = await _public.PostAsJsonAsync(path, body, Ct);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetString()!;
-    }
+    private Task<string> Log(string path, object body) => _public.LogAsync(path, body, Ct);
 
     // The spot list is oldest first; places added in the same instant would come back in any order.
     private async Task<string> AddSpot(string name)
     {
-        var id = await Log("/api/king/spots", new { reporterKey = Neighbor, name, location = new { latitude = 45.523, longitude = -122.677 } });
+        var id = await _public.AddSpotAsync(Neighbor, name, Ct);
         _factory.Clock.Advance(TimeSpan.FromMinutes(1));
         return id;
     }

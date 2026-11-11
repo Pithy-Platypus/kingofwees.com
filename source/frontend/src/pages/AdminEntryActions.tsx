@@ -116,7 +116,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
   if (step.name === 'entry' || step.name === 'device') {
     return (
       <>
-        <p ref={question} tabIndex={-1} className="admin-question">
+        <p ref={question} tabIndex={-1} className="confirm-question">
           {step.name === 'entry' && <FormattedMessage {...m.confirmEntry} />}
           {step.name === 'device' && (
             <FormattedMessage
@@ -129,7 +129,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
             />
           )}
         </p>
-        <div className="admin-buttons">
+        <div className="confirm-buttons">
           <button type="button" className="admin-confirm-button" disabled={busy} onClick={() => void hide()}>
             <FormattedMessage {...{ entry: m.yesEntry, device: m.yesDevice }[step.name]} />
           </button>
@@ -148,7 +148,7 @@ export function AdminEntryActions({ event, admin, onHidden }: Props) {
           <FormattedMessage {...adminMessages.failed} />
         </div>
       )}
-      <div className="admin-buttons">
+      <div className="confirm-buttons">
         <button
           ref={entryButton}
           type="button"

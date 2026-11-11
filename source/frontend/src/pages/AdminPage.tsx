@@ -584,7 +584,7 @@ function MergeForm({ api, signIn, onSignIn, places, onMerged, onCancel }: MergeF
               ref={p.id === keepId ? keepRadio : undefined}
               type="radio"
               name={group}
-              className="merge-radio"
+              className="choice-radio"
               checked={p.id === keepId}
               onChange={() => setKeepId(p.id)}
             />
@@ -608,7 +608,7 @@ function MergeForm({ api, signIn, onSignIn, places, onMerged, onCancel }: MergeF
           <FormattedMessage {...problem} />
         </div>
       )}
-      <p className="admin-question">
+      <p className="confirm-question">
         <FormattedMessage
           {...m.mergeConfirm}
           values={{
@@ -623,7 +623,7 @@ function MergeForm({ api, signIn, onSignIn, places, onMerged, onCancel }: MergeF
           <FormattedMessage {...m.mergeRenamed} values={{ kept: kept.name, name }} />
         </p>
       )}
-      <div className="admin-buttons">
+      <div className="confirm-buttons">
         <button type="submit" className="admin-confirm-button" disabled={busy}>
           <FormattedMessage {...m.merge} />
         </button>
@@ -689,7 +689,7 @@ function RenameForm({ api, signIn, onSignIn, spot, onSaved, onCancel }: RenameFo
           <FormattedMessage {...problem} />
         </div>
       )}
-      <div className="admin-buttons">
+      <div className="confirm-buttons">
         <button type="submit" className="admin-confirm-button" disabled={busy}>
           <FormattedMessage {...m.save} />
         </button>
@@ -844,7 +844,7 @@ function HiddenLists({ api, signIn, onSignIn, spots, onSpotRenamed, onSpotsMerge
                   spots={spots}
                   time={timeOf(e)}
                   actions={
-                    <div className="admin-buttons">
+                    <div className="confirm-buttons">
                       <button type="button" className="admin-button" onClick={() => void showAgain(e.id)}>
                         <FormattedMessage {...m.showAgain} />
                       </button>

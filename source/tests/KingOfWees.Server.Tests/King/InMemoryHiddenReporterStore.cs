@@ -18,4 +18,7 @@ public sealed class InMemoryHiddenReporterStore : IHiddenReporterStore
     public Task<IReadOnlyList<HiddenReporter>> ListAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<HiddenReporter>>(
             [.. _byKey.Values.OrderByDescending(h => h.HiddenAt).ThenByDescending(h => h.Id, StringComparer.Ordinal)]);
+
+    public Task<IReadOnlySet<string>> ListKeysAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlySet<string>>(_byKey.Keys.ToHashSet());
 }

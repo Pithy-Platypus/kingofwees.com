@@ -26,12 +26,7 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await _factory.DisposeAsync();
 
-    private static IEnumerable<string?> ErrorCodes(JsonElement problem) =>
-        problem.GetProperty("errors").EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString());
-
-    private async Task<string> LoggedSighting(string device = DeviceKey) =>
-        (await (await _client.PostAsJsonAsync("/api/king/sightings", new { reporterKey = device, reporterName = "Sarah" }, Ct))
-            .Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetString()!;
+    private Task<string> LoggedSighting(string device = DeviceKey) => _client.SeeAsync(device, "Sarah", Ct);
 
     // Straight into the stores, a minute apart, so the order is the clock's.
     private async Task<Photo> Stored(string? eventId = null, string device = DeviceKey)
@@ -218,7 +213,7 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
         var response = await _client.GetAsync($"/api/king/photos{query}", Ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal([code], ErrorCodes(await response.Content.ReadFromJsonAsync<JsonElement>(Ct)));
+        Assert.Equal([code], (await response.JsonAsync(Ct)).ErrorCodes());
     }
 
     [Fact]

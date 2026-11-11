@@ -4,7 +4,7 @@ using MongoDB.Driver;
 namespace KingOfWees.Server.King;
 
 // ListAsync leaves out spots from hidden devices; FindAsync deliberately doesn't.
-public sealed class MongoSpotStore(IMongoDatabase database, IHiddenReporterStore hiddenReporters) : ISpotStore
+public sealed class MongoSpotStore(IMongoDatabase database) : ISpotStore
 {
     private readonly IMongoCollection<SpotDocument> _spots = database.GetCollection<SpotDocument>("spots");
 
@@ -35,10 +35,9 @@ public sealed class MongoSpotStore(IMongoDatabase database, IHiddenReporterStore
     public async Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) =>
         (int)await _spots.CountDocumentsAsync(s => s.ReporterKey == reporterKey, cancellationToken: cancellationToken);
 
-    public async Task<IReadOnlyList<Spot>> ListAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Spot>> ListAsync(HiddenSets hidden, CancellationToken cancellationToken)
     {
-        var hiddenKeys = (await hiddenReporters.ListAsync(cancellationToken)).Select(h => h.ReporterKey);
-        var documents = await _spots.Find(Builders<SpotDocument>.Filter.Nin(s => s.ReporterKey, hiddenKeys))
+        var documents = await _spots.Find(Builders<SpotDocument>.Filter.Nin(s => s.ReporterKey, await hidden.DevicesAsync(cancellationToken)))
             .SortBy(s => s.CreatedAtUtc)
             .ToListAsync(cancellationToken);
         return documents.ConvertAll(d => d.ToSpot());
@@ -77,7 +76,7 @@ public sealed class MongoSpotStore(IMongoDatabase database, IHiddenReporterStore
             Id,
             Name,
             new GeoPoint(Latitude, Longitude),
-            new DateTimeOffset(DateTime.SpecifyKind(CreatedAtUtc, DateTimeKind.Utc)),
+            BsonTime.Utc(CreatedAtUtc),
             ReporterKey);
     }
 }

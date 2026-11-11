@@ -7,7 +7,6 @@ public sealed class MongoSpotStoreTests(MongoAppFixture mongo) : SpotStoreContra
     protected override (ISpotStore Spots, IHiddenReporterStore Hidden) CreateStores()
     {
         var database = mongo.NewDatabase();
-        var hidden = new MongoHiddenReporterStore(database);
-        return (new MongoSpotStore(database, hidden), hidden);
+        return (new MongoSpotStore(database), new MongoHiddenReporterStore(database));
     }
 }

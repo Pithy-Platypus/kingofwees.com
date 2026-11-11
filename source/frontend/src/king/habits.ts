@@ -1,4 +1,5 @@
 import type { Food, HabitEntry } from './api';
+import { CONTENT_HOURS } from './time';
 
 export type HourCount = { fed: number; seen: number };
 export type FedDay = { date: Date; fed: boolean };
@@ -13,8 +14,6 @@ export const CALENDAR_DAYS = 35;
 
 const FOODS: Food[] = ['wet', 'dry', 'treats'];
 
-/** Home's threshold: content for this long after a feeding (`kingMood` in time.ts). */
-export const CONTENT_HOURS = 12;
 const HOUR = 3600 * 1000;
 
 // Hours and days are the reader's own, as in the log; the server holds UTC and knows no zone.
@@ -24,13 +23,15 @@ export function byHour(entries: HabitEntry[]): HourCount[] {
   const hours = Array.from({ length: 24 }, (): HourCount => ({ fed: 0, seen: 0 }));
   for (const e of entries) {
     const hour = hours[new Date(e.occurredAt).getHours()];
+    if (hour === undefined) continue;
     if (e.kind === 'fed') hour.fed++;
     if (e.sawKing) hour.seen++;
   }
   return hours;
 }
 
-const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+/** One local calendar day as a key: two dates share it when they fall on the reader's same day. */
+export const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
 /** The last CALENDAR_DAYS local days ending today, oldest first, with whether King was fed on each, and the runs. */
 export function fedDays(entries: HabitEntry[], now: Date): FedDays {
@@ -50,9 +51,9 @@ export function fedDays(entries: HabitEntry[], now: Date): FedDays {
 
   // Before today's first meal the run isn't broken yet: it then counts back from yesterday.
   let end = days.length - 1;
-  if (!days[end].fed) end--;
+  if (!days[end]?.fed) end--;
   let currentRun = 0;
-  while (end >= 0 && days[end].fed) {
+  while (days[end]?.fed) {
     currentRun++;
     end--;
   }

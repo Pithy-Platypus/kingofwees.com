@@ -4,8 +4,8 @@ using MongoDB.Driver;
 
 namespace KingOfWees.Server.Photos;
 
-// Public reads go through Visible(); FindAsync and FindByEventAsync deliberately don't.
-public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore events, IHiddenReporterStore hiddenReporters) : IPhotoStore
+// Public reads go through Visible(hidden); FindAsync and FindByEventAsync deliberately don't.
+public sealed class MongoPhotoStore(IMongoDatabase database) : IPhotoStore
 {
     private readonly IMongoCollection<PhotoDocument> _photos = database.GetCollection<PhotoDocument>("photos");
 
@@ -18,18 +18,16 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
     public async Task<Photo?> FindByEventAsync(string eventId, CancellationToken cancellationToken) =>
         (await _photos.Find(p => p.EventId == eventId).FirstOrDefaultAsync(cancellationToken))?.ToPhoto();
 
-    public async Task<Photo?> FindVisibleAsync(string id, CancellationToken cancellationToken) =>
-        (await _photos.Find(await Visible(cancellationToken) & Builders<PhotoDocument>.Filter.Eq(p => p.Id, id))
+    public async Task<Photo?> FindVisibleAsync(HiddenSets hidden, string id, CancellationToken cancellationToken) =>
+        (await _photos.Find(await Visible(hidden, cancellationToken) & Builders<PhotoDocument>.Filter.Eq(p => p.Id, id))
             .FirstOrDefaultAsync(cancellationToken))?.ToPhoto();
 
-    public async Task<IReadOnlyList<Photo>> GetPageAsync(Photo? before, int count, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Photo>> GetPageAsync(HiddenSets hidden, Photo? before, int count, CancellationToken cancellationToken)
     {
-        var filter = Builders<PhotoDocument>.Filter;
         var olderThanBefore = before is null
-            ? filter.Empty
-            : filter.Lt(p => p.PostedAtUtc, before.PostedAt.UtcDateTime)
-              | (filter.Eq(p => p.PostedAtUtc, before.PostedAt.UtcDateTime) & filter.Lt(p => p.Id, before.Id));
-        var documents = await _photos.Find(await Visible(cancellationToken) & olderThanBefore)
+            ? FilterDefinition<PhotoDocument>.Empty
+            : Paging.OlderThan<PhotoDocument>(p => p.PostedAtUtc, p => p.Id, before.PostedAt.UtcDateTime, before.Id);
+        var documents = await _photos.Find(await Visible(hidden, cancellationToken) & olderThanBefore)
             .SortByDescending(p => p.PostedAtUtc)
             .ThenByDescending(p => p.Id)
             .Limit(count)
@@ -37,9 +35,9 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
         return documents.ConvertAll(d => d.ToPhoto());
     }
 
-    public async Task<IReadOnlyList<Photo>> ForEventsAsync(IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Photo>> ForEventsAsync(HiddenSets hidden, IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken)
     {
-        var documents = await _photos.Find(await Visible(cancellationToken) & Builders<PhotoDocument>.Filter.In(p => p.EventId, eventIds))
+        var documents = await _photos.Find(await Visible(hidden, cancellationToken) & Builders<PhotoDocument>.Filter.In(p => p.EventId, eventIds))
             .ToListAsync(cancellationToken);
         return documents.ConvertAll(d => d.ToPhoto());
     }
@@ -79,12 +77,12 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
         (await _photos.DeleteOneAsync(p => p.Id == id, cancellationToken)).DeletedCount == 1;
 
     // Not hidden itself, not from a hidden device, not on a hidden entry (a shared photo's null EventId is never in the list).
-    private async Task<FilterDefinition<PhotoDocument>> Visible(CancellationToken cancellationToken)
+    private static async Task<FilterDefinition<PhotoDocument>> Visible(HiddenSets hidden, CancellationToken cancellationToken)
     {
-        var hiddenKeys = (await hiddenReporters.ListAsync(cancellationToken)).Select(h => h.ReporterKey);
-        var hiddenEntries = (await events.GetHiddenEntriesAsync(cancellationToken)).Select(e => e.Id);
         var filter = Builders<PhotoDocument>.Filter;
-        return filter.Ne(p => p.Hidden, true) & filter.Nin(p => p.ReporterKey, hiddenKeys) & filter.Nin(p => p.EventId, hiddenEntries);
+        return filter.Ne(p => p.Hidden, true)
+            & filter.Nin(p => p.ReporterKey, await hidden.DevicesAsync(cancellationToken))
+            & filter.Nin(p => p.EventId, await hidden.EntriesAsync(cancellationToken));
     }
 
     // Storage shape: time as a BSON UTC date.
@@ -114,11 +112,9 @@ public sealed class MongoPhotoStore(IMongoDatabase database, IKingEventStore eve
         };
 
         public Photo ToPhoto() =>
-            new(Id, EventId, Utc(PostedAtUtc), ReporterKey, ReporterName,
+            new(Id, EventId, BsonTime.Utc(PostedAtUtc), ReporterKey, ReporterName,
                 Hidden && HiddenReason is not null && HiddenAtUtc is { } at
-                    ? new PhotoHiding(Enum.Parse<HideReason>(HiddenReason), HiddenNote, Utc(at), HiddenBy)
+                    ? new PhotoHiding(Enum.Parse<HideReason>(HiddenReason), HiddenNote, BsonTime.Utc(at), HiddenBy)
                     : null);
-
-        private static DateTimeOffset Utc(DateTime time) => new(DateTime.SpecifyKind(time, DateTimeKind.Utc));
     }
 }

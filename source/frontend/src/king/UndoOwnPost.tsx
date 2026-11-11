@@ -42,10 +42,10 @@ export function UndoOwnPost({ what, onConfirm, onDone }: Props) {
     const sending = step === 'sending';
     return (
       <>
-        <p ref={question} tabIndex={-1} className="own-question">
+        <p ref={question} tabIndex={-1} className="confirm-question">
           <FormattedMessage {...ownMessages.confirm} values={{ what }} />
         </p>
-        <div className="own-buttons">
+        <div className="confirm-buttons">
           <button type="button" className="own-confirm-button" disabled={sending} onClick={() => void confirm()}>
             <FormattedMessage {...ownMessages.yes} values={{ what }} />
           </button>
@@ -72,7 +72,7 @@ export function UndoOwnPost({ what, onConfirm, onDone }: Props) {
           <FormattedMessage {...ownMessages.failed} values={{ what }} />
         </div>
       )}
-      <div className="own-buttons">
+      <div className="confirm-buttons">
         <button ref={button} type="button" className="own-button" onClick={() => setStep('asking')}>
           <FormattedMessage {...(what === 'photo' ? ownMessages.remove : ownMessages.undo)} />
         </button>

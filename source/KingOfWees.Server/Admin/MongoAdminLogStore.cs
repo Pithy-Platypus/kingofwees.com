@@ -26,11 +26,9 @@ public sealed class MongoAdminLogStore(IMongoDatabase database) : IAdminLogStore
 
     public async Task<IReadOnlyList<AdminLogRecord>> GetPageAsync(AdminLogRecord? before, int count, CancellationToken cancellationToken)
     {
-        var filter = Builders<AdminLogDocument>.Filter;
         var olderThanBefore = before is null
-            ? filter.Empty
-            : filter.Lt(r => r.AtUtc, before.At.UtcDateTime)
-              | (filter.Eq(r => r.AtUtc, before.At.UtcDateTime) & filter.Lt(r => r.Id, before.Id));
+            ? FilterDefinition<AdminLogDocument>.Empty
+            : Paging.OlderThan<AdminLogDocument>(r => r.AtUtc, r => r.Id, before.At.UtcDateTime, before.Id);
         var documents = await _log.Find(olderThanBefore)
             .SortByDescending(r => r.AtUtc)
             .ThenByDescending(r => r.Id)
@@ -97,7 +95,7 @@ public sealed class MongoAdminLogStore(IMongoDatabase database) : IAdminLogStore
 
         public AdminLogRecord ToRecord() => new(
             Id,
-            Utc(AtUtc),
+            BsonTime.Utc(AtUtc),
             Enum.Parse<AdminAction>(Action),
             AdminName,
             Address,
@@ -106,14 +104,12 @@ public sealed class MongoAdminLogStore(IMongoDatabase database) : IAdminLogStore
                 Entries,
                 Spots,
                 EntryKind is null ? null : Enum.Parse<KingEventKind>(EntryKind),
-                EntryAtUtc is { } entryAt ? Utc(entryAt) : null,
+                EntryAtUtc is { } entryAt ? BsonTime.Utc(entryAt) : null,
                 PlaceName,
                 NewName,
                 MergedNames,
                 Feedings,
                 Reason is null ? null : Enum.Parse<HideReason>(Reason),
                 Note));
-
-        private static DateTimeOffset Utc(DateTime time) => new(DateTime.SpecifyKind(time, DateTimeKind.Utc));
     }
 }

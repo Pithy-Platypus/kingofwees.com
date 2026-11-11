@@ -11,6 +11,11 @@ public abstract class PhotoStoreContract
     // All three share state: photos leave out what the hidden-reporter and event stores hide.
     protected abstract (IPhotoStore Photos, IKingEventStore Events, IHiddenReporterStore Hidden) CreateStores();
 
+    // One triple per test (xunit makes a new instance per test); Sets() is what a request's reads get: a fresh view of them.
+    private (IPhotoStore Photos, IKingEventStore Events, IHiddenReporterStore Hidden)? _stores;
+    private (IPhotoStore Photos, IKingEventStore Events, IHiddenReporterStore Hidden) Stores => _stores ??= CreateStores();
+    private HiddenSets Sets() => new(Stores.Hidden, Stores.Events);
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static Photo NewPhoto(int minutesAfterT0, string? eventId = null, string device = "device-key-1") =>
@@ -19,7 +24,7 @@ public abstract class PhotoStoreContract
     private static KingEvent NewSighting(string device = "device-key-1") =>
         new(Guid.CreateVersion7().ToString(), KingEventKind.Seen, T0, device, "Sarah", [], true, null, null);
 
-    private static async Task<IReadOnlyList<Photo>> FirstPage(IPhotoStore photos) => await photos.GetPageAsync(null, 50, Ct);
+    private async Task<IReadOnlyList<Photo>> FirstPage(IPhotoStore photos) => await photos.GetPageAsync(Sets(), null, 50, Ct);
 
     private static PhotoHiding Because(HideReason reason = HideReason.NotKing, string? note = null) =>
         new(reason, note, T0.AddDays(1), "Wallie");
@@ -27,7 +32,7 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task Added_photos_are_found_by_id_with_every_field_intact()
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
         var shared = NewPhoto(0) with { ReporterName = null };
         var onEntry = NewPhoto(1, eventId: "event-1");
 
@@ -42,15 +47,15 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task Pages_are_newest_first_and_ties_never_skip_or_repeat()
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
         var oldest = NewPhoto(0);
         var tied = Enumerable.Range(0, 3).Select(_ => NewPhoto(5)).ToList();
         var newest = NewPhoto(10);
         foreach (var photo in tied.Prepend(oldest).Append(newest)) await photos.AddAsync(photo, Ct);
 
-        var first = await photos.GetPageAsync(null, 2, Ct);
-        var second = await photos.GetPageAsync(first[^1], 2, Ct);
-        var third = await photos.GetPageAsync(second[^1], 2, Ct);
+        var first = await photos.GetPageAsync(Sets(), null, 2, Ct);
+        var second = await photos.GetPageAsync(Sets(), first[^1], 2, Ct);
+        var third = await photos.GetPageAsync(Sets(), second[^1], 2, Ct);
 
         var tiedNewestFirst = tied.OrderByDescending(p => p.Id, StringComparer.Ordinal).ToList();
         Assert.Equal([newest, .. tiedNewestFirst, oldest], [.. first, .. second, .. third]);
@@ -59,7 +64,7 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task A_hidden_photo_leaves_public_reads_until_shown_again()
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
         var hidden = NewPhoto(0, eventId: "event-1");
         var kept = NewPhoto(1);
         await photos.AddAsync(hidden, Ct);
@@ -68,20 +73,20 @@ public abstract class PhotoStoreContract
         Assert.True(await photos.HideAsync(hidden.Id, Because(), Ct));
 
         Assert.Equal([kept], await FirstPage(photos));
-        Assert.Null(await photos.FindVisibleAsync(hidden.Id, Ct));
-        Assert.Empty(await photos.ForEventsAsync(["event-1"], Ct));
+        Assert.Null(await photos.FindVisibleAsync(Sets(), hidden.Id, Ct));
+        Assert.Empty(await photos.ForEventsAsync(Sets(), ["event-1"], Ct));
         Assert.Equal(hidden with { Hiding = Because() }, await photos.FindAsync(hidden.Id, Ct));
         Assert.Equal(hidden with { Hiding = Because() }, await photos.FindByEventAsync("event-1", Ct));
 
         Assert.True(await photos.ShowAsync(hidden.Id, Ct));
         Assert.Equal([kept, hidden], await FirstPage(photos));
-        Assert.Equal(hidden, await photos.FindVisibleAsync(hidden.Id, Ct));
+        Assert.Equal(hidden, await photos.FindVisibleAsync(Sets(), hidden.Id, Ct));
     }
 
     [Fact]
     public async Task The_hidden_list_has_photos_hidden_one_by_one_newest_first_whatever_their_device()
     {
-        var (photos, _, hidden) = CreateStores();
+        var (photos, _, hidden) = Stores;
         var older = NewPhoto(0, device: "spammer");
         var newer = NewPhoto(1, eventId: "event-1");
         var shownAgain = NewPhoto(2);
@@ -99,7 +104,7 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task Hiding_or_showing_an_unknown_photo_reports_false()
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
 
         Assert.False(await photos.HideAsync(Guid.CreateVersion7().ToString(), Because(), Ct));
         Assert.False(await photos.ShowAsync(Guid.CreateVersion7().ToString(), Ct));
@@ -113,7 +118,7 @@ public abstract class PhotoStoreContract
     [InlineData(HideReason.Other, "a blurry thumb")]
     public async Task A_hidden_photo_keeps_why_when_and_by_whom_until_it_is_shown_again(HideReason reason, string? note)
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
         var photo = NewPhoto(0);
         await photos.AddAsync(photo, Ct);
 
@@ -129,7 +134,7 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task Photos_from_a_hidden_device_leave_public_reads_even_ones_posted_later()
     {
-        var (photos, _, hidden) = CreateStores();
+        var (photos, _, hidden) = Stores;
         var before = NewPhoto(0, device: "spammer");
         var kept = NewPhoto(1);
         await photos.AddAsync(before, Ct);
@@ -139,14 +144,14 @@ public abstract class PhotoStoreContract
         await photos.AddAsync(after, Ct);
 
         Assert.Equal([kept], await FirstPage(photos));
-        Assert.Null(await photos.FindVisibleAsync(before.Id, Ct));
-        Assert.Empty(await photos.ForEventsAsync(["event-1"], Ct));
+        Assert.Null(await photos.FindVisibleAsync(Sets(), before.Id, Ct));
+        Assert.Empty(await photos.ForEventsAsync(Sets(), ["event-1"], Ct));
     }
 
     [Fact]
     public async Task A_photo_on_a_hidden_entry_leaves_public_reads_and_comes_back_with_it()
     {
-        var (photos, events, _) = CreateStores();
+        var (photos, events, _) = Stores;
         var entry = NewSighting();
         await events.AddAsync(entry, Ct);
         var onEntry = NewPhoto(0, eventId: entry.Id);
@@ -157,8 +162,8 @@ public abstract class PhotoStoreContract
         await events.SetHiddenAsync(entry.Id, true, Ct);
 
         Assert.Equal([shared], await FirstPage(photos));
-        Assert.Null(await photos.FindVisibleAsync(onEntry.Id, Ct));
-        Assert.Empty(await photos.ForEventsAsync([entry.Id], Ct));
+        Assert.Null(await photos.FindVisibleAsync(Sets(), onEntry.Id, Ct));
+        Assert.Empty(await photos.ForEventsAsync(Sets(), [entry.Id], Ct));
 
         await events.SetHiddenAsync(entry.Id, false, Ct);
         Assert.Equal([shared, onEntry], await FirstPage(photos));
@@ -167,7 +172,7 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task For_events_gives_only_the_photos_on_those_entries()
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
         var first = NewPhoto(0, eventId: "event-1");
         var second = NewPhoto(1, eventId: "event-2");
         await photos.AddAsync(first, Ct);
@@ -175,7 +180,7 @@ public abstract class PhotoStoreContract
         await photos.AddAsync(NewPhoto(2, eventId: "event-3"), Ct);
         await photos.AddAsync(NewPhoto(3), Ct);
 
-        var found = await photos.ForEventsAsync(["event-1", "event-2", "event-unknown"], Ct);
+        var found = await photos.ForEventsAsync(Sets(), ["event-1", "event-2", "event-unknown"], Ct);
 
         Assert.Equal([first, second], found.OrderBy(p => p.PostedAt));
     }
@@ -183,7 +188,7 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task Find_by_event_gives_the_entry_s_photo_or_null()
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
         var onEntry = NewPhoto(0, eventId: "event-1");
         await photos.AddAsync(onEntry, Ct);
         await photos.AddAsync(NewPhoto(1), Ct);
@@ -195,7 +200,7 @@ public abstract class PhotoStoreContract
     [Fact]
     public async Task Delete_removes_the_photo_and_reports_whether_it_existed()
     {
-        var (photos, _, _) = CreateStores();
+        var (photos, _, _) = Stores;
         var deleted = NewPhoto(0);
         var kept = NewPhoto(1);
         await photos.AddAsync(deleted, Ct);

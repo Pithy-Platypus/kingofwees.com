@@ -4,7 +4,7 @@ using KingOfWees.Server.King;
 namespace KingOfWees.Server.Tests.King;
 
 // Test double for API tests; held to the same KingEventStoreContract as the Mongo store.
-public sealed class InMemoryKingEventStore(IHiddenReporterStore hiddenReporters) : IKingEventStore
+public sealed class InMemoryKingEventStore : IKingEventStore
 {
     private readonly ConcurrentDictionary<string, KingEvent> _events = new();
     private readonly ConcurrentDictionary<string, bool> _hiddenIds = new();
@@ -21,49 +21,49 @@ public sealed class InMemoryKingEventStore(IHiddenReporterStore hiddenReporters)
     public Task<IReadOnlyList<KingEvent>> FindManyAsync(IReadOnlyCollection<string> ids, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<KingEvent>>([.. ids.Distinct().Select(_events.GetValueOrDefault).OfType<KingEvent>()]);
 
-    public Task<KingEvent?> GetLatestAsync(KingEventKind kind, CancellationToken cancellationToken) =>
-        Task.FromResult(Visible().Where(e => e.Kind == kind).MaxBy(e => e.OccurredAt));
+    public async Task<KingEvent?> GetLatestAsync(HiddenSets hidden, KingEventKind kind, CancellationToken cancellationToken) =>
+        (await Visible(hidden, cancellationToken)).Where(e => e.Kind == kind).MaxBy(e => e.OccurredAt);
 
-    public Task<KingEvent?> GetLatestSightingAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(Visible().Where(e => e.SawKing).MaxBy(e => e.OccurredAt));
+    public async Task<KingEvent?> GetLatestSightingAsync(HiddenSets hidden, CancellationToken cancellationToken) =>
+        (await Visible(hidden, cancellationToken)).Where(e => e.SawKing).MaxBy(e => e.OccurredAt);
 
     // Ordinal, like Mongo's string comparison.
-    public Task<IReadOnlyList<KingEvent>> GetPageAsync(KingEvent? before, int count, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<KingEvent>>(
-        [
-            .. Visible()
-                .Where(e => before is null || e.OccurredAt < before.OccurredAt
-                    || (e.OccurredAt == before.OccurredAt && string.CompareOrdinal(e.Id, before.Id) < 0))
-                .OrderByDescending(e => e.OccurredAt)
-                .ThenByDescending(e => e.Id, StringComparer.Ordinal)
-                .Take(count),
-        ]);
+    public async Task<IReadOnlyList<KingEvent>> GetPageAsync(HiddenSets hidden, KingEvent? before, int count, CancellationToken cancellationToken) =>
+    [
+        .. (await Visible(hidden, cancellationToken))
+            .Where(e => before is null || e.OccurredAt < before.OccurredAt
+                || (e.OccurredAt == before.OccurredAt && string.CompareOrdinal(e.Id, before.Id) < 0))
+            .OrderByDescending(e => e.OccurredAt)
+            .ThenByDescending(e => e.Id, StringComparer.Ordinal)
+            .Take(count),
+    ];
 
-    public Task<IReadOnlyList<PlaceCount>> CountSightingsByPlaceAsync(DateTimeOffset? since, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<PlaceCount>>(
-        [
-            .. Since(since)
-                .Where(e => e.SawKing && e.Location is not null)
-                .GroupBy(e => e.Location!)
-                .Select(g => new PlaceCount(g.Key, g.Count())),
-        ]);
+    public async Task<IReadOnlyList<PlaceCount>> CountSightingsByPlaceAsync(HiddenSets hidden, DateTimeOffset? since, CancellationToken cancellationToken) =>
+    [
+        .. (await Since(hidden, since, cancellationToken))
+            .Where(e => e.SawKing && e.Location is not null)
+            .GroupBy(e => e.Location!)
+            .Select(g => new PlaceCount(g.Key, g.Count())),
+    ];
 
-    public Task<IReadOnlyList<SpotCount>> CountFeedingsBySpotAsync(DateTimeOffset? since, bool seenOnly, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<SpotCount>>(
-        [
-            .. Since(since)
-                .Where(e => e.SpotId is not null && (!seenOnly || e.SawKing))
-                .GroupBy(e => e.SpotId!)
-                .Select(g => new SpotCount(g.Key, g.Count())),
-        ]);
+    public async Task<IReadOnlyList<SpotCount>> CountFeedingsBySpotAsync(
+        HiddenSets hidden, DateTimeOffset? since, bool seenOnly, CancellationToken cancellationToken) =>
+    [
+        .. (await Since(hidden, since, cancellationToken))
+            .Where(e => e.SpotId is not null && (!seenOnly || e.SawKing))
+            .GroupBy(e => e.SpotId!)
+            .Select(g => new SpotCount(g.Key, g.Count())),
+    ];
 
-    private IEnumerable<KingEvent> Since(DateTimeOffset? since) => Visible().Where(e => since is null || e.OccurredAt >= since);
+    private async Task<IEnumerable<KingEvent>> Since(HiddenSets hidden, DateTimeOffset? since, CancellationToken cancellationToken) =>
+        (await Visible(hidden, cancellationToken)).Where(e => since is null || e.OccurredAt >= since);
 
     // What a visitor may see: not hidden, and not from a hidden device.
-    private IEnumerable<KingEvent> Visible()
+    private async Task<IEnumerable<KingEvent>> Visible(HiddenSets hidden, CancellationToken cancellationToken)
     {
-        var hiddenKeys = hiddenReporters.ListAsync(CancellationToken.None).Result.Select(h => h.ReporterKey).ToHashSet();
-        return _events.Values.Where(e => !_hiddenIds.ContainsKey(e.Id) && !hiddenKeys.Contains(e.ReporterKey));
+        var hiddenKeys = await hidden.DevicesAsync(cancellationToken);
+        var hiddenEntries = await hidden.EntriesAsync(cancellationToken);
+        return _events.Values.Where(e => !hiddenEntries.Contains(e.Id) && !hiddenKeys.Contains(e.ReporterKey));
     }
 
     public Task<IReadOnlyList<KingEvent>> GetHiddenEntriesAsync(CancellationToken cancellationToken) =>
@@ -74,6 +74,9 @@ public sealed class InMemoryKingEventStore(IHiddenReporterStore hiddenReporters)
                 .OrderByDescending(e => e.OccurredAt)
                 .ThenByDescending(e => e.Id, StringComparer.Ordinal),
         ]);
+
+    public Task<IReadOnlySet<string>> GetHiddenEntryIdsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlySet<string>>(_hiddenIds.Keys.ToHashSet());
 
     public Task<ReporterSummary> SummarizeReporterAsync(string reporterKey, CancellationToken cancellationToken)
     {

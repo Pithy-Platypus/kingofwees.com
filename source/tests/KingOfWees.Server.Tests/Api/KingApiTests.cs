@@ -41,11 +41,7 @@ public sealed class KingApiTests : IAsyncLifetime
 
     private Task<HttpResponseMessage> AddSpot(object body) => _client.PostAsJsonAsync("/api/king/spots", body, Ct);
 
-    private static IEnumerable<string?> ErrorCodes(JsonElement problem) =>
-        problem.GetProperty("errors").EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString());
-
-    private static async Task<JsonElement> Json(HttpResponseMessage response) =>
-        (await response.Content.ReadFromJsonAsync<JsonElement>(Ct));
+    private static Task<JsonElement> Json(HttpResponseMessage response) => response.JsonAsync(Ct);
 
     private async Task<JsonElement> Status() => await Json(await _client.GetAsync("/api/king/status", Ct));
 
@@ -211,7 +207,7 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.Equal("Sarah", (await _factory.Store.FindAsync(feeding.GetProperty("id").GetString()!, Ct))?.ReporterName);
         Assert.Equal("Kael", (await _factory.Store.FindAsync(sighting.GetProperty("id").GetString()!, Ct))?.ReporterName);
         Assert.Equal("Porch", spot.GetProperty("name").GetString());
-        Assert.Equal(["Porch"], (await _factory.Spots.ListAsync(Ct)).Select(s => s.Name));
+        Assert.Equal(["Porch"], (await _factory.Spots.ListAsync(_factory.Sets, Ct)).Select(s => s.Name));
     }
 
     [Fact]
@@ -231,8 +227,8 @@ public sealed class KingApiTests : IAsyncLifetime
         var response = await AddSpot(new { reporterKey = DeviceKey, name = "\u200B\u202E", location = new { latitude = 45.5, longitude = -122.6 } });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("name.required", ErrorCodes(await Json(response)));
-        Assert.Empty(await _factory.Spots.ListAsync(Ct));
+        Assert.Contains("name.required", (await Json(response)).ErrorCodes());
+        Assert.Empty(await _factory.Spots.ListAsync(_factory.Sets, Ct));
     }
 
     [Fact]
@@ -251,8 +247,8 @@ public sealed class KingApiTests : IAsyncLifetime
         var response = await AddSpot(new { reporterKey = DeviceKey, name = " ", location = new { latitude = 45.5, longitude = -122.6 } });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("name.required", ErrorCodes(await Json(response)));
-        Assert.Empty(await _factory.Spots.ListAsync(Ct));
+        Assert.Contains("name.required", (await Json(response)).ErrorCodes());
+        Assert.Empty(await _factory.Spots.ListAsync(_factory.Sets, Ct));
     }
 
     [Fact]
@@ -276,8 +272,8 @@ public sealed class KingApiTests : IAsyncLifetime
         var response = await LogFeeding(new { reporterKey = DeviceKey, spotId = "no-such-spot" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("spotId.unknown", ErrorCodes(await Json(response)));
-        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
+        Assert.Contains("spotId.unknown", (await Json(response)).ErrorCodes());
+        Assert.Empty(await _factory.Store.GetPageAsync(_factory.Sets, before: null, 10, Ct));
     }
 
     [Fact]
@@ -310,7 +306,7 @@ public sealed class KingApiTests : IAsyncLifetime
         var response = await LogSighting(new { reporterKey = DeviceKey, location = new { latitude = 45.5 } });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
+        Assert.Empty(await _factory.Store.GetPageAsync(_factory.Sets, before: null, 10, Ct));
     }
 
     [Fact]
@@ -355,7 +351,7 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var errors = (await Json(response)).GetProperty("errors");
         Assert.Contains(code, errors.EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString()));
-        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
+        Assert.Empty(await _factory.Store.GetPageAsync(_factory.Sets, before: null, 10, Ct));
     }
 
     [Fact]
@@ -366,7 +362,7 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var errors = (await Json(response)).GetProperty("errors");
         Assert.Contains("food.invalid", errors.EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString()));
-        Assert.Empty(await _factory.Store.GetPageAsync(before: null, 10, Ct));
+        Assert.Empty(await _factory.Store.GetPageAsync(_factory.Sets, before: null, 10, Ct));
     }
 
     [Fact]
@@ -476,7 +472,7 @@ public sealed class KingApiTests : IAsyncLifetime
         var response = await Rename(id, DeviceKey, new { reporterName = new string('x', 41) });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("reporterName.tooLong", ErrorCodes(await Json(response)));
+        Assert.Contains("reporterName.tooLong", (await Json(response)).ErrorCodes());
         Assert.Equal("Guy", (await _factory.Store.FindAsync(id, Ct))?.ReporterName);
     }
 

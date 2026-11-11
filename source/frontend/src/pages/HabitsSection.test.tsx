@@ -91,8 +91,8 @@ describe('HabitsSection', () => {
     // Hour 16's pair sits in its own 10-unit slot, on the baseline, the seen bar right of the fed one.
     const fedBar = chart.querySelectorAll('rect.habits-bar-fed')[16];
     const seenBar = chart.querySelectorAll('rect.habits-bar-seen')[16];
-    expect([fedBar.getAttribute('x'), fedBar.getAttribute('y'), fedBar.getAttribute('height')]).toEqual(['161', '35', '60']);
-    expect([seenBar.getAttribute('x'), seenBar.getAttribute('y')]).toEqual(['165.5', '5']);
+    expect([fedBar!.getAttribute('x'), fedBar!.getAttribute('y'), fedBar!.getAttribute('height')]).toEqual(['161', '35', '60']);
+    expect([seenBar!.getAttribute('x'), seenBar!.getAttribute('y')]).toEqual(['165.5', '5']);
     expect(chart.getAttribute('viewBox')).toBe('0 0 240 110');
     expect([...chart.querySelectorAll('text')].map((t) => [t.textContent, t.getAttribute('x')])).toEqual([
       ['12 AM', '1'],
@@ -109,11 +109,11 @@ describe('HabitsSection', () => {
     const days = calendar.getAllByRole('listitem');
     expect(days).toHaveLength(35);
     expect(days[34]).toHaveClass('habits-day-fed', 'habits-day-today');
-    expect(days[34].querySelector('svg')).not.toBeNull();
+    expect(days[34]!.querySelector('svg')).not.toBeNull();
     expect(days[30]).not.toHaveClass('habits-day-fed');
     expect(days[33]).toHaveClass('habits-day-fed');
     expect(days[33]).not.toHaveClass('habits-day-today');
-    expect(days[30].querySelector('svg')).toBeNull();
+    expect(days[30]!.querySelector('svg')).toBeNull();
     expect(calendar.getByText('Wed, Nov 11: fed')).toBeInTheDocument();
     expect(calendar.getByText('Sat, Nov 7: not fed')).toBeInTheDocument();
     expect(calendar.getByText('Thu, Oct 8: not fed')).toBeInTheDocument();
@@ -148,8 +148,8 @@ describe('HabitsSection', () => {
     expect(screen.getByText('The neighbors who fed King most in this time.')).toBeInTheDocument();
     const items = seats.getAllByRole('listitem');
     expect(items.map((li) => li.textContent)).toEqual(['Sunny18 feedings', 'Dev4 feedings', 'the Capps1 feeding']);
-    expect(items[0].querySelector('svg')).not.toBeNull();
-    expect(items[1].querySelector('svg')).toBeNull();
+    expect(items[0]!.querySelector('svg')).not.toBeNull();
+    expect(items[1]!.querySelector('svg')).toBeNull();
   });
 
   it('says no named feeders yet when the court is empty', async () => {

@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 // jsdom 31 has no <dialog> methods; enough of them for the photo viewer (Escape is the component's own key handler).
-const dialog = (globalThis.HTMLDialogElement ?? HTMLElement).prototype as HTMLDialogElement;
+const dialog = (globalThis.HTMLDialogElement ?? HTMLElement).prototype;
 dialog.showModal ??= function (this: HTMLDialogElement) {
   this.setAttribute('open', '');
 };

@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
 using KingOfWees.Server.King;
-using KingOfWees.Server.Validation;
 using Microsoft.Extensions.FileProviders;
 
 namespace KingOfWees.Server;
@@ -20,11 +19,12 @@ public static class AppVersion
     public static string Server { get; } =
         typeof(AppVersion).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
-    public static void MapVersion(this WebApplication app)
+    /// <summary>On the validated <c>/api</c> group (<c>Program.cs</c>).</summary>
+    public static void MapVersion(this IEndpointRouteBuilder api)
     {
-        var info = new VersionInfo(new(Server), new(Frontend(app.Environment.WebRootFileProvider)));
-        app.MapGroup("/api").AddEndpointFilter<ValidationFilter>().RequireRateLimiting(KingPolicies.Reads)
-            .MapGet("/version", () => info);
+        var files = api.ServiceProvider.GetRequiredService<IWebHostEnvironment>().WebRootFileProvider;
+        var info = new VersionInfo(new(Server), new(Frontend(files)));
+        api.MapGet("/version", () => info).RequireRateLimiting(KingPolicies.Reads);
     }
 
     private static string? Frontend(IFileProvider files)

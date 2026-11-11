@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type NoMessageValues } from 'react-intl';
 import type { Habits, HeatRange, kingApi } from '../king/api';
-import { byHour, CALENDAR_DAYS, CONTENT_HOURS, fedDays, menu, moodShare, type HourCount } from '../king/habits';
+import { byHour, CALENDAR_DAYS, fedDays, menu, moodShare, type HourCount } from '../king/habits';
 import { CrownIcon } from '../king/icons';
 import { foodMessage } from '../king/messages';
+import { CONTENT_HOURS } from '../king/time';
+import { useLoad } from '../king/useLoad';
+import { LoadState } from './LoadState';
 
 type Values = {
   heading: NoMessageValues;
   loading: NoMessageValues;
   failed: NoMessageValues;
-  tryAgain: NoMessageValues;
   empty: NoMessageValues;
   day: NoMessageValues;
   dayChart: NoMessageValues;
@@ -43,7 +45,6 @@ const m = defineMessages<Values>({
   heading: { id: 'habits.heading', defaultMessage: 'King’s habits', description: 'Heading over the charts on the history page' },
   loading: { id: 'habits.loading', defaultMessage: 'Loading King’s habits…', description: 'Shown while the charts load' },
   failed: { id: 'habits.failed', defaultMessage: 'Couldn’t load King’s habits.', description: 'Shown when the charts cannot be loaded' },
-  tryAgain: { id: 'habits.tryAgain', defaultMessage: 'Try again', description: 'Retry loading the charts' },
   empty: { id: 'habits.empty', defaultMessage: 'His habits will show here once something is logged.', description: 'Charts section when no entry exists' },
   day: { id: 'habits.day', defaultMessage: 'King’s day', description: 'Caption of the chart of feedings and sightings by hour' },
   dayChart: {
@@ -131,78 +132,42 @@ const LABEL_HOURS = [0, 6, 12, 18];
 type Props = { api: Pick<typeof kingApi, 'getHabits'>; now: Date; range: HeatRange };
 
 export function HabitsSection({ api, now, range }: Props) {
-  const intl = useIntl();
-  const [habits, setHabits] = useState<Habits | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+  const getHabits = useCallback(() => api.getHabits(range), [api, range]);
+  const { data: habits, failed, retry } = useLoad(getHabits);
 
-  useEffect(() => {
-    let latest = true;
-    setFailed(false);
-    api.getHabits(range).then(
-      (loaded) => latest && setHabits(loaded),
-      () => latest && setFailed(true),
-    );
-    return () => {
-      latest = false;
-    };
-  }, [api, range, attempt]);
-
-  // The calendar always shows its five weeks; everything else follows the range.
-  const since = useMemo(() => (range === 'all' ? null : new Date(now.getTime() - range * 24 * 3600 * 1000)), [now, range]);
-  const entries = useMemo(
-    () => habits?.entries.filter((e) => since === null || new Date(e.occurredAt) >= since) ?? null,
-    [habits, since],
+  return (
+    <Section>
+      <LoadState data={habits} failed={failed} onRetry={retry} messages={m} isEmpty={(loaded) => loaded.entries.length === 0}>
+        {(loaded) => <Charts habits={loaded} now={now} range={range} />}
+      </LoadState>
+    </Section>
   );
-  const hours = useMemo(() => (entries ? byHour(entries) : null), [entries]);
-  const calendar = useMemo(() => (habits ? fedDays(habits.entries, now) : null), [habits, now]);
-  const royalMenu = useMemo(() => (entries ? menu(entries) : null), [entries]);
-  const mood = useMemo(() => (entries ? moodShare(entries, since, now) : null), [entries, since, now]);
+}
 
+/** The five figures, once something is logged. */
+function Charts({ habits, now, range }: { habits: Habits; now: Date; range: HeatRange }) {
+  const intl = useIntl();
   const hourName = (hour: number) => intl.formatTime(new Date(2000, 0, 1, hour), { hour: 'numeric' });
   const dayName = (date: Date) => intl.formatDate(date, { weekday: 'short', month: 'short', day: 'numeric' });
 
-  if (failed) {
-    return (
-      <Section>
-        <div role="alert" className="alert alert-error">
-          <FormattedMessage {...m.failed} />
-        </div>
-        <button type="button" className="done-button" onClick={() => setAttempt((a) => a + 1)}>
-          <FormattedMessage {...m.tryAgain} />
-        </button>
-      </Section>
-    );
-  }
-  if (!habits || !entries || !hours || !calendar || !royalMenu) {
-    return (
-      <Section>
-        <p role="status">
-          <FormattedMessage {...m.loading} />
-        </p>
-      </Section>
-    );
-  }
-  if (habits.entries.length === 0) {
-    return (
-      <Section>
-        <p className="activity-detail">
-          <FormattedMessage {...m.empty} />
-        </p>
-      </Section>
-    );
-  }
+  // The calendar always shows its five weeks; everything else follows the range. At most 5,000 entries: no memo needed.
+  const since = range === 'all' ? null : new Date(now.getTime() - range * 24 * 3600 * 1000);
+  const entries = habits.entries.filter((e) => since === null || new Date(e.occurredAt) >= since);
+  const hours = byHour(entries);
+  const calendar = fedDays(habits.entries, now);
+  const royalMenu = menu(entries);
+  const mood = moodShare(entries, since, now);
 
   const max = Math.max(1, ...hours.map((h) => Math.max(h.fed, h.seen)));
   const height = (count: number) => (count / max) * CHART_HEIGHT;
   const busyHours = hours.map((h, hour) => ({ ...h, hour })).filter((h) => h.fed > 0 || h.seen > 0);
-  const mostMeals = hours.reduce((best, h, hour) => (h.fed > hours[best].fed ? hour : best), 0);
+  const mostMeals = hours.reduce((best, h, hour) => (h.fed > best.fed ? { hour, fed: h.fed } : best), { hour: 0, fed: 0 }).hour;
   const today = calendar.days.length - 1;
 
   return (
-    <Section>
+    <>
       <figure className="habits-figure">
-        <figcaption className="habits-caption">
+        <figcaption className="section-subtitle">
           <FormattedMessage {...m.day} />
         </figcaption>
         <svg viewBox={`0 0 ${24 * HOUR_WIDTH} 110`} className="habits-day-chart" role="img" aria-label={intl.formatMessage(m.dayChart)}>
@@ -240,11 +205,11 @@ export function HabitsSection({ api, now, range }: Props) {
             <FormattedMessage {...m.busiest} values={{ hour: hourName(mostMeals) }} />
           </p>
         )}
-        <ol className="habits-hours" aria-label={intl.formatMessage(m.hours)}>
+        <ol className="stat-list" aria-label={intl.formatMessage(m.hours)}>
           {busyHours.map((h) => (
-            <li key={h.hour} className="habits-hour">
-              <span className="habits-hour-name">{hourName(h.hour)}</span>
-              <span className="habits-hour-counts">
+            <li key={h.hour} className="stat-row">
+              <span className="stat-name">{hourName(h.hour)}</span>
+              <span className="stat-count">
                 {h.fed > 0 && <FormattedMessage {...m.hourFed} values={{ count: h.fed }} />}
                 {h.fed > 0 && h.seen > 0 && ', '}
                 {h.seen > 0 && <FormattedMessage {...m.hourSeen} values={{ count: h.seen }} />}
@@ -255,7 +220,7 @@ export function HabitsSection({ api, now, range }: Props) {
       </figure>
 
       <figure className="habits-figure">
-        <figcaption className="habits-caption">
+        <figcaption className="section-subtitle">
           <FormattedMessage {...m.calendar} />
         </figcaption>
         <p className="habits-summary">
@@ -282,7 +247,7 @@ export function HabitsSection({ api, now, range }: Props) {
       </figure>
 
       <figure className="habits-figure">
-        <figcaption className="habits-caption">
+        <figcaption className="section-subtitle">
           <FormattedMessage {...m.menu} />
         </figcaption>
         {royalMenu.total === 0 ? (
@@ -293,7 +258,7 @@ export function HabitsSection({ api, now, range }: Props) {
           <ol className="habits-menu" aria-label={intl.formatMessage(m.menuList)}>
             {royalMenu.foods.map(({ food, feedings }) => (
               <li key={food} className="habits-menu-row">
-                <span className="habits-menu-food">
+                <span className="stat-name">
                   <FormattedMessage {...foodMessage(food)} />
                 </span>
                 <svg viewBox="0 0 100 8" preserveAspectRatio="none" className="habits-menu-bar" aria-hidden focusable={false}>
@@ -310,7 +275,7 @@ export function HabitsSection({ api, now, range }: Props) {
 
       {mood && mood.content + mood.hungry > 0 && (
         <figure className="habits-figure">
-          <figcaption className="habits-caption">
+          <figcaption className="section-subtitle">
             <FormattedMessage {...m.mood} />
           </figcaption>
           <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="habits-mood-bar" aria-hidden focusable={false}>
@@ -330,7 +295,7 @@ export function HabitsSection({ api, now, range }: Props) {
       )}
 
       <figure className="habits-figure">
-        <figcaption className="habits-caption">
+        <figcaption className="section-subtitle">
           <FormattedMessage {...m.court} />
         </figcaption>
         <p className="habits-summary">
@@ -341,12 +306,12 @@ export function HabitsSection({ api, now, range }: Props) {
             <FormattedMessage {...m.courtEmpty} />
           </p>
         ) : (
-          <ol className="habits-court" aria-label={intl.formatMessage(m.courtList)}>
+          <ol className="stat-list" aria-label={intl.formatMessage(m.courtList)}>
             {habits.court.map((c, i) => (
               <li key={c.name} className="habits-courtier">
                 {i === 0 && <CrownIcon className="habits-courtier-crown" />}
                 <span className="habits-courtier-name">{c.name}</span>
-                <span className="habits-courtier-count">
+                <span className="stat-count">
                   <FormattedMessage {...m.courtFeedings} values={{ count: c.feedings }} />
                 </span>
               </li>
@@ -354,7 +319,7 @@ export function HabitsSection({ api, now, range }: Props) {
           </ol>
         )}
       </figure>
-    </Section>
+    </>
   );
 }
 

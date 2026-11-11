@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { photoUrl, type PhotoView, type SpotView } from '../king/api';
 import { photoAlt } from '../king/messages';
@@ -27,12 +27,8 @@ export function PhotoViewer({ photos, index, spots, hasOlder, loadingOlder, onIn
   const intl = useIntl();
   const dialog = useRef<HTMLDialogElement>(null);
   const pressed = useRef<{ x: number; y: number } | null>(null);
-  // Next was pressed on the last photo: move on when the older ones arrive.
-  const [waiting, setWaiting] = useState(false);
-  const photo = photos[index];
   const atFirst = index === 0;
   const atLast = index === photos.length - 1;
-  const description = photoAlt(intl, photo, spots);
 
   useEffect(() => dialog.current?.showModal(), []);
 
@@ -43,27 +39,18 @@ export function PhotoViewer({ photos, index, spots, hasOlder, loadingOlder, onIn
     }
   }, [photos, index]);
 
-  useEffect(() => {
-    if (waiting && index < photos.length - 1) {
-      setWaiting(false);
-      onIndex(index + 1);
-    }
-  }, [waiting, photos.length, index, onIndex]);
-
-  // The older page didn't come (the page says so behind the viewer): Next can ask again.
-  useEffect(() => {
-    if (!loadingOlder) setWaiting(false);
-  }, [loadingOlder]);
+  // The page opens the viewer only on a loaded photo (PhotosPage); the type can't say so.
+  const photo = photos[index];
+  if (!photo) return null;
+  const description = photoAlt(intl, photo, spots);
 
   const previous = () => {
     if (!atFirst) onIndex(index - 1);
   };
   const next = () => {
     if (!atLast) onIndex(index + 1);
-    else if (hasOlder && !loadingOlder && !waiting) {
-      setWaiting(true);
-      onLoadOlder();
-    }
+    // The page loads them and moves the viewer onto the first; if they don't come, Next can ask again.
+    else if (hasOlder && !loadingOlder) onLoadOlder();
   };
 
   return (
@@ -109,7 +96,7 @@ export function PhotoViewer({ photos, index, spots, hasOlder, loadingOlder, onIn
       <div className="photo-viewer-bar">
         <p className="photo-viewer-caption">{description}</p>
         <p className="photo-viewer-position" aria-live="polite">
-          {loadingOlder || waiting ? (
+          {loadingOlder ? (
             <FormattedMessage {...viewerMessages.loadingOlder} />
           ) : (
             <FormattedMessage {...viewerMessages.position} values={{ n: index + 1, total: photos.length }} />

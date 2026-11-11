@@ -100,7 +100,6 @@
   .where-tile,
   .no-place-button,
   .place-button,
-  .spot-choice,
   .log-here-button,
   .viewer-button,
   .viewer-close {
@@ -243,29 +242,25 @@
     @apply btn-secondary text-secondary-content;
   }
 
-  .heat-places {
+  .stat-list {
     @apply flex flex-col divide-y divide-base-300;
   }
 
-  .heat-place {
+  .stat-row {
     @apply flex items-baseline justify-between gap-4 py-2 text-base;
   }
 
-  .heat-place-name {
+  .stat-name {
     @apply font-semibold;
   }
 
-  .heat-place-count {
+  .stat-count {
     @apply shrink-0 text-base-content;
   }
 
   .habits-section,
   .habits-figure {
     @apply flex flex-col gap-3;
-  }
-
-  .habits-caption {
-    @apply font-display text-lg font-semibold;
   }
 
   .habits-summary {
@@ -313,18 +308,6 @@
     fill: var(--color-error);
   }
 
-  .habits-hours {
-    @apply flex flex-col divide-y divide-base-300;
-  }
-
-  .habits-hour {
-    @apply flex items-baseline justify-between gap-4 py-2 text-base;
-  }
-
-  .habits-hour-name {
-    @apply font-semibold;
-  }
-
   .habits-calendar {
     @apply grid grid-cols-7 gap-1;
   }
@@ -345,6 +328,10 @@
     @apply sr-only;
   }
 
+  .habits-day-number {
+    @apply text-xs leading-none;
+  }
+
   .habits-crown {
     @apply size-4 fill-current;
   }
@@ -357,20 +344,12 @@
     @apply grid grid-cols-[6rem_1fr] items-center gap-x-3 gap-y-1 text-base;
   }
 
-  .habits-menu-food {
-    @apply font-semibold;
-  }
-
   .habits-menu-bar {
     @apply h-3 w-full rounded-sm bg-base-200;
   }
 
   .habits-menu-count {
     @apply col-start-2 text-muted;
-  }
-
-  .habits-court {
-    @apply flex flex-col divide-y divide-base-300;
   }
 
   .habits-courtier {
@@ -385,10 +364,6 @@
     @apply grow font-semibold;
   }
 
-  .habits-courtier-count {
-    @apply shrink-0 text-base-content;
-  }
-
   .log-section {
     @apply flex flex-col gap-4;
   }
@@ -397,12 +372,12 @@
     @apply flex flex-col gap-2;
   }
 
-  .log-day-title {
-    @apply font-display text-lg font-semibold;
-  }
-
   .section-title {
     @apply font-display text-xl font-semibold;
+  }
+
+  .section-subtitle {
+    @apply font-display text-lg font-semibold;
   }
 
   .activity-list {
@@ -419,7 +394,7 @@
     @apply flex basis-full flex-col gap-2 ps-13;
   }
 
-  .admin-buttons {
+  .confirm-buttons {
     @apply flex flex-wrap gap-2;
   }
 
@@ -448,7 +423,7 @@
     @apply flex min-h-12 cursor-pointer items-center gap-3 text-base;
   }
 
-  .merge-radio {
+  .choice-radio {
     @apply radio radio-secondary;
   }
 
@@ -461,29 +436,17 @@
     @apply flex min-h-11 cursor-pointer items-center gap-3 text-base;
   }
 
-  .hide-reason-radio {
-    @apply radio radio-secondary;
-  }
-
-  .admin-question {
+  .confirm-question {
     @apply font-bold;
   }
 
   /* Undo on one's own entry or shared photo, within 10 minutes: the admin buttons' shape. */
-  .own-buttons {
-    @apply flex flex-wrap gap-2;
-  }
-
   .own-button {
     @apply btn-outline min-h-12 rounded-field text-base;
   }
 
   .own-confirm-button {
     @apply btn-secondary min-h-12 rounded-field text-base;
-  }
-
-  .own-question {
-    @apply font-bold;
   }
 
   .activity-icon {
@@ -737,14 +700,6 @@
 
   .place-status {
     @apply flex min-h-6 items-center gap-2 font-bold;
-  }
-
-  .spot-list {
-    @apply flex flex-col gap-2;
-  }
-
-  .spot-choice {
-    @apply btn-outline min-h-14 w-full justify-start rounded-field border-secondary text-lg text-base-content;
   }
 
   .map-block {

@@ -3,6 +3,7 @@ using KingOfWees.Server.Admin;
 using KingOfWees.Server.Diagnostics;
 using KingOfWees.Server.King;
 using KingOfWees.Server.Photos;
+using KingOfWees.Server.Validation;
 using Microsoft.AspNetCore.HttpOverrides;
 using MongoDB.Driver;
 
@@ -49,9 +50,6 @@ builder.Services.AddSingleton<IPhotoBlobStore, AzurePhotoBlobStore>();
 builder.Services.AddHostedService<PhotoStorageWarmUp>();
 builder.Services.AddSingleton<IPhotoStore, MongoPhotoStore>();
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 var app = builder.Build();
 
 // Behind Container Apps' ingress the connection is the proxy's; the visitor is the rightmost X-Forwarded-For
@@ -69,18 +67,15 @@ if (app.Configuration.GetValue<bool>("King:Proxy:TrustForwardedFor"))
 app.UseSecurityHeaders();
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
 app.UseRateLimiter();
 app.UseAuthorization();
 
-app.MapKingEndpoints();
-app.MapAdminEndpoints();
-app.MapVersion();
-app.MapClientDiagnostics();
+// The one group every API route nests under: its ValidationFilter validates each handler argument that has a validator.
+var api = app.MapGroup("/api").AddEndpointFilter<ValidationFilter>();
+api.MapKingEndpoints();
+api.MapAdminEndpoints();
+api.MapVersion();
+api.MapClientDiagnostics();
 app.MapDefaultEndpoints();
 
 // Unknown /api routes must stay 404s, not return the page.

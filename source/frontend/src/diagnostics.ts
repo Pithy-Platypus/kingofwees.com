@@ -17,7 +17,16 @@ const URL = '/api/client-diagnostics';
 
 function describe(error: unknown) {
   if (error instanceof Error) return { message: error.message || error.name, stack: error.stack ?? null };
-  return { message: (error === undefined ? '' : String(error)).trim() || 'Unknown error', stack: null };
+  if (error === undefined) return { message: 'Unknown error', stack: null };
+  const text =
+    typeof error === 'string'
+      ? error
+      : typeof error === 'number' || typeof error === 'boolean' || typeof error === 'bigint' || typeof error === 'symbol'
+        ? String(error)
+        : typeof error === 'function'
+          ? error.name
+          : JSON.stringify(error);
+  return { message: text.trim() || 'Unknown error', stack: null };
 }
 
 export function createReporter(send: (body: string) => void, location: Pick<Location, 'pathname'>, version: string): Report {
@@ -47,8 +56,9 @@ export function sendDiagnostic(body: string) {
 
 export function watchErrors(target: EventTarget, report: Report) {
   target.addEventListener('error', (event) => {
-    const { error, message } = event as ErrorEvent;
-    report('error', error ?? message);
+    const errorEvent = event as ErrorEvent;
+    const thrown: unknown = errorEvent.error;
+    report('error', thrown ?? errorEvent.message);
   });
   target.addEventListener('unhandledrejection', (event) => report('rejection', (event as PromiseRejectionEvent).reason));
 }

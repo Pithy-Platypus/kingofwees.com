@@ -1,6 +1,5 @@
 using KingOfWees.Server.King;
 using KingOfWees.Server.Photos;
-using KingOfWees.Server.Validation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
 
@@ -17,8 +16,7 @@ public static class AdminEndpoints
             return routes;
         }
 
-        var admin = routes.MapGroup("/api/admin")
-            .AddEndpointFilter<ValidationFilter>()
+        var admin = routes.MapGroup("/admin")
             .RequireAuthorization(AdminPolicies.Admin)
             .RequireRateLimiting(AdminPolicies.Requests);
         admin.MapGet("/check", SignIn);
@@ -107,10 +105,10 @@ public static class AdminEndpoints
     }
 
     private static async Task<Ok<IReadOnlyList<HiddenPhotoView>>> ListHiddenPhotos(
-        IPhotoStore photos, IKingEventStore store, ISpotStore spots, CancellationToken cancellationToken)
+        IPhotoStore photos, IKingEventStore store, EventViewer viewer, CancellationToken cancellationToken)
     {
         var hidden = await photos.GetHiddenAsync(cancellationToken);
-        var views = await PhotoEndpoints.PhotoViews(hidden, store, spots, photos, cancellationToken);
+        var views = await PhotoEndpoints.PhotoViews(viewer, hidden, store, cancellationToken);
         var hidings = hidden.ToDictionary(p => p.Id, p => p.Hiding);
         return TypedResults.Ok<IReadOnlyList<HiddenPhotoView>>(
         [
@@ -165,17 +163,19 @@ public static class AdminEndpoints
         return TypedResults.NoContent();
     }
 
-    // The validator has checked every id. Feedings move before the places are deleted, so none is left pointing at a
-    // place that no longer exists. No undo (Wallie's choice): the merged places are gone for good.
-    private static async Task<NoContent> MergeSpots(
+    // The validator has checked every id, but a place can go between validation and here (another merge at the same
+    // moment): then a 404 with the validator's code, not a 500. Feedings move before the places are deleted, so none is
+    // left pointing at a place that no longer exists. No undo (Wallie's choice): the merged places are gone for good.
+    private static async Task<Results<NoContent, ProblemHttpResult>> MergeSpots(
         MergeSpotsRequest request, ISpotStore spots, IKingEventStore store, KingMetrics metrics, AdminAudit audit,
         HttpContext context, CancellationToken cancellationToken)
     {
-        var kept = (await spots.FindAsync(request.KeepId, cancellationToken))!;
+        if (await spots.FindAsync(request.KeepId, cancellationToken) is not { } kept) return Gone("keepId.unknown");
         var mergedNames = new List<string>();
         foreach (var id in request.MergeIds)
         {
-            mergedNames.Add((await spots.FindAsync(id, cancellationToken))!.Name);
+            if (await spots.FindAsync(id, cancellationToken) is not { } merged) return Gone("mergeIds.unknown");
+            mergedNames.Add(merged.Name);
         }
         var moved = await store.MoveFeedingsAsync(request.MergeIds, kept.Id, cancellationToken);
         await spots.DeleteAsync(request.MergeIds, cancellationToken);
@@ -188,23 +188,22 @@ public static class AdminEndpoints
         return TypedResults.NoContent();
     }
 
+    private static ProblemHttpResult Gone(string code) => TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, type: code);
+
     private static async Task<Ok<ActivityPage>> GetActivity(
         [AsParameters] ActivityQuery query, IAdminLogStore log, CancellationToken cancellationToken)
     {
-        var limit = query.Limit ?? HistoryQuery.DefaultLimit;
+        var limit = query.Limit ?? Paging.DefaultLimit;
         // The validator has already checked that the cursor names a record.
         var before = query.Before is null ? null : await log.FindAsync(query.Before, cancellationToken);
-        // One extra tells whether an older page exists without a second query.
-        var records = await log.GetPageAsync(before, limit + 1, cancellationToken);
-        var page = records.Take(limit).ToList();
-        return TypedResults.Ok(new ActivityPage(page, records.Count > limit ? page[^1].Id : null));
+        var (page, next) = Paging.Page(await log.GetPageAsync(before, limit + 1, cancellationToken), limit, r => r.Id);
+        return TypedResults.Ok(new ActivityPage(page, next));
     }
 
-    private static async Task<Ok<EventView[]>> ListHiddenEntries(
-        IKingEventStore store, ISpotStore spots, IPhotoStore photos, CancellationToken cancellationToken)
+    private static async Task<Ok<EventView[]>> ListHiddenEntries(IKingEventStore store, EventViewer viewer, CancellationToken cancellationToken)
     {
         var entries = await store.GetHiddenEntriesAsync(cancellationToken);
-        var view = await KingEndpoints.EventViews(spots, photos, entries, cancellationToken);
+        var view = await viewer.ViewsAsync(entries, cancellationToken);
         return TypedResults.Ok(entries.Select(view).ToArray());
     }
 

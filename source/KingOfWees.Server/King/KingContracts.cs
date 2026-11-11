@@ -44,22 +44,20 @@ public sealed record EventView(
 }
 
 // Bound from the query string with [AsParameters]; Before is the id of the last event already shown.
-public sealed record HistoryQuery(string? Before, int? Limit)
-{
-    public const int DefaultLimit = 50;
-    public const int MaxLimit = 100;
-}
+public sealed record HistoryQuery(string? Before, int? Limit);
 
 // Whether this visitor may post: false only for a known address outside the US (when the check is on).
 public sealed record PostingView(bool Allowed);
 
 public sealed record HistoryPage(IReadOnlyList<EventView> Events, string? Next);
 
-// Layer is "seen" or "fed"; Days is 7 or 30, or omitted for all time.
+// Layer is "seen" or "fed"; Days is one of Ranges, or omitted for all time.
 public sealed record HeatQuery(string? Layer, int? Days)
 {
     public const string Seen = "seen";
     public const string Fed = "fed";
+    // The ranges the page's switch offers. The frontend's HeatRange (src/king/api.ts) is the same pair — change both.
+    public static readonly int[] Ranges = [7, 30];
 }
 
 // SpotName is set on the fed layer, where each cell is one spot; seen cells are blocks.
@@ -73,7 +71,7 @@ public sealed record HabitEntry(DateTimeOffset OccurredAt, KingEventKind Kind, b
     public static HabitEntry From(KingEvent e) => new(e.OccurredAt, e.Kind, e.SawKing, e.Foods);
 }
 
-// Days is 7 or 30, or omitted for all time: the court's range (the entries are always all-time, capped).
+// Days is one of HeatQuery.Ranges, or omitted for all time: the court's range (the entries are always all-time, capped).
 public sealed record HabitsQuery(int? Days);
 
 // One seat at the royal court: a nickname (as neighbors typed it, so two devices with one name share a seat) and its feedings.
@@ -151,17 +149,14 @@ public sealed class HistoryQueryValidator : AbstractValidator<HistoryQuery>
 {
     public HistoryQueryValidator(IKingEventStore store)
     {
-        RuleFor(q => q.Limit).InclusiveBetween(1, HistoryQuery.MaxLimit).WithErrorCode("limit.outOfRange");
-        RuleFor(q => q.Before)
-            .MustAsync(async (id, ct) => await store.FindAsync(id!, ct) is not null)
-            .When(q => q.Before is not null)
-            .WithErrorCode("before.unknown");
+        RuleFor(q => q.Limit).ValidLimit();
+        RuleFor(q => q.Before).KnownCursor(store.FindAsync);
     }
 }
 
 public sealed class HabitsQueryValidator : AbstractValidator<HabitsQuery>
 {
-    public HabitsQueryValidator() => RuleFor(q => q.Days).Must(d => d is null or 7 or 30).WithErrorCode("days.invalid");
+    public HabitsQueryValidator() => RuleFor(q => q.Days).ValidDays();
 }
 
 public sealed class HeatQueryValidator : AbstractValidator<HeatQuery>
@@ -169,8 +164,15 @@ public sealed class HeatQueryValidator : AbstractValidator<HeatQuery>
     public HeatQueryValidator()
     {
         RuleFor(q => q.Layer).Must(l => l is HeatQuery.Seen or HeatQuery.Fed).WithErrorCode("layer.invalid");
-        RuleFor(q => q.Days).Must(d => d is null or 7 or 30).WithErrorCode("days.invalid");
+        RuleFor(q => q.Days).ValidDays();
     }
+}
+
+internal static class QueryRules
+{
+    /// <summary>One of <see cref="HeatQuery.Ranges"/>, or omitted for all time.</summary>
+    public static IRuleBuilderOptions<T, int?> ValidDays<T>(this IRuleBuilder<T, int?> rule) =>
+        rule.Must(d => d is null || HeatQuery.Ranges.Contains(d.Value)).WithErrorCode("days.invalid");
 }
 
 internal static class ReporterRules

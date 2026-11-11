@@ -3,7 +3,10 @@ export type Elapsed = { kind: 'justNow' } | { kind: 'ago'; value: number; unit: 
 const MINUTE = 60;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-const HUNGRY_AFTER_SECONDS = 12 * HOUR;
+
+/** King counts as content for this long after a feeding — Home's mood and the habits chart on /history. */
+export const CONTENT_HOURS = 12;
+const HUNGRY_AFTER_SECONDS = CONTENT_HOURS * HOUR;
 
 const secondsBetween = (then: Date, now: Date) => Math.floor((now.getTime() - then.getTime()) / 1000);
 

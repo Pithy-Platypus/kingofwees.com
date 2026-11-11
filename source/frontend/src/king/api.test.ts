@@ -59,7 +59,7 @@ describe('kingApi', () => {
     await expect(
       kingApi.logFeeding({ reporterKey: 'k', reporterName: 'Sunny', foods: ['dry', 'treats'], sawKing: false }),
     ).resolves.toEqual(created);
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/king/feedings');
     expect(init.method).toBe('POST');
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
@@ -71,8 +71,8 @@ describe('kingApi', () => {
 
     await kingApi.logSighting({ reporterKey: 'k' });
 
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/king/sightings');
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ reporterKey: 'k' });
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/king/sightings');
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ reporterKey: 'k' });
   });
 
   it('posts a sighting with its location rounded to about a block, whatever precision it was given', async () => {
@@ -80,7 +80,7 @@ describe('kingApi', () => {
 
     await kingApi.logSighting({ reporterKey: 'k', location: { latitude: 45.523456, longitude: -122.676543 } });
 
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({
       reporterKey: 'k',
       location: { latitude: 45.523, longitude: -122.677 },
     });
@@ -93,7 +93,7 @@ describe('kingApi', () => {
     await expect(
       kingApi.addSpot({ reporterKey: 'k', name: 'Corner', location: { latitude: 45.523456, longitude: -122.676543 } }),
     ).resolves.toEqual(created);
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/king/spots');
     expect(JSON.parse(init.body)).toEqual({ reporterKey: 'k', name: 'Corner', location: { latitude: 45.523, longitude: -122.677 } });
   });
@@ -174,7 +174,7 @@ describe('kingApi', () => {
     expect(named.get('reporterName')).toBe('Kael');
     expect(await (named.get('photo') as File).text()).toBe('full');
     expect(await (named.get('thumbnail') as File).text()).toBe('thumb');
-    expect((fetchMock.mock.calls[1][1] as RequestInit).body).toSatisfy((form: FormData) => !form.has('reporterName'));
+    expect((fetchMock.mock.calls[1]![1] as RequestInit).body).toSatisfy((form: FormData) => !form.has('reporterName'));
   });
 
   it.each([

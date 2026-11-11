@@ -36,7 +36,7 @@ describe('MapView', () => {
 
     renderInEnglish(<MapView center={center} label="Map of King’s street" zoomOnly />);
 
-    const map = create.mock.results[0].value as L.Map;
+    const map = create.mock.results[0]!.value as L.Map;
     expect(map.dragging.enabled()).toBe(false);
     expect(map.options.keyboardPanDelta).toBe(0);
     expect(map.options.scrollWheelZoom).toBe('center');
@@ -51,7 +51,7 @@ describe('MapView', () => {
 
     renderInEnglish(<MapView center={center} label="Map of King’s street" />);
 
-    const map = create.mock.results[0].value as L.Map;
+    const map = create.mock.results[0]!.value as L.Map;
     expect(map.dragging.enabled()).toBe(true);
     expect(map.options.keyboardPanDelta).toBeGreaterThan(0);
   });
@@ -82,7 +82,7 @@ describe('MapView', () => {
     expect(region().querySelectorAll('.map-marker-heat.map-heat-4')).toHaveLength(1);
     expect(region().querySelectorAll('.map-marker-heat.map-heat-1')).toHaveLength(1);
     const [busiest, quietest] = circleMarker.mock.calls.map(([, options]) => options!.radius!);
-    expect(busiest).toBeGreaterThan(quietest);
+    expect(busiest).toBeGreaterThan(quietest!);
   });
 
   it('is a labelled region that credits OpenStreetMap', () => {
@@ -105,7 +105,7 @@ describe('MapView', () => {
       <MapView center={center} label="Map of King’s street" instruction="Move the map so the pin is on him." onPick={onPick} {...props} />,
     );
     // The map Leaflet built, to move it as a person would.
-    const map = spy.mock.results[0].value as L.Map;
+    const map = spy.mock.results[0]!.value as L.Map;
     return { onPick, map, ...view };
   };
 

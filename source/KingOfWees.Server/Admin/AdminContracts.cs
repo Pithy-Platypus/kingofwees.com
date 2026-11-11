@@ -91,11 +91,8 @@ public sealed class ActivityQueryValidator : AbstractValidator<ActivityQuery>
 {
     public ActivityQueryValidator(IAdminLogStore log)
     {
-        RuleFor(q => q.Limit).InclusiveBetween(1, HistoryQuery.MaxLimit).WithErrorCode("limit.outOfRange");
-        RuleFor(q => q.Before)
-            .MustAsync(async (id, ct) => await log.FindAsync(id!, ct) is not null)
-            .When(q => q.Before is not null)
-            .WithErrorCode("before.unknown");
+        RuleFor(q => q.Limit).ValidLimit();
+        RuleFor(q => q.Before).KnownCursor(log.FindAsync);
     }
 }
 

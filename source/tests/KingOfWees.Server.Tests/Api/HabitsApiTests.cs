@@ -122,13 +122,10 @@ public sealed class HabitsApiTests : IAsyncDisposable
         var response = await _factory.CreateClient().GetAsync("/api/king/habits?days=5", Ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("days.invalid", ErrorCodes(await Json(response)));
+        Assert.Contains("days.invalid", (await Json(response)).ErrorCodes());
     }
 
-    private static async Task<JsonElement> Json(HttpResponseMessage response) => await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
-
-    private static IEnumerable<string?> ErrorCodes(JsonElement problem) =>
-        problem.GetProperty("errors").EnumerateObject().SelectMany(p => p.Value.EnumerateArray()).Select(v => v.GetString());
+    private static Task<JsonElement> Json(HttpResponseMessage response) => response.JsonAsync(Ct);
 
     [Fact]
     public async Task The_court_leaves_out_hidden_entries_and_hidden_devices()

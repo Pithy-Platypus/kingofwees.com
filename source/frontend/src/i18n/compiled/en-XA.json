@@ -2552,20 +2552,6 @@
       "value": "]"
     }
   ],
-  "app.tryAgain": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
   "app.unreachable": [
     {
       "type": 0,
@@ -2616,6 +2602,20 @@
     {
       "type": 0,
       "value": "Şǿǿḿḗḗŧħīƞɠ ẇḗḗƞŧ ẇřǿǿƞɠ"
+    },
+    {
+      "type": 0,
+      "value": "]"
+    }
+  ],
+  "common.tryAgain": [
+    {
+      "type": 0,
+      "value": "["
+    },
+    {
+      "type": 0,
+      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
     },
     {
       "type": 0,
@@ -3521,20 +3521,6 @@
       "value": "]"
     }
   ],
-  "habits.tryAgain": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
   "habits.unfedDay": [
     {
       "type": 0,
@@ -3825,20 +3811,6 @@
       },
       "offset": 0,
       "pluralType": "cardinal"
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
-  "heat.tryAgain": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
     },
     {
       "type": 0,
@@ -4407,20 +4379,6 @@
     {
       "type": 0,
       "value": "Ŧǿǿḓȧȧẏ"
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
-  "log.tryAgain": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
     },
     {
       "type": 0,
@@ -5383,20 +5341,6 @@
     {
       "type": 0,
       "value": "Ƥħǿǿŧǿǿş ǿǿƒ Ķīƞɠ"
-    },
-    {
-      "type": 0,
-      "value": "]"
-    }
-  ],
-  "photos.tryAgain": [
-    {
-      "type": 0,
-      "value": "["
-    },
-    {
-      "type": 0,
-      "value": "Ŧřẏ ȧȧɠȧȧīƞ"
     },
     {
       "type": 0,

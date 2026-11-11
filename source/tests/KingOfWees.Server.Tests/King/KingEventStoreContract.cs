@@ -11,7 +11,11 @@ public abstract class KingEventStoreContract
     // Both share state: the event store leaves out devices the hidden-reporter store has hidden.
     protected abstract (IKingEventStore Events, IHiddenReporterStore Hidden) CreateStores();
 
-    private IKingEventStore CreateStore() => CreateStores().Events;
+    // One pair per test (xunit makes a new instance per test); Sets() is what a request's reads get: a fresh view of them.
+    private (IKingEventStore Events, IHiddenReporterStore Hidden)? _stores;
+    private (IKingEventStore Events, IHiddenReporterStore Hidden) Stores => _stores ??= CreateStores();
+    private IKingEventStore CreateStore() => Stores.Events;
+    private HiddenSets Sets() => new(Stores.Hidden, Stores.Events);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -90,8 +94,8 @@ public abstract class KingEventStoreContract
         await store.AddAsync(newestSeen, Ct);
         await store.AddAsync(olderFed, Ct);
 
-        AssertSameEvent(newerFed, await store.GetLatestAsync(KingEventKind.Fed, Ct));
-        AssertSameEvent(newestSeen, await store.GetLatestAsync(KingEventKind.Seen, Ct));
+        AssertSameEvent(newerFed, await store.GetLatestAsync(Sets(), KingEventKind.Fed, Ct));
+        AssertSameEvent(newestSeen, await store.GetLatestAsync(Sets(), KingEventKind.Seen, Ct));
     }
 
     [Fact]
@@ -100,7 +104,7 @@ public abstract class KingEventStoreContract
         var store = CreateStore();
         await store.AddAsync(Event(KingEventKind.Seen, 0), Ct);
 
-        Assert.Null(await store.GetLatestAsync(KingEventKind.Fed, Ct));
+        Assert.Null(await store.GetLatestAsync(Sets(), KingEventKind.Fed, Ct));
     }
 
     [Fact]
@@ -112,7 +116,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(seenFeeding, Ct);
         await store.AddAsync(sighting, Ct);
 
-        AssertSameEvent(seenFeeding, await store.GetLatestSightingAsync(Ct));
+        AssertSameEvent(seenFeeding, await store.GetLatestSightingAsync(Sets(), Ct));
     }
 
     [Fact]
@@ -123,7 +127,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(Event(KingEventKind.Fed, 2, sawKing: false), Ct);
         await store.AddAsync(sighting, Ct);
 
-        AssertSameEvent(sighting, await store.GetLatestSightingAsync(Ct));
+        AssertSameEvent(sighting, await store.GetLatestSightingAsync(Sets(), Ct));
     }
 
     [Fact]
@@ -134,7 +138,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(sighting, Ct);
         await store.AddAsync(Event(KingEventKind.Fed, 1), Ct);
 
-        AssertSameEvent(sighting, await store.GetLatestSightingAsync(Ct));
+        AssertSameEvent(sighting, await store.GetLatestSightingAsync(Sets(), Ct));
     }
 
     [Fact]
@@ -143,7 +147,7 @@ public abstract class KingEventStoreContract
         var store = CreateStore();
         await store.AddAsync(Event(KingEventKind.Fed, 0, sawKing: false), Ct);
 
-        Assert.Null(await store.GetLatestSightingAsync(Ct));
+        Assert.Null(await store.GetLatestSightingAsync(Sets(), Ct));
     }
 
     [Fact]
@@ -157,7 +161,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(third, Ct);
         await store.AddAsync(first, Ct);
 
-        var page = await store.GetPageAsync(before: null, 2, Ct);
+        var page = await store.GetPageAsync(Sets(), before: null, 2, Ct);
 
         Assert.Equal([third.Id, second.Id], page.Select(e => e.Id));
         AssertSameEvent(third, page[0]);
@@ -170,7 +174,7 @@ public abstract class KingEventStoreContract
         var events = Enumerable.Range(1, 5).Select(minute => Event(KingEventKind.Fed, minute)).ToArray();
         foreach (var e in events.Reverse()) await store.AddAsync(e, Ct);
 
-        var page = await store.GetPageAsync(before: events[3], 2, Ct);
+        var page = await store.GetPageAsync(Sets(), before: events[3], 2, Ct);
 
         Assert.Equal([events[2].Id, events[1].Id], page.Select(e => e.Id));
     }
@@ -185,9 +189,9 @@ public abstract class KingEventStoreContract
         foreach (var e in sameTime) await store.AddAsync(e, Ct);
         await store.AddAsync(Event(KingEventKind.Fed, -1) with { Id = "z-older" }, Ct);
 
-        var firstPage = await store.GetPageAsync(before: null, 2, Ct);
-        var secondPage = await store.GetPageAsync(before: firstPage[^1], 2, Ct);
-        var thirdPage = await store.GetPageAsync(before: secondPage[^1], 2, Ct);
+        var firstPage = await store.GetPageAsync(Sets(), before: null, 2, Ct);
+        var secondPage = await store.GetPageAsync(Sets(), before: firstPage[^1], 2, Ct);
+        var thirdPage = await store.GetPageAsync(Sets(), before: secondPage[^1], 2, Ct);
 
         Assert.Equal(["d", "c"], firstPage.Select(e => e.Id));
         Assert.Equal(["b", "a"], secondPage.Select(e => e.Id));
@@ -201,7 +205,7 @@ public abstract class KingEventStoreContract
         var only = Event(KingEventKind.Fed, 0);
         await store.AddAsync(only, Ct);
 
-        Assert.Empty(await store.GetPageAsync(before: only, 10, Ct));
+        Assert.Empty(await store.GetPageAsync(Sets(), before: only, 10, Ct));
     }
 
     private static readonly GeoPoint PlaceA = new(45.523, -122.677);
@@ -220,7 +224,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(Event(KingEventKind.Seen, 3, location: PlaceB), Ct);
         await store.AddAsync(Event(KingEventKind.Seen, 4), Ct);
 
-        AssertCounts([new PlaceCount(PlaceA, 2), new PlaceCount(PlaceB, 1)], await store.CountSightingsByPlaceAsync(since: null, Ct));
+        AssertCounts([new PlaceCount(PlaceA, 2), new PlaceCount(PlaceB, 1)], await store.CountSightingsByPlaceAsync(Sets(), since: null, Ct));
     }
 
     [Fact]
@@ -230,7 +234,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(Event(KingEventKind.Seen, 1, location: PlaceA), Ct);
         await store.AddAsync(Event(KingEventKind.Seen, 2, sawKing: false, location: PlaceA), Ct);
 
-        AssertCounts([new PlaceCount(PlaceA, 1)], await store.CountSightingsByPlaceAsync(since: null, Ct));
+        AssertCounts([new PlaceCount(PlaceA, 1)], await store.CountSightingsByPlaceAsync(Sets(), since: null, Ct));
     }
 
     [Fact]
@@ -243,7 +247,7 @@ public abstract class KingEventStoreContract
 
         AssertCounts(
             [new PlaceCount(PlaceA, 1), new PlaceCount(PlaceB, 1)],
-            await store.CountSightingsByPlaceAsync(since: T0.AddMinutes(2), Ct));
+            await store.CountSightingsByPlaceAsync(Sets(), since: T0.AddMinutes(2), Ct));
     }
 
     [Fact]
@@ -258,7 +262,7 @@ public abstract class KingEventStoreContract
 
         AssertCounts(
             [new SpotCount("porch", 2), new SpotCount("steps", 1)],
-            await store.CountFeedingsBySpotAsync(since: null, seenOnly: false, Ct));
+            await store.CountFeedingsBySpotAsync(Sets(), since: null, seenOnly: false, Ct));
     }
 
     [Fact]
@@ -269,7 +273,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(Event(KingEventKind.Fed, 2, spotId: "porch", sawKing: false), Ct);
         await store.AddAsync(Event(KingEventKind.Fed, 3, spotId: "steps", sawKing: false), Ct);
 
-        AssertCounts([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: null, seenOnly: true, Ct));
+        AssertCounts([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(Sets(), since: null, seenOnly: true, Ct));
     }
 
     [Fact]
@@ -279,7 +283,7 @@ public abstract class KingEventStoreContract
         await store.AddAsync(Event(KingEventKind.Fed, 1, spotId: "porch"), Ct);
         await store.AddAsync(Event(KingEventKind.Fed, 2, spotId: "porch"), Ct);
 
-        AssertCounts([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: T0.AddMinutes(2), seenOnly: false, Ct));
+        AssertCounts([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(Sets(), since: T0.AddMinutes(2), seenOnly: false, Ct));
     }
 
     [Fact]
@@ -333,15 +337,15 @@ public abstract class KingEventStoreContract
     // Hiding spam: every read a visitor can reach leaves out hidden entries and every entry from a hidden device.
     private static readonly GeoPoint Block = new(45.523, -122.677);
 
-    private static async Task AssertPublicReadsShowOnly(IKingEventStore store, KingEvent fed, KingEvent seen)
+    private async Task AssertPublicReadsShowOnly(IKingEventStore store, KingEvent fed, KingEvent seen)
     {
-        Assert.Equal(fed.Id, (await store.GetLatestAsync(KingEventKind.Fed, Ct))?.Id);
-        Assert.Equal(seen.Id, (await store.GetLatestAsync(KingEventKind.Seen, Ct))?.Id);
-        Assert.Equal(seen.Id, (await store.GetLatestSightingAsync(Ct))?.Id);
-        Assert.Equal([seen.Id, fed.Id], (await store.GetPageAsync(before: null, 10, Ct)).Select(e => e.Id));
-        Assert.Equal([new PlaceCount(Block, 1)], await store.CountSightingsByPlaceAsync(since: null, Ct));
-        Assert.Equal([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: null, seenOnly: false, Ct));
-        Assert.Equal([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(since: null, seenOnly: true, Ct));
+        Assert.Equal(fed.Id, (await store.GetLatestAsync(Sets(), KingEventKind.Fed, Ct))?.Id);
+        Assert.Equal(seen.Id, (await store.GetLatestAsync(Sets(), KingEventKind.Seen, Ct))?.Id);
+        Assert.Equal(seen.Id, (await store.GetLatestSightingAsync(Sets(), Ct))?.Id);
+        Assert.Equal([seen.Id, fed.Id], (await store.GetPageAsync(Sets(), before: null, 10, Ct)).Select(e => e.Id));
+        Assert.Equal([new PlaceCount(Block, 1)], await store.CountSightingsByPlaceAsync(Sets(), since: null, Ct));
+        Assert.Equal([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(Sets(), since: null, seenOnly: false, Ct));
+        Assert.Equal([new SpotCount("porch", 1)], await store.CountFeedingsBySpotAsync(Sets(), since: null, seenOnly: true, Ct));
     }
 
     [Fact]
@@ -363,7 +367,7 @@ public abstract class KingEventStoreContract
     [Fact]
     public async Task Every_entry_from_a_hidden_device_is_left_out_including_later_ones()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var fed = Event(KingEventKind.Fed, 0, spotId: "porch", device: "neighbor");
         var seen = Event(KingEventKind.Seen, 1, location: Block, device: "neighbor");
         await store.AddAsync(fed, Ct);
@@ -379,7 +383,7 @@ public abstract class KingEventStoreContract
     [Fact]
     public async Task Unhiding_an_entry_and_restoring_a_device_bring_everything_back()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var fed = Event(KingEventKind.Fed, 0, spotId: "porch");
         var seen = Event(KingEventKind.Seen, 1, location: Block, device: "spammer");
         await store.AddAsync(fed, Ct);
@@ -397,7 +401,7 @@ public abstract class KingEventStoreContract
     public async Task Hidden_entries_are_still_found_by_id()
     {
         // Undo, rename and history cursors look entries up by id.
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var hiddenEntry = Event(KingEventKind.Fed, 0);
         var fromHiddenDevice = Event(KingEventKind.Seen, 1, device: "spammer");
         await store.AddAsync(hiddenEntry, Ct);
@@ -414,7 +418,7 @@ public abstract class KingEventStoreContract
     public async Task Find_many_returns_each_named_event_hidden_ones_too_and_skips_unknown_ids()
     {
         // A page of photos looks up its entries in one read; an admin's hidden photos have hidden entries.
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var fed = Event(KingEventKind.Fed, 0, spotId: "porch");
         var hiddenEntry = Event(KingEventKind.Seen, 1, location: Block);
         var fromHiddenDevice = Event(KingEventKind.Seen, 2, device: "spammer");
@@ -451,7 +455,7 @@ public abstract class KingEventStoreContract
     [Fact]
     public async Task Hidden_entries_are_listed_newest_first_leaving_out_ones_hidden_only_by_device()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var older = Event(KingEventKind.Fed, 0);
         var newer = Event(KingEventKind.Seen, 1);
         var visible = Event(KingEventKind.Fed, 2);
@@ -467,7 +471,7 @@ public abstract class KingEventStoreContract
     [Fact]
     public async Task A_device_summary_counts_all_its_entries_and_names_the_newest()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var first = Event(KingEventKind.Fed, 0, name: "Old name", device: "spammer");
         await store.AddAsync(first, Ct);
         await store.AddAsync(Event(KingEventKind.Seen, 2, name: "Spammy", device: "spammer"), Ct);
@@ -482,7 +486,7 @@ public abstract class KingEventStoreContract
     [Fact]
     public async Task Moving_feedings_moves_every_one_at_those_spots_hidden_or_not_and_nothing_else()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var atPorch = Event(KingEventKind.Fed, 0, spotId: "porch");
         var hiddenAtPorch = Event(KingEventKind.Fed, 1, spotId: "porch");
         var spamAtSteps = Event(KingEventKind.Fed, 2, spotId: "steps", device: "spammer");
@@ -505,7 +509,7 @@ public abstract class KingEventStoreContract
     [Fact]
     public async Task Every_feeding_is_counted_per_spot_hidden_or_not()
     {
-        var (store, hidden) = CreateStores();
+        var (store, hidden) = Stores;
         var hiddenOne = Event(KingEventKind.Fed, 0, spotId: "porch");
         await store.AddAsync(hiddenOne, Ct);
         await store.AddAsync(Event(KingEventKind.Fed, 1, spotId: "porch", sawKing: false), Ct);

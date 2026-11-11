@@ -36,6 +36,9 @@ public sealed class MongoHiddenReporterStore(IMongoDatabase database) : IHiddenR
         return documents.ConvertAll(d => d.ToHiddenReporter());
     }
 
+    public async Task<IReadOnlySet<string>> ListKeysAsync(CancellationToken cancellationToken) =>
+        new HashSet<string>(await _hidden.Find(FilterDefinition<HiddenReporterDocument>.Empty).Project(h => h.ReporterKey).ToListAsync(cancellationToken));
+
     [BsonIgnoreExtraElements]
     private sealed class HiddenReporterDocument
     {
@@ -45,6 +48,6 @@ public sealed class MongoHiddenReporterStore(IMongoDatabase database) : IHiddenR
         public required DateTime HiddenAtUtc { get; init; }
 
         public HiddenReporter ToHiddenReporter() =>
-            new(Id, ReporterKey, new DateTimeOffset(DateTime.SpecifyKind(HiddenAtUtc, DateTimeKind.Utc)));
+            new(Id, ReporterKey, BsonTime.Utc(HiddenAtUtc));
     }
 }

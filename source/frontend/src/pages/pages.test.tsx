@@ -71,7 +71,7 @@ describe('AboutPage', () => {
     const link = screen.getByRole('link', { name: 'Its code is public' });
     expect(link).toHaveAttribute('href', sourceUrl);
     expect(sourceUrl).toMatch(THIS_COMMIT);
-    expect(sourceUrl).toContain(import.meta.env.VITE_APP_VERSION.split('+')[1].slice(0, 12));
+    expect(sourceUrl).toContain(import.meta.env.VITE_APP_VERSION.split('+')[1]!.slice(0, 12));
   });
 
   it('shows this page’s version, as source/version.sh prints it', () => {

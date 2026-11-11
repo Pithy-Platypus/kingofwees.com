@@ -14,4 +14,7 @@ public interface IHiddenReporterStore
 
     /// <summary>Newest hidden first.</summary>
     Task<IReadOnlyList<HiddenReporter>> ListAsync(CancellationToken cancellationToken);
+
+    /// <summary>The keys of every hidden device, for <see cref="HiddenSets"/>: only the keys leave the database.</summary>
+    Task<IReadOnlySet<string>> ListKeysAsync(CancellationToken cancellationToken);
 }
