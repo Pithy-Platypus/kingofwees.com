@@ -49,6 +49,7 @@ builder.Services.AddClientDiagnostics();
 builder.Services.AddSingleton<IPhotoBlobStore, AzurePhotoBlobStore>();
 builder.Services.AddHostedService<PhotoStorageWarmUp>();
 builder.Services.AddSingleton<IPhotoStore, MongoPhotoStore>();
+builder.Services.AddSingleton<PhotoVisibility>();
 
 var app = builder.Build();
 

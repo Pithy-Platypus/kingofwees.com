@@ -8,14 +8,16 @@ namespace KingOfWees.Server.King;
 /// the photo upload within the ten arguments an endpoint filter context holds; an eleventh beside a form fails at the
 /// first request.)
 /// </summary>
-public sealed class EventViewer(HiddenSets hidden, ISpotStore spots, IPhotoStore photos)
+public sealed class EventViewer(HiddenSets hidden, ISpotStore spots, IPhotoStore photos, PhotoVisibility visibility)
 {
-    // A street has a handful of spots; one read beats a lookup per event. Photos: one read for the events shown.
+    // A street has a handful of spots; one read beats a lookup per event. Photos: one read for the events shown, each
+    // remembered visible for the thumbnails that follow.
     public async Task<Func<KingEvent, EventView>> ViewsAsync(IReadOnlyCollection<KingEvent> events, CancellationToken cancellationToken)
     {
         var spotsById = (await spots.ListAsync(hidden, cancellationToken)).ToDictionary(s => s.Id);
-        var photoIds = (await photos.ForEventsAsync(hidden, [.. events.Select(e => e.Id).Distinct()], cancellationToken))
-            .ToDictionary(p => p.EventId!, p => p.Id);
+        var shown = await photos.ForEventsAsync(hidden, [.. events.Select(e => e.Id).Distinct()], cancellationToken);
+        visibility.Remember(shown);
+        var photoIds = shown.ToDictionary(p => p.EventId!, p => p.Id);
         return e => EventView.From(e, e.SpotId is null ? null : spotsById.GetValueOrDefault(e.SpotId), photoIds.GetValueOrDefault(e.Id));
     }
 }

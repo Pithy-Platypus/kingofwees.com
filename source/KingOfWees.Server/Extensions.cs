@@ -52,9 +52,10 @@ public static class Extensions
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(tracing =>
-                        // Only the API is traced: pages and files tell nothing the API rows don't, /health and /alive are
-                        // the probes', and a request nobody traces can't spend the daily cap. Why → docs/patterns/telemetry.md.
-                        tracing.Filter = context => context.Request.Path.StartsWithSegments(ApiPath)
+                        // Only the API is traced, less the photo files: pages, files and thumbnails tell nothing the API
+                        // rows don't, /health and /alive are the probes', and a request nobody traces can't spend the
+                        // daily cap. Why → docs/patterns/telemetry.md.
+                        tracing.Filter = context => context.Request.Path.StartsWithSegments(ApiPath) && !NoiseFilter.IsPhotoFile(context.Request.Path)
                     )
                     .AddHttpClientInstrumentation()
                     // Registered before any exporter so personal data never leaves the process, and the noise never

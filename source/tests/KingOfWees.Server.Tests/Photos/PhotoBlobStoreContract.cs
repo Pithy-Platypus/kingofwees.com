@@ -41,7 +41,30 @@ public abstract class PhotoBlobStoreContract
 
         await store.PutAsync(name, new MemoryStream(bytes), Ct);
 
-        Assert.Equal(bytes, await ReadAll((await store.OpenAsync(name, Ct))!));
+        Assert.Equal(bytes, await ReadAll((await store.OpenAsync(name, Ct))!.Content));
+    }
+
+    [Fact]
+    public async Task A_file_carries_a_strong_tag_and_a_time_that_change_when_it_is_replaced()
+    {
+        // What the browser revalidates against: the same file answers the same tag, a replaced one another.
+        var store = CreateStore();
+        var name = NewName();
+        await store.PutAsync(name, new MemoryStream([1]), Ct);
+
+        var first = (await store.OpenAsync(name, Ct))!;
+        var same = (await store.OpenAsync(name, Ct))!;
+        await Task.Delay(TimeSpan.FromSeconds(1.1), Ct); // Last-Modified is whole seconds
+        await store.PutAsync(name, new MemoryStream([2]), Ct);
+        var replaced = (await store.OpenAsync(name, Ct))!;
+
+        Assert.Matches("^\"[^\"]+\"$", first.ETag); // quoted, not weak: the browser sends it back as is
+        Assert.Equal(first.ETag, same.ETag);
+        Assert.Equal(first.LastModified, same.LastModified);
+        Assert.NotEqual(first.ETag, replaced.ETag);
+        Assert.True(replaced.LastModified > first.LastModified);
+        Assert.InRange(first.LastModified, DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddMinutes(5));
+        foreach (var file in new[] { first, same, replaced }) await file.Content.DisposeAsync();
     }
 
     [Fact]
@@ -53,8 +76,8 @@ public abstract class PhotoBlobStoreContract
         await store.PutAsync(first, new MemoryStream([1]), Ct);
         await store.PutAsync(second, new MemoryStream([2]), Ct);
 
-        Assert.Equal([1], await ReadAll((await store.OpenAsync(first, Ct))!));
-        Assert.Equal([2], await ReadAll((await store.OpenAsync(second, Ct))!));
+        Assert.Equal([1], await ReadAll((await store.OpenAsync(first, Ct))!.Content));
+        Assert.Equal([2], await ReadAll((await store.OpenAsync(second, Ct))!.Content));
     }
 
     [Fact]

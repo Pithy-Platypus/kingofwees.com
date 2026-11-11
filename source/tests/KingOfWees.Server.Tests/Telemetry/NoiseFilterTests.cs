@@ -47,7 +47,7 @@ public sealed class NoiseFilterTests : IDisposable
 
     [Theory]
     [InlineData(NoiseFilter.UnknownApiRoute, false)]
-    [InlineData("/api/king/photos/{id}/thumb", true)]
+    [InlineData("/api/king/photos/{id}", true)]
     public void Only_a_request_for_an_unknown_api_path_is_dropped_by_its_route(string route, bool recorded)
     {
         using var request = _source.StartActivity("GET", ActivityKind.Server)!;
@@ -57,6 +57,22 @@ public sealed class NoiseFilterTests : IDisposable
         new NoiseFilter().OnEnd(request);
 
         Assert.Equal(recorded, request.Recorded);
+    }
+
+    [Theory]
+    [InlineData("/api/king/photos/0199c1a2-7b3e-7c4d-8e5f-a6b7c8d9e0f1/thumb", true)]
+    [InlineData("/api/king/photos/0199c1a2-7b3e-7c4d-8e5f-a6b7c8d9e0f1/full", true)]
+    [InlineData("/API/King/Photos/0199c1a2-7b3e-7c4d-8e5f-a6b7c8d9e0f1/Full/", true)] // routing ignores case and a trailing slash
+    [InlineData("/api/king/photos/0199c1a2-7b3e-7c4d-8e5f-a6b7c8d9e0f1", false)] // the photo's record, one a page
+    [InlineData("/api/king/photos", false)]
+    [InlineData("/api/king/photos/0199c1a2-7b3e-7c4d-8e5f-a6b7c8d9e0f1/thumb/more", false)]
+    [InlineData("/api/king/photos//thumb", false)]
+    [InlineData("/api/king/status", false)]
+    public void A_photo_file_s_path_is_known_before_routing(string path, bool isPhotoFile)
+    {
+        // The instrumentation's Filter decides at the request's start, from the path alone: fifty thumbnails a page,
+        // each with a blob dependency row, told nothing the page's own row doesn't.
+        Assert.Equal(isPhotoFile, NoiseFilter.IsPhotoFile(path));
     }
 
     [Fact]

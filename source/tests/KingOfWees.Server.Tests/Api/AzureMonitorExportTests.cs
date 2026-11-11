@@ -53,13 +53,18 @@ public sealed class AzureMonitorExportTests
     public async Task Only_api_requests_are_traced_and_unknown_api_paths_are_not()
     {
         // Pages, files and unknown /api paths (scanners) would let anyone spend the daily cap, a row at a time; a 404 on
-        // a real route stays (the alerts and the Failures blade count real routes).
+        // a real route stays (the alerts and the Failures blade count real routes). Photo files are the exception among
+        // real routes: fifty a page, each with a blob dependency row, under their own limit — none of it is a row.
         var spans = new List<Activity>();
         await using var factory = WithAzureMonitor().WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddInMemoryExporter(spans))));
-        var untraced = new[] { "/", "/about", "/assets/missing.js", "/wp-admin/install.php", "/api/nope", "/api/king/nothing" }
+        var untraced = new[]
+            {
+                "/", "/about", "/assets/missing.js", "/wp-admin/install.php", "/api/nope", "/api/king/nothing",
+                "/api/king/photos/00000000-0000-0000-0000-000000000000/thumb", "/api/king/photos/00000000-0000-0000-0000-000000000000/full",
+            }
             .ToDictionary(path => path, _ => ActivityTraceId.CreateRandom());
-        var traced = new[] { "/api/version", "/api/king/photos/00000000-0000-0000-0000-000000000000/thumb" }
+        var traced = new[] { "/api/version", "/api/king/photos/00000000-0000-0000-0000-000000000000" }
             .ToDictionary(path => path, _ => ActivityTraceId.CreateRandom());
 
         foreach (var (path, traceId) in untraced.Concat(traced))
@@ -73,7 +78,7 @@ public sealed class AzureMonitorExportTests
         }
 
         Assert.Equal(traced.Count, await ServerSpanCount(spans, [.. traced.Values]));
-        lock (spans) Assert.DoesNotContain(spans, s => s.Kind == ActivityKind.Server && untraced.ContainsValue(s.TraceId));
+        lock (spans) Assert.DoesNotContain(spans, s => untraced.ContainsValue(s.TraceId)); // no request row, no dependency row
     }
 
     [Fact]

@@ -45,23 +45,28 @@ public static class AdminEndpoints
         return TypedResults.NoContent();
     }
 
+    // Every hide also forgets what the photo files remember as visible (PhotoVisibility): its photo stops at once.
     private static Task<Results<NoContent, NotFound>> HideEntry(
-        string id, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics, HttpContext context,
-        CancellationToken cancellationToken) =>
-        SetEntryHidden(id, hidden: true, store, spots, audit, metrics, context, cancellationToken);
+        string id, IKingEventStore store, ISpotStore spots, PhotoVisibility visibility, AdminAudit audit, KingMetrics metrics,
+        HttpContext context, CancellationToken cancellationToken) =>
+        SetEntryHidden(id, hidden: true, store, spots, visibility, audit, metrics, context, cancellationToken);
 
     private static Task<Results<NoContent, NotFound>> UnhideEntry(
-        string id, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics, HttpContext context,
-        CancellationToken cancellationToken) =>
-        SetEntryHidden(id, hidden: false, store, spots, audit, metrics, context, cancellationToken);
+        string id, IKingEventStore store, ISpotStore spots, PhotoVisibility visibility, AdminAudit audit, KingMetrics metrics,
+        HttpContext context, CancellationToken cancellationToken) =>
+        SetEntryHidden(id, hidden: false, store, spots, visibility, audit, metrics, context, cancellationToken);
 
     private static async Task<Results<NoContent, NotFound>> SetEntryHidden(
-        string id, bool hidden, IKingEventStore store, ISpotStore spots, AdminAudit audit, KingMetrics metrics,
-        HttpContext context, CancellationToken cancellationToken)
+        string id, bool hidden, IKingEventStore store, ISpotStore spots, PhotoVisibility visibility, AdminAudit audit,
+        KingMetrics metrics, HttpContext context, CancellationToken cancellationToken)
     {
         var entry = await store.FindAsync(id, cancellationToken);
         if (entry is null || !await store.SetHiddenAsync(id, hidden, cancellationToken)) return TypedResults.NotFound();
-        if (hidden) metrics.Hidden("entry");
+        if (hidden)
+        {
+            visibility.Forget();
+            metrics.Hidden("entry");
+        }
         else metrics.Restored("entry");
         var spot = entry.SpotId is null ? null : await spots.FindAsync(entry.SpotId, cancellationToken);
         await audit.RecordAsync(
@@ -73,12 +78,13 @@ public static class AdminEndpoints
     // reported to NCMEC must be kept a year).
     // Hidden with why, when and the typed name, so a later admin knows which photo this is without seeing it again.
     private static async Task<Results<NoContent, NotFound>> HidePhoto(
-        string id, HidePhotoRequest request, IPhotoStore photos, IKingEventStore store, ISpotStore spots, AdminAudit audit,
-        KingMetrics metrics, TimeProvider clock, HttpContext context, CancellationToken cancellationToken)
+        string id, HidePhotoRequest request, IPhotoStore photos, PhotoVisibility visibility, IKingEventStore store, ISpotStore spots,
+        AdminAudit audit, KingMetrics metrics, TimeProvider clock, HttpContext context, CancellationToken cancellationToken)
     {
         var photo = await photos.FindAsync(id, cancellationToken);
         var hiding = new PhotoHiding(request.ParsedReason, request.CleanNote, clock.GetUtcNow(), AdminAudit.NameOf(context.Request));
         if (photo is null || !await photos.HideAsync(id, hiding, cancellationToken)) return TypedResults.NotFound();
+        visibility.Forget();
         metrics.Hidden("photo");
         var touched = await Described(photo, store, spots, cancellationToken) with { Reason = hiding.Reason, Note = hiding.Note };
         await audit.RecordAsync(context, AdminAction.HidePhoto, touched, cancellationToken);
@@ -129,12 +135,13 @@ public static class AdminEndpoints
     }
 
     private static async Task<Results<Ok<HiddenDeviceView>, NotFound>> HideDevice(
-        string id, IKingEventStore store, ISpotStore spots, IHiddenReporterStore hidden, TimeProvider clock, KingMetrics metrics,
-        AdminAudit audit, HttpContext context, CancellationToken cancellationToken)
+        string id, IKingEventStore store, ISpotStore spots, IHiddenReporterStore hidden, PhotoVisibility visibility, TimeProvider clock,
+        KingMetrics metrics, AdminAudit audit, HttpContext context, CancellationToken cancellationToken)
     {
         var kingEvent = await store.FindAsync(id, cancellationToken);
         if (kingEvent is null) return TypedResults.NotFound();
         var record = await hidden.HideAsync(kingEvent.ReporterKey, clock.GetUtcNow(), cancellationToken);
+        visibility.Forget();
         metrics.Hidden("device");
         var view = await View(record, store, spots, cancellationToken);
         await audit.RecordAsync(context, AdminAction.HidePoster, Poster(view), cancellationToken);

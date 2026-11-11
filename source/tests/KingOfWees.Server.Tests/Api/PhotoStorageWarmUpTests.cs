@@ -65,7 +65,7 @@ public sealed class PhotoStorageWarmUpTests
 
         public Task PutAsync(string name, Stream content, CancellationToken cancellationToken) => Task.CompletedTask;
 
-        public Task<Stream?> OpenAsync(string name, CancellationToken cancellationToken) => Task.FromResult<Stream?>(null);
+        public Task<PhotoFile?> OpenAsync(string name, CancellationToken cancellationToken) => Task.FromResult<PhotoFile?>(null);
 
         public Task<bool> DeleteAsync(string name, CancellationToken cancellationToken) => Task.FromResult(false);
     }

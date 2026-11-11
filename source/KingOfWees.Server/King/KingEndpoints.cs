@@ -41,13 +41,15 @@ public static class KingEndpoints
     }
 
     private static async Task<Ok<KingStatus>> GetStatus(
-        HiddenSets hidden, IKingEventStore store, IPhotoStore photos, EventViewer viewer, CancellationToken cancellationToken)
+        HiddenSets hidden, IKingEventStore store, IPhotoStore photos, PhotoVisibility visibility, EventViewer viewer,
+        CancellationToken cancellationToken)
     {
         var lastFed = await store.GetLatestAsync(hidden, KingEventKind.Fed, cancellationToken);
         var lastSeen = await store.GetLatestSightingAsync(hidden, cancellationToken);
         var recent = await store.GetPageAsync(hidden, before: null, RecentCount, cancellationToken);
         var view = await viewer.ViewsAsync([.. recent, .. new[] { lastFed, lastSeen }.OfType<KingEvent>()], cancellationToken);
         var latestPhoto = await photos.GetPageAsync(hidden, before: null, 1, cancellationToken);
+        visibility.Remember(latestPhoto); // Home's avatar asks for its thumbnail next
 
         return TypedResults.Ok(new KingStatus(
             lastFed is null ? null : view(lastFed),

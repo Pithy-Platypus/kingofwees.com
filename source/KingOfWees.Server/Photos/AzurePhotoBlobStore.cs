@@ -11,12 +11,13 @@ public sealed class AzurePhotoBlobStore(BlobContainerClient container) : IPhotoB
     public Task PutAsync(string name, Stream content, CancellationToken cancellationToken) =>
         container.GetBlobClient(name).UploadAsync(content, Jpeg, cancellationToken);
 
-    public async Task<Stream?> OpenAsync(string name, CancellationToken cancellationToken)
+    public async Task<PhotoFile?> OpenAsync(string name, CancellationToken cancellationToken)
     {
         try
         {
             var download = await container.GetBlobClient(name).DownloadStreamingAsync(cancellationToken: cancellationToken);
-            return download.Value.Content;
+            var details = download.Value.Details;
+            return new PhotoFile(download.Value.Content, details.ETag.ToString("H"), details.LastModified);
         }
         catch (RequestFailedException e) when (e.Status == StatusCodes.Status404NotFound)
         {

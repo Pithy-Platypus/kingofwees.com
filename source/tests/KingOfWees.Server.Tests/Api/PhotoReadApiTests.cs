@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using KingOfWees.Server.Photos;
@@ -63,6 +64,115 @@ public sealed class PhotoReadApiTests : IAsyncLifetime
         Assert.Equal("same-origin", response.Headers.GetValues("Cross-Origin-Resource-Policy").Single());
         Assert.True(response.Headers.CacheControl?.Private);
         Assert.Equal(TimeSpan.FromHours(1), response.Headers.CacheControl?.MaxAge);
+        Assert.False(response.Headers.ETag?.IsWeak ?? true); // the file's own tag, for the browser's next ask
+        Assert.NotNull(response.Content.Headers.LastModified);
+    }
+
+    [Fact]
+    public async Task A_file_the_browser_already_has_is_a_304_without_the_bytes()
+    {
+        // After the hour's max-age the browser asks again with If-None-Match; the files never change, so the answer
+        // is a 304 with the same headers — and nothing to download.
+        var photo = await Stored();
+        var first = await _client.GetAsync($"/api/king/photos/{photo.Id}/thumb", Ct);
+
+        var again = await _client.SendAsync(Revalidation(photo.Id, first.Headers.ETag!), Ct);
+
+        Assert.Equal(HttpStatusCode.NotModified, again.StatusCode);
+        Assert.Empty(await again.Content.ReadAsByteArrayAsync(Ct));
+        Assert.Equal(first.Headers.ETag, again.Headers.ETag);
+        Assert.Equal(first.Headers.CacheControl, again.Headers.CacheControl);
+    }
+
+    [Fact]
+    public async Task A_tag_the_file_doesn_t_have_gets_the_bytes()
+    {
+        var photo = await Stored();
+
+        var response = await _client.SendAsync(Revalidation(photo.Id, new EntityTagHeaderValue("\"someone-else-s\"")), Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(TestJpeg.Make(50), await response.Content.ReadAsByteArrayAsync(Ct));
+    }
+
+    [Fact]
+    public async Task A_photo_hidden_since_the_browser_saw_it_is_404_not_304()
+    {
+        // The visibility check comes before the file: a browser revalidating a hidden photo must not be told to keep it.
+        // It asks again after its hour, long past the minute the files remember a photo visible (PhotoVisibility).
+        var photo = await Stored();
+        var first = await _client.GetAsync($"/api/king/photos/{photo.Id}/thumb", Ct);
+        await _factory.Photos.HideAsync(photo.Id, Hiding, Ct);
+        _factory.Clock.Advance(TimeSpan.FromHours(1));
+
+        var again = await _client.SendAsync(Revalidation(photo.Id, first.Headers.ETag!), Ct);
+
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_served_photo_s_files_come_without_the_store_for_a_minute_and_not_after()
+    {
+        // Fifty thumbnails a page were three Mongo reads each. Once served, a photo is remembered visible for a minute
+        // (PhotoVisibility): hidden straight in the store here — what a hide this replica never heard of would look
+        // like — its files still come for that minute, and not after. An admin's own hide forgets at once
+        // (AdminPhotoApiTests, AdminHidingApiTests).
+        var photo = await Stored();
+        Assert.Equal(HttpStatusCode.OK, await Status(photo.Id, "thumb"));
+        await _factory.Photos.HideAsync(photo.Id, Hiding, Ct);
+
+        _factory.Clock.Advance(TimeSpan.FromSeconds(59));
+        Assert.Equal(HttpStatusCode.OK, await Status(photo.Id, "thumb"));
+        Assert.Equal(HttpStatusCode.OK, await Status(photo.Id, "full")); // one memory per photo, both sizes
+        _factory.Clock.Advance(TimeSpan.FromSeconds(2));
+        Assert.Equal(HttpStatusCode.NotFound, await Status(photo.Id, "thumb"));
+        Assert.Equal(HttpStatusCode.NotFound, await Status(photo.Id, "full"));
+    }
+
+    [Theory]
+    [InlineData("the photos page")]
+    [InlineData("one photo")]
+    [InlineData("status, the newest photo")]
+    [InlineData("history, an entry's photo")]
+    public async Task A_read_that_showed_a_photo_visible_lets_its_files_come_without_the_store(string read)
+    {
+        // Fifty thumbnails follow the list that just proved them visible, Home's avatar its status read: those reads
+        // remember what they showed, so a cold page costs the list's reads and nothing per thumbnail.
+        var onEntry = await Stored(eventId: await LoggedSighting());
+        var shared = await Stored();
+        var photo = read.StartsWith("history") ? onEntry : shared;
+        await _client.GetAsync(read switch
+        {
+            "the photos page" => "/api/king/photos",
+            "one photo" => $"/api/king/photos/{photo.Id}",
+            "status, the newest photo" => "/api/king/status",
+            _ => "/api/king/history",
+        }, Ct);
+        await _factory.Photos.HideAsync(photo.Id, Hiding, Ct); // straight in the store: the files didn't hear
+
+        Assert.Equal(HttpStatusCode.OK, await Status(photo.Id, "thumb"));
+    }
+
+    [Fact]
+    public async Task Only_visibility_is_remembered_so_a_photo_shown_again_comes_back_at_once()
+    {
+        var photo = await Stored();
+        await _factory.Photos.HideAsync(photo.Id, Hiding, Ct);
+        Assert.Equal(HttpStatusCode.NotFound, await Status(photo.Id, "thumb"));
+
+        await _factory.Photos.ShowAsync(photo.Id, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, await Status(photo.Id, "thumb"));
+    }
+
+    private async Task<HttpStatusCode> Status(string id, string size) =>
+        (await _client.GetAsync($"/api/king/photos/{id}/{size}", Ct)).StatusCode;
+
+    private static HttpRequestMessage Revalidation(string id, EntityTagHeaderValue etag)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"/api/king/photos/{id}/thumb");
+        request.Headers.IfNoneMatch.Add(etag);
+        return request;
     }
 
     [Theory]

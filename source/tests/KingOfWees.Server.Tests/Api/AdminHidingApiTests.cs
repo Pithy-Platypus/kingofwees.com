@@ -4,6 +4,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using KingOfWees.Server.Admin;
+using KingOfWees.Server.Photos;
+using KingOfWees.Server.Tests.Photos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -64,6 +66,24 @@ public sealed class AdminHidingApiTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.NoContent, (await _admin.DeleteAsync($"/api/admin/events/{spam}/hide", Ct)).StatusCode);
         Assert.Equal([spam, kept], await PublicHistoryIds());
+    }
+
+    [Theory]
+    [InlineData("entry")]
+    [InlineData("device")]
+    public async Task Hiding_an_entry_or_a_device_stops_its_photo_s_files_at_once(string what)
+    {
+        // The files remember a served photo visible for a minute (PhotoVisibility); an admin's hide must not wait for it.
+        var entry = await See(Neighbor);
+        var photo = new Photo(Guid.CreateVersion7().ToString(), entry, _factory.Clock.GetUtcNow(), Neighbor, null);
+        await _factory.PhotoFiles.PutAsync(PhotoFiles.Thumbnail(photo.Id), new MemoryStream(TestJpeg.Make(32)), Ct);
+        await _factory.Photos.AddAsync(photo, Ct);
+        Assert.Equal(HttpStatusCode.OK, (await _public.GetAsync($"/api/king/photos/{photo.Id}/thumb", Ct)).StatusCode);
+
+        var hide = what == "entry" ? $"/api/admin/events/{entry}/hide" : $"/api/admin/events/{entry}/hide-device";
+        Assert.True((await _admin.PostAsync(hide, null, Ct)).IsSuccessStatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await _public.GetAsync($"/api/king/photos/{photo.Id}/thumb", Ct)).StatusCode);
     }
 
     [Fact]

@@ -39,7 +39,7 @@ public sealed class PhotoUploadLimitTests
             await files.PutAsync(name, content, cancellationToken);
         }
 
-        public Task<Stream?> OpenAsync(string name, CancellationToken cancellationToken) => files.OpenAsync(name, cancellationToken);
+        public Task<PhotoFile?> OpenAsync(string name, CancellationToken cancellationToken) => files.OpenAsync(name, cancellationToken);
 
         public Task<bool> DeleteAsync(string name, CancellationToken cancellationToken) => files.DeleteAsync(name, cancellationToken);
 

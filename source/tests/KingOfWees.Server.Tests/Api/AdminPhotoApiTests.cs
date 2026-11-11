@@ -73,6 +73,7 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
     {
         var entry = await Sighting();
         var photo = await Stored(eventId: entry.Id);
+        Assert.Equal(HttpStatusCode.OK, await Served(photo.Id)); // remembered visible (PhotoVisibility); the hide must not wait a minute
 
         Assert.Equal(HttpStatusCode.NoContent, (await Hide(photo.Id)).StatusCode);
 
@@ -81,6 +82,7 @@ public sealed class AdminPhotoApiTests : IAsyncLifetime
         Assert.Equal(entry.Id, lastSeen.GetProperty("id").GetString());
         Assert.Equal(JsonValueKind.Null, lastSeen.GetProperty("photoId").ValueKind);
         Assert.Equal([photo.Id], await HiddenIds());
+        Assert.Equal(HttpStatusCode.NotFound, await Served(photo.Id)); // listing it for the admin doesn't remember it visible
 
         Assert.Equal(HttpStatusCode.NoContent, (await Show(photo.Id)).StatusCode);
 

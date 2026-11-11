@@ -1,6 +1,7 @@
 using KingOfWees.Server.King;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Net.Http.Headers;
 
 namespace KingOfWees.Server.Photos;
 
@@ -11,44 +12,51 @@ public static class PhotoEndpoints
     {
         king.MapGet("/photos", ListPhotos);
         king.MapGet("/photos/{id}", GetPhoto);
-        king.MapGet("/photos/{id}/full", (string id, HiddenSets hidden, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
-            ServeAsync(id, PhotoFiles.Full(id), hidden, photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
-        king.MapGet("/photos/{id}/thumb", (string id, HiddenSets hidden, IPhotoStore photos, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
-            ServeAsync(id, PhotoFiles.Thumbnail(id), hidden, photos, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
+        king.MapGet("/photos/{id}/full", (string id, HiddenSets hidden, IPhotoStore photos, PhotoVisibility visibility, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
+            ServeAsync(id, PhotoFiles.Full(id), hidden, photos, visibility, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
+        king.MapGet("/photos/{id}/thumb", (string id, HiddenSets hidden, IPhotoStore photos, PhotoVisibility visibility, IPhotoBlobStore files, HttpContext context, CancellationToken ct) =>
+            ServeAsync(id, PhotoFiles.Thumbnail(id), hidden, photos, visibility, files, context, ct)).RequireRateLimiting(KingPolicies.PhotoFiles);
     }
 
-    // Only while visible. Private and an hour at most, so a photo an admin hides leaves everyone's view soon after
-    // (a shared cache, should a proxy ever sit in front, keeps nothing).
+    // Only while visible — asked of the store once a minute per photo (PhotoVisibility), not fifty times a page.
+    // Private and an hour at most, so a photo an admin hides leaves everyone's view soon after (a shared cache, should a
+    // proxy ever sit in front, keeps nothing). After the hour the browser asks again with the file's tag, and the result
+    // answers 304 without the bytes — the visibility check still comes first.
     private static async Task<Results<FileStreamHttpResult, NotFound>> ServeAsync(
-        string id, string fileName, HiddenSets hidden, IPhotoStore photos, IPhotoBlobStore files, HttpContext context,
-        CancellationToken cancellationToken)
+        string id, string fileName, HiddenSets hidden, IPhotoStore photos, PhotoVisibility visibility, IPhotoBlobStore files,
+        HttpContext context, CancellationToken cancellationToken)
     {
-        if (await photos.FindVisibleAsync(hidden, id, cancellationToken) is null
-            || await files.OpenAsync(fileName, cancellationToken) is not { } content)
+        if (!visibility.IsRemembered(id))
         {
-            return TypedResults.NotFound();
+            if (await photos.FindVisibleAsync(hidden, id, cancellationToken) is null) return TypedResults.NotFound();
+            visibility.Remember(id);
         }
+        if (await files.OpenAsync(fileName, cancellationToken) is not { } file) return TypedResults.NotFound();
 
         context.Response.Headers.CacheControl = "private, max-age=3600";
-        return TypedResults.Stream(content, "image/jpeg");
+        return TypedResults.Stream(file.Content, "image/jpeg", lastModified: file.LastModified, entityTag: new EntityTagHeaderValue(file.ETag));
     }
 
+    // The page's photos are remembered visible for the fifty thumbnails that follow (PhotoVisibility).
     private static async Task<Ok<PhotosPage>> ListPhotos(
-        [AsParameters] PhotosQuery query, HiddenSets hidden, IPhotoStore photos, IKingEventStore events, EventViewer viewer,
-        CancellationToken cancellationToken)
+        [AsParameters] PhotosQuery query, HiddenSets hidden, IPhotoStore photos, PhotoVisibility visibility, IKingEventStore events,
+        EventViewer viewer, CancellationToken cancellationToken)
     {
         var limit = query.Limit ?? Paging.DefaultLimit;
         // The validator has already checked that the cursor names a photo.
         var before = query.Before is null ? null : await photos.FindAsync(query.Before, cancellationToken);
         var (page, next) = Paging.Page(await photos.GetPageAsync(hidden, before, limit + 1, cancellationToken), limit, p => p.Id);
+        visibility.Remember(page);
         return TypedResults.Ok(new PhotosPage(await PhotoViews(viewer, page, events, cancellationToken), next));
     }
 
     // One photo, as the list shows it: a link to /photos/{id} may name one older than the page's first 50.
     private static async Task<Results<Ok<PhotoView>, NotFound>> GetPhoto(
-        string id, HiddenSets hidden, IKingEventStore events, IPhotoStore photos, EventViewer viewer, CancellationToken cancellationToken)
+        string id, HiddenSets hidden, IKingEventStore events, IPhotoStore photos, PhotoVisibility visibility, EventViewer viewer,
+        CancellationToken cancellationToken)
     {
         if (await photos.FindVisibleAsync(hidden, id, cancellationToken) is not { } photo) return TypedResults.NotFound();
+        visibility.Remember(id);
         return TypedResults.Ok((await PhotoViews(viewer, [photo], events, cancellationToken))[0]);
     }
 

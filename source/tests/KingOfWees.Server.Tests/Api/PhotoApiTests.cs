@@ -89,8 +89,8 @@ public sealed class PhotoApiTests : IAsyncLifetime
 
     private async Task<byte[]?> StoredFile(string name)
     {
-        var stream = await _factory.PhotoFiles.OpenAsync(name, Ct);
-        if (stream is null) return null;
+        if (await _factory.PhotoFiles.OpenAsync(name, Ct) is not { } file) return null;
+        await using var stream = file.Content;
         using var copy = new MemoryStream();
         await stream.CopyToAsync(copy, Ct);
         return copy.ToArray();
