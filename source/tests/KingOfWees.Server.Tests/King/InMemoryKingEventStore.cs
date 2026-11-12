@@ -38,6 +38,12 @@ public sealed class InMemoryKingEventStore : IKingEventStore
             .Take(count),
     ];
 
+    public async Task<IReadOnlyList<HabitEvent>> GetHabitsAsync(HiddenSets hidden, int count, CancellationToken cancellationToken) =>
+    [
+        .. (await GetPageAsync(hidden, null, count, cancellationToken))
+            .Select(e => new HabitEvent(e.OccurredAt, e.Kind, e.SawKing, e.Foods, e.ReporterName)),
+    ];
+
     public async Task<IReadOnlyList<PlaceCount>> CountSightingsByPlaceAsync(HiddenSets hidden, DateTimeOffset? since, CancellationToken cancellationToken) =>
     [
         .. (await Since(hidden, since, cancellationToken))

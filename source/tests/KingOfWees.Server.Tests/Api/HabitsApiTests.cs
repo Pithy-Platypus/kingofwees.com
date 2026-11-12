@@ -26,12 +26,14 @@ public sealed class HabitsApiTests : IAsyncDisposable
         return id;
     }
 
-    private async Task<(string Name, int Feedings)[]> Court(string query = "")
+    // The court for one of the three ranges, out of the one answer that carries all of them.
+    private async Task<(string Name, int Feedings)[]> Court(string range = "all")
     {
-        var response = await _factory.CreateClient().GetAsync($"/api/king/habits{query}", Ct);
+        var response = await _factory.CreateClient().GetAsync("/api/king/habits", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
-        return [.. json.GetProperty("court").EnumerateArray().Select(c => (c.GetProperty("name").GetString()!, c.GetProperty("feedings").GetInt32()))];
+        return [.. json.GetProperty("courts").GetProperty(range).EnumerateArray()
+            .Select(c => (c.GetProperty("name").GetString()!, c.GetProperty("feedings").GetInt32()))];
     }
 
     private async Task<JsonElement[]> Entries()
@@ -103,26 +105,21 @@ public sealed class HabitsApiTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task The_court_follows_the_days_asked_for_while_the_entries_stay_all_time()
+    public async Task One_answer_carries_the_court_for_each_range_and_every_entry()
     {
+        // The page fetches habits once and switches ranges without asking again (Wallie, 2026-11-12: the server ranks).
         await Add(KingEventKind.Fed, TimeSpan.FromDays(1), name: "Amy");
         await Add(KingEventKind.Fed, TimeSpan.FromDays(10), name: "Wallie");
         await Add(KingEventKind.Fed, TimeSpan.FromDays(11), name: "Wallie");
 
-        Assert.Equal([("Amy", 1)], await Court("?days=7"));
-        Assert.Equal([("Wallie", 2), ("Amy", 1)], await Court("?days=30"));
-        Assert.Equal([("Wallie", 2), ("Amy", 1)], await Court());
-        var response = await _factory.CreateClient().GetAsync("/api/king/habits?days=7", Ct);
-        Assert.Equal(3, (await Json(response)).GetProperty("entries").GetArrayLength());
-    }
+        var response = await _factory.CreateClient().GetAsync("/api/king/habits", Ct);
 
-    [Fact]
-    public async Task Days_must_be_7_or_30()
-    {
-        var response = await _factory.CreateClient().GetAsync("/api/king/habits?days=5", Ct);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("days.invalid", (await Json(response)).ErrorCodes());
+        var json = await Json(response);
+        Assert.Equal(["7", "30", "all"], json.GetProperty("courts").EnumerateObject().Select(p => p.Name));
+        Assert.Equal([("Amy", 1)], await Court("7"));
+        Assert.Equal([("Wallie", 2), ("Amy", 1)], await Court("30"));
+        Assert.Equal([("Wallie", 2), ("Amy", 1)], await Court("all"));
+        Assert.Equal(3, json.GetProperty("entries").GetArrayLength());
     }
 
     private static Task<JsonElement> Json(HttpResponseMessage response) => response.JsonAsync(Ct);

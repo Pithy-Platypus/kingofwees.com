@@ -53,7 +53,7 @@ type World = {
 // By default the site has no map and no spots, as on a fresh install, and this visitor may post.
 export function fakeApi(
   status: KingStatus = emptyStatus,
-  { map = null, spots = [], heat = [], habits = { entries: [], court: [] }, history = { events: [], next: null }, posting = true, photos = { photos: [], next: null } }: World = {},
+  { map = null, spots = [], heat = [], habits = { entries: [], courts: { 7: [], 30: [], all: [] } }, history = { events: [], next: null }, posting = true, photos = { photos: [], next: null } }: World = {},
 ) {
   return {
     getMap: vi.fn<typeof kingApi.getMap>().mockResolvedValue(map),

@@ -168,6 +168,36 @@ public abstract class KingEventStoreContract
     }
 
     [Fact]
+    public async Task The_habits_read_gives_the_newest_visible_entries_with_only_what_the_charts_and_the_court_need()
+    {
+        // Up to 5,000 a request: the time, kind, seen flag, foods and the nickname (for the court) and nothing else travel
+        // from the database; hidden entries and hidden devices stay out, newest first, capped.
+        var store = CreateStore();
+        var newest = Event(KingEventKind.Fed, 3, name: "Amy", foods: [Food.Wet, Food.Treats], spotId: "spot-1");
+        var leftOut = Event(KingEventKind.Fed, 2, name: null, foods: [Food.Dry], sawKing: false);
+        var seen = Event(KingEventKind.Seen, 1, location: new GeoPoint(45.523, -122.677));
+        var hidden = Event(KingEventKind.Fed, 0);
+        var spam = Event(KingEventKind.Seen, -1, device: "spammer");
+        var oldest = Event(KingEventKind.Seen, -2);
+        foreach (var e in new[] { oldest, hidden, seen, spam, leftOut, newest }) await store.AddAsync(e, Ct);
+        await store.SetHiddenAsync(hidden.Id, hidden: true, Ct);
+        await Stores.Hidden.HideAsync("spammer", T0, Ct);
+
+        var habits = await store.GetHabitsAsync(Sets(), 3, Ct);
+
+        Assert.Equal(
+            [
+                new HabitEvent(newest.OccurredAt, KingEventKind.Fed, true, [Food.Wet, Food.Treats], "Amy"),
+                new HabitEvent(leftOut.OccurredAt, KingEventKind.Fed, false, [Food.Dry], null),
+                new HabitEvent(seen.OccurredAt, KingEventKind.Seen, true, [], "Jamie"),
+            ],
+            habits, // records compare lists by reference, so compare structure
+            (expected, actual) => expected.OccurredAt == actual.OccurredAt && expected.Kind == actual.Kind && expected.SawKing == actual.SawKing
+                && expected.Foods.SequenceEqual(actual.Foods) && expected.ReporterName == actual.ReporterName);
+        Assert.Equal([oldest.OccurredAt], (await store.GetHabitsAsync(Sets(), 10, Ct)).Skip(3).Select(h => h.OccurredAt));
+    }
+
+    [Fact]
     public async Task Next_page_continues_after_the_last_event_of_the_previous_one()
     {
         var store = CreateStore();

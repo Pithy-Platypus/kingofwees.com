@@ -3,6 +3,9 @@ namespace KingOfWees.Server.King;
 // What an admin sees about a device before hiding it or in the hidden list: never the key itself.
 public sealed record ReporterSummary(int Entries, DateTimeOffset? NewestAt, string? LatestName);
 
+// What the habit charts and the royal court need of an entry, and nothing else: read projected, up to thousands a request.
+public sealed record HabitEvent(DateTimeOffset OccurredAt, KingEventKind Kind, bool SawKing, IReadOnlyList<Food> Foods, string? ReporterName);
+
 // The portability seam: Mongo today, anything with the same contract tomorrow.
 public interface IKingEventStore
 {
@@ -21,6 +24,9 @@ public interface IKingEventStore
 
     /// <summary>Newest first, by time then id; <paramref name="before"/> (null = from the newest) is the last event of the previous page.</summary>
     Task<IReadOnlyList<KingEvent>> GetPageAsync(HiddenSets hidden, KingEvent? before, int count, CancellationToken cancellationToken);
+
+    /// <summary>The newest <paramref name="count"/> visible entries, newest first, with only what <see cref="HabitEvent"/> holds.</summary>
+    Task<IReadOnlyList<HabitEvent>> GetHabitsAsync(HiddenSets hidden, int count, CancellationToken cancellationToken);
 
     /// <summary>Events in which King was seen that carry their own location, per block; <paramref name="since"/> null = all time.</summary>
     Task<IReadOnlyList<PlaceCount>> CountSightingsByPlaceAsync(HiddenSets hidden, DateTimeOffset? since, CancellationToken cancellationToken);

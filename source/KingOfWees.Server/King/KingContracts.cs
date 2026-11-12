@@ -68,23 +68,30 @@ public sealed record HeatMap(IReadOnlyList<HeatCell> Cells);
 // What the habit charts need of an entry and nothing else: no name, place, id or photo travels with them.
 public sealed record HabitEntry(DateTimeOffset OccurredAt, KingEventKind Kind, bool SawKing, IReadOnlyList<Food> Foods)
 {
-    public static HabitEntry From(KingEvent e) => new(e.OccurredAt, e.Kind, e.SawKing, e.Foods);
+    public static HabitEntry From(HabitEvent e) => new(e.OccurredAt, e.Kind, e.SawKing, e.Foods);
 }
-
-// Days is one of HeatQuery.Ranges, or omitted for all time: the court's range (the entries are always all-time, capped).
-public sealed record HabitsQuery(int? Days);
 
 // One seat at the royal court: a nickname (as neighbors typed it, so two devices with one name share a seat) and its feedings.
 public sealed record CourtierView(string Name, int Feedings);
 
-// Every visible entry, newest first, the newest MaxEntries at most (a decade at today's rate), and the court: the Seats
-// named neighbors with most feedings among those entries, ties by name; unnamed feedings hold no seat.
-public sealed record HabitsView(IReadOnlyList<HabitEntry> Entries, IReadOnlyList<CourtierView> Court)
+// Every visible entry, newest first, the newest MaxEntries at most (a decade at today's rate), and the court for each
+// range the page offers — keyed "7", "30" (HeatQuery.Ranges, as days) and "all" — in one answer, so the page fetches
+// once and switches ranges without asking again (Wallie, 2026-11-12). A court: the Seats named neighbors with most
+// feedings in the range among those entries, ties by name; unnamed feedings hold no seat.
+public sealed record HabitsView(IReadOnlyList<HabitEntry> Entries, IReadOnlyDictionary<string, IReadOnlyList<CourtierView>> Courts)
 {
     public const int MaxEntries = 5000;
     public const int Seats = 3;
+    public const string AllTime = "all";
 
-    public static IReadOnlyList<CourtierView> CourtOf(IEnumerable<KingEvent> events, DateTimeOffset? since) =>
+    public static HabitsView From(IReadOnlyList<HabitEvent> events, DateTimeOffset now)
+    {
+        var courts = HeatQuery.Ranges.ToDictionary(days => days.ToString(), days => CourtOf(events, now.AddDays(-days)));
+        courts[AllTime] = CourtOf(events, since: null);
+        return new([.. events.Select(HabitEntry.From)], courts);
+    }
+
+    public static IReadOnlyList<CourtierView> CourtOf(IEnumerable<HabitEvent> events, DateTimeOffset? since) =>
     [
         .. events.Where(e => e.Kind == KingEventKind.Fed && e.ReporterName is not null && (since is null || e.OccurredAt >= since))
             .GroupBy(e => e.ReporterName!, (name, feedings) => new CourtierView(name, feedings.Count()))
@@ -152,11 +159,6 @@ public sealed class HistoryQueryValidator : AbstractValidator<HistoryQuery>
         RuleFor(q => q.Limit).ValidLimit();
         RuleFor(q => q.Before).KnownCursor(store.FindAsync);
     }
-}
-
-public sealed class HabitsQueryValidator : AbstractValidator<HabitsQuery>
-{
-    public HabitsQueryValidator() => RuleFor(q => q.Days).ValidDays();
 }
 
 public sealed class HeatQueryValidator : AbstractValidator<HeatQuery>

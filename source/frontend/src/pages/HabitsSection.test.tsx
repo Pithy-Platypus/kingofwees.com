@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { Courtier, HabitEntry } from '../king/api';
+import type { Courtier, HabitEntry, Habits } from '../king/api';
 import { fakeApi } from '../test/fakeApi';
 import { renderInEnglish } from '../test/render';
 import { HabitsSection } from './HabitsSection';
@@ -29,8 +29,11 @@ const court: Courtier[] = [
   { name: 'the Capps', feedings: 1 },
 ];
 
+// The server's one answer: the same court for every range unless a test says otherwise.
+const courts = (seats: Courtier[], week: Courtier[] = seats): Habits['courts'] => ({ 7: week, 30: seats, all: seats });
+
 const render = (habits: HabitEntry[] = entries, seats: Courtier[] = court, range: 7 | 30 | 'all' = 'all') => {
-  const api = fakeApi(undefined, { habits: { entries: habits, court: seats } });
+  const api = fakeApi(undefined, { habits: { entries: habits, courts: courts(seats) } });
   renderInEnglish(<HabitsSection api={api} now={now} range={range} />);
   return api;
 };
@@ -41,7 +44,7 @@ describe('HabitsSection', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading King’s habits…');
     expect(await screen.findByRole('img', { name: 'Feedings and times seen, by hour of the day' })).toBeInTheDocument();
-    expect(api.getHabits).toHaveBeenCalledWith('all');
+    expect(api.getHabits).toHaveBeenCalledTimes(1); // one answer carries every range's court
     expect(screen.getByRole('region', { name: 'King’s habits' })).toBeInTheDocument();
     // The legend wears Home's map-key dots, so fed and seen look alike on both pages.
     const legend = screen.getByText('Feedings').closest('ul');
@@ -160,13 +163,17 @@ describe('HabitsSection', () => {
     expect(screen.queryByRole('list', { name: 'Neighbors with most feedings' })).toBeNull();
   });
 
-  it('follows the range for the hours, menu and mood, and asks the server for that range, but keeps the calendar’s five weeks', async () => {
+  it('follows the range for the hours, menu, mood and court, out of the one answer, but keeps the calendar’s five weeks', async () => {
     const old = fed(new Date(2026, 9, 20, 10).toISOString(), ['dry']);
-    const api = render([...entries, old], court, 7);
+    const api = fakeApi(undefined, { habits: { entries: [...entries, old], courts: courts(court, [{ name: 'Dev', feedings: 2 }]) } });
+    renderInEnglish(<HabitsSection api={api} now={now} range={7} />);
 
     const hours = within(await screen.findByRole('list', { name: 'Hours with something logged' }));
-    expect(api.getHabits).toHaveBeenCalledWith(7);
+    expect(api.getHabits).toHaveBeenCalledTimes(1);
     expect(hours.queryByText('10 AM')).toBeNull();
+    expect(within(screen.getByRole('list', { name: 'Neighbors with most feedings' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Dev2 feedings',
+    ]);
     const menuRows = () => within(screen.getByRole('list', { name: 'How often each food came with a feeding' })).getAllByRole('listitem').map((li) => li.textContent);
     expect(menuRows()).toContain('Dry food1 of 4 feedings');
     expect(within(screen.getByRole('list', { name: 'The last 35 days' })).getAllByRole('listitem')).toHaveLength(35);
@@ -182,17 +189,19 @@ describe('HabitsSection', () => {
     expect(rows).toContain('Dry food2 of 5 feedings');
   });
 
-  it('re-sums when the range changes without a reload of the page', async () => {
+  it('re-sums and reseats the court when the range changes, without asking the server again', async () => {
     const old = fed(new Date(2026, 9, 20, 10).toISOString(), ['dry']);
-    const api = fakeApi(undefined, { habits: { entries: [...entries, old], court } });
+    const api = fakeApi(undefined, { habits: { entries: [...entries, old], courts: courts(court, [{ name: 'Dev', feedings: 2 }]) } });
     const { rerender } = renderInEnglish(<HabitsSection api={api} now={now} range={7} />);
     await screen.findByRole('list', { name: 'Hours with something logged' });
     expect(screen.queryByText('10 AM')).toBeNull();
+    expect(screen.queryByText('Sunny')).toBeNull();
 
     rerender(<HabitsSection api={api} now={now} range="all" />);
 
     expect(await screen.findByText('10 AM')).toBeInTheDocument();
-    expect(api.getHabits).toHaveBeenLastCalledWith('all');
+    expect(screen.getByText('Sunny')).toBeInTheDocument();
+    expect(api.getHabits).toHaveBeenCalledTimes(1);
   });
 
   it('shows how much of the time King was content, as a bar and a sentence', async () => {

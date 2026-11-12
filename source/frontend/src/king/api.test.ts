@@ -41,6 +41,14 @@ describe('kingApi', () => {
     expect(fetchMock).toHaveBeenCalledWith(url, undefined);
   });
 
+  it('gets the habits in one answer, every range’s court included', async () => {
+    const habits = { entries: [], courts: { 7: [], 30: [], all: [{ name: 'Sunny', feedings: 2 }] } };
+    respond(200, habits);
+
+    await expect(kingApi.getHabits()).resolves.toEqual(habits);
+    expect(fetchMock).toHaveBeenCalledWith('/api/king/habits', undefined);
+  });
+
   it.each([
     [undefined, '/api/king/history'],
     ['id/with?odd&chars', '/api/king/history?before=id%2Fwith%3Fodd%26chars'],

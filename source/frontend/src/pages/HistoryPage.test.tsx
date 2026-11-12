@@ -74,12 +74,12 @@ describe('HistoryPage — heat map', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'All' }));
     expect(api.getHeat).toHaveBeenLastCalledWith('seen', 'all');
-    // One switch for the page: the habit charts follow it too.
-    expect(api.getHabits).toHaveBeenLastCalledWith('all');
     expect(pressed('All')).toBe('true');
 
     await userEvent.click(screen.getByRole('button', { name: '7 days' }));
     expect(api.getHeat).toHaveBeenLastCalledWith('seen', 7);
+    // One switch for the page: the habit charts follow it too, from the one answer they fetched at the start.
+    expect(api.getHabits).toHaveBeenCalledTimes(1);
   });
 
   it('says where nothing lies when there are no spots', async () => {

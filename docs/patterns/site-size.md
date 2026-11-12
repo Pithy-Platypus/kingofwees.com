@@ -1,5 +1,12 @@
 # Site size
 
+## API JSON compressed per response (2026-11-12, the Performance slice)
+
+The audit of 2026-11-11 found every `/api` answer leaving plain (`curl -H 'Accept-Encoding: br, gzip'` on the live status: no `content-encoding`): the habits answer is every visible entry, thousands in time, and a history or photos page is 50 entries. `Program.cs` now adds `UseResponseCompression` with brotli and gzip for `application/json` and `application/problem+json` only — photo files are JPEG, and the SPA's scripts and styles are compressed once at build (below). Brotli at the provider's default, Fastest (quality 1), left a 500-entry habits answer *bigger* than gzip's (5.3 vs 4.1 kB), so `BrotliCompressionProviderOptions.Level` is Optimal (quality 4), still cheap on 0.25 vCPU. Measured under the test pipeline with 500 entries: habits 43.7 kB → 4.1 gzip / 2.7 brotli; status 2.6 → 0.5 / 0.4; a history page 10.6 → 1.2 / 0.8; heat 0.3 → 0.1. `EnableForHttps` stays off: TLS ends at the Container Apps ingress, so the app always sees plain HTTP in production (locally over HTTPS the JSON leaves plain — expected); a compressed response over TLS that mixed a secret with text an attacker controls would be readable through its length (BREACH), and no API answer carries a secret, but the default costs nothing here. `ResponseCompressionTests` pin the three encodings, the problem+json case, `Vary: Accept-Encoding` and that a photo file is left alone; `infra/smoke.sh` checks `content-encoding: br` on the live status.
+
+The same pass made `/history` fetch habits once per page view: the answer now carries the court for each range (`courts`), where before each 7 / 30 / All press refetched every entry to get a different court (Wallie, 2026-11-12: the server ranks; the browser computing it was no better an experience and would have put nicknames in the chart payload). The read is projected in Mongo to the five fields it needs (`IKingEventStore.GetHabitsAsync`).
+
+
 **Decided:** 2026-10-12, Slice 6 step 8b, after Wallie asked why a site that does little built to 493 kB.
 
 ## What was measured

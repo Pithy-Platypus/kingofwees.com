@@ -55,6 +55,20 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
         return documents.ConvertAll(d => d.ToEvent());
     }
 
+    // Projected in the database: thousands a request, and the charts never need an id, a key, a place or a location.
+    public async Task<IReadOnlyList<HabitEvent>> GetHabitsAsync(HiddenSets hidden, int count, CancellationToken cancellationToken)
+    {
+        var fields = Builders<KingEventDocument>.Projection;
+        var documents = await _events.Find(await Visible(hidden, cancellationToken))
+            .SortByDescending(e => e.OccurredAtUtc)
+            .ThenByDescending(e => e.Id)
+            .Limit(count)
+            .Project<HabitDocument>(fields.Include(e => e.OccurredAtUtc).Include(e => e.Kind).Include(e => e.SawKing)
+                .Include(e => e.Foods).Include(e => e.ReporterName).Exclude(e => e.Id))
+            .ToListAsync(cancellationToken);
+        return documents.ConvertAll(d => d.ToHabit());
+    }
+
     // Coordinates were rounded before storing, so equal blocks group on exact equality.
     public async Task<IReadOnlyList<PlaceCount>> CountSightingsByPlaceAsync(HiddenSets hidden, DateTimeOffset? since, CancellationToken cancellationToken)
     {
@@ -151,6 +165,20 @@ public sealed class MongoKingEventStore(IMongoDatabase database) : IKingEventSto
     // Storage shape, kept separate from the domain record: enums as strings, time as a BSON UTC date.
     // Extra elements are ignored so slice-1 documents (single "Food" field) still read, with no foods;
     // documents from before SawKing read as seen. Coordinates are copied from a GeoPoint and rebuilt into one on read.
+    // The habits projection of a KingEventDocument: the same field names and defaults (SawKing true before the flag existed).
+    [BsonIgnoreExtraElements]
+    private sealed class HabitDocument
+    {
+        public required string Kind { get; init; }
+        public required DateTime OccurredAtUtc { get; init; }
+        public string? ReporterName { get; init; }
+        public string[] Foods { get; init; } = [];
+        public bool SawKing { get; init; } = true;
+
+        public HabitEvent ToHabit() =>
+            new(BsonTime.Utc(OccurredAtUtc), Enum.Parse<KingEventKind>(Kind), SawKing, [.. Foods.Select(Enum.Parse<Food>)], ReporterName);
+    }
+
     [BsonIgnoreExtraElements]
     private sealed class KingEventDocument
     {

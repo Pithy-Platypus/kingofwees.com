@@ -5,6 +5,8 @@ using KingOfWees.Server.King;
 using KingOfWees.Server.Photos;
 using KingOfWees.Server.Validation;
 using Microsoft.AspNetCore.HttpOverrides;
+using System.IO.Compression;
+using Microsoft.AspNetCore.ResponseCompression;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +45,19 @@ builder.Services.Configure<ExceptionHandlerOptions>(options =>
     options.StatusCodeSelector = exception => exception is BadHttpRequestException bad
         ? bad.StatusCode
         : StatusCodes.Status500InternalServerError);
+// API JSON leaves brotli- or gzip-compressed (a habits answer is thousands of entries). Only JSON: photo files are JPEG,
+// and the SPA's scripts and styles are compressed at build time (SpaFiles). EnableForHttps stays off: TLS ends at the
+// ingress, so the app always sees plain HTTP in production; locally over HTTPS the JSON leaves plain, which is fine.
+// Why → docs/patterns/site-size.md.
+builder.Services.AddResponseCompression(options =>
+{
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ["application/json", "application/problem+json"];
+});
+// The provider's default, Fastest (quality 1), left a 500-entry habits answer bigger than gzip's (5.3 vs 4.1 kB);
+// Optimal (quality 4) is still cheap on 0.25 vCPU.
+builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Optimal);
 builder.Services.AddKing();
 builder.Services.AddAdmin();
 builder.Services.AddClientDiagnostics();
@@ -65,6 +80,7 @@ if (app.Configuration.GetValue<bool>("King:Proxy:TrustForwardedFor"))
 }
 
 // Configure the HTTP request pipeline.
+app.UseResponseCompression();
 app.UseSecurityHeaders();
 app.UseExceptionHandler();
 

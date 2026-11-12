@@ -19,6 +19,10 @@ expect() { # expect <status> <path> [body]
 
 expect 200 /health Healthy        # the database is reachable (the SPA would answer 200 with HTML)
 expect 200 /api/king/status
+# API JSON leaves brotli-compressed when asked (Program.cs, UseResponseCompression); plain means the middleware is gone.
+status_headers=$(curl -sS --max-time 15 -D - -o /dev/null -H 'Accept-Encoding: gzip, br' "$BASE/api/king/status")
+if [[ "$(tr -d '\r' <<< "$status_headers" | grep -i '^content-encoding:' | cut -d' ' -f2-)" == "br" ]]; then echo "ok   /api/king/status br"
+else echo "FAIL /api/king/status: content-encoding '$(tr -d '\r' <<< "$status_headers" | grep -i '^content-encoding:' | cut -d' ' -f2-)' (expected br)"; FAILED=1; fi
 expect 401 /api/admin/check       # 404 here means no admin key hash is set
 expect 200 /api/king/posting '{"allowed":true}'  # run from the US: this Mac must still be allowed to post
 

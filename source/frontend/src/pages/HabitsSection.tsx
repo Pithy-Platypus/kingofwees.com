@@ -132,7 +132,8 @@ const LABEL_HOURS = [0, 6, 12, 18];
 type Props = { api: Pick<typeof kingApi, 'getHabits'>; now: Date; range: HeatRange };
 
 export function HabitsSection({ api, now, range }: Props) {
-  const getHabits = useCallback(() => api.getHabits(range), [api, range]);
+  // Fetched once a page view: the one answer carries every entry and the court for each range.
+  const getHabits = useCallback(() => api.getHabits(), [api]);
   const { data: habits, failed, retry } = useLoad(getHabits);
 
   return (
@@ -157,6 +158,7 @@ function Charts({ habits, now, range }: { habits: Habits; now: Date; range: Heat
   const calendar = fedDays(habits.entries, now);
   const royalMenu = menu(entries);
   const mood = moodShare(entries, since, now);
+  const court = habits.courts[`${range}`];
 
   const max = Math.max(1, ...hours.map((h) => Math.max(h.fed, h.seen)));
   const height = (count: number) => (count / max) * CHART_HEIGHT;
@@ -301,13 +303,13 @@ function Charts({ habits, now, range }: { habits: Habits; now: Date; range: Heat
         <p className="habits-summary">
           <FormattedMessage {...m.courtBlurb} />
         </p>
-        {habits.court.length === 0 ? (
+        {court.length === 0 ? (
           <p className="activity-detail">
             <FormattedMessage {...m.courtEmpty} />
           </p>
         ) : (
           <ol className="stat-list" aria-label={intl.formatMessage(m.courtList)}>
-            {habits.court.map((c, i) => (
+            {court.map((c, i) => (
               <li key={c.name} className="habits-courtier">
                 {i === 0 && <CrownIcon className="habits-courtier-crown" />}
                 <span className="habits-courtier-name">{c.name}</span>

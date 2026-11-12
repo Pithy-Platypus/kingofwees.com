@@ -94,12 +94,8 @@ public static class KingEndpoints
     }
 
     private static async Task<Ok<HabitsView>> GetHabits(
-        [AsParameters] HabitsQuery query, HiddenSets hidden, IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken)
-    {
-        DateTimeOffset? since = query.Days is { } days ? clock.GetUtcNow().AddDays(-days) : null;
-        var events = await store.GetPageAsync(hidden, null, HabitsView.MaxEntries, cancellationToken);
-        return TypedResults.Ok(new HabitsView([.. events.Select(HabitEntry.From)], HabitsView.CourtOf(events, since)));
-    }
+        HiddenSets hidden, IKingEventStore store, TimeProvider clock, CancellationToken cancellationToken) =>
+        TypedResults.Ok(HabitsView.From(await store.GetHabitsAsync(hidden, HabitsView.MaxEntries, cancellationToken), clock.GetUtcNow()));
 
     // No configured center means no map; the app still works without one.
     private static Results<Ok<MapView>, NotFound> GetMap(IOptions<MapOptions> options) =>

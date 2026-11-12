@@ -41,7 +41,8 @@ export type HeatCell = { location: GeoPoint; count: number; spotName: string | n
 export type HabitEntry = { occurredAt: string; kind: 'fed' | 'seen'; sawKing: boolean; foods: Food[] };
 /** A seat at the royal court: a nickname and its feedings. */
 export type Courtier = { name: string; feedings: number };
-export type Habits = { entries: HabitEntry[]; court: Courtier[] };
+/** One answer for the page: every entry (all time, capped) and the court for each range, keyed as the server keys them. */
+export type Habits = { entries: HabitEntry[]; courts: Record<`${HeatRange}`, Courtier[]> };
 /** `next` is the id to pass as `before` for the older page; null on the last page. */
 export type HistoryPage = { events: KingEventView[]; next: string | null };
 export type Reporter = { reporterKey: string; reporterName?: string | null };
@@ -111,7 +112,7 @@ export const kingApi = {
   },
   getHeat: async (layer: HeatLayer, range: HeatRange): Promise<HeatCell[]> =>
     (await request<{ cells: HeatCell[] }>(`/api/king/heat?layer=${layer}${range === 'all' ? '' : `&days=${range}`}`, undefined)).cells,
-  getHabits: (range: HeatRange) => request<Habits>(`/api/king/habits${range === 'all' ? '' : `?days=${range}`}`, undefined),
+  getHabits: () => request<Habits>('/api/king/habits', undefined),
   getHistory: (before?: string) =>
     request<HistoryPage>(`/api/king/history${before === undefined ? '' : `?before=${encodeURIComponent(before)}`}`, undefined),
   // Same device and time window as undo; null clears the name.

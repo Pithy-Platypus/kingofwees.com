@@ -116,7 +116,7 @@ describe('pseudo-locale catalog', () => {
     ],
     ['hiding a photo', <HidePhotoForm onEntry busy={false} onHide={noop} onCancel={noop} />],
     ['name question', <NicknameScreen initialName="" onDone={noop} />],
-    ['habits', <HabitsSection api={fakeApi(undefined, { habits: { entries: [{ occurredAt: NOW.toISOString(), kind: 'fed', sawKing: true, foods: ['wet'] }], court: [{ name: 'Sunny', feedings: 1 }] } })} now={NOW} range={30} />],
+    ['habits', <HabitsSection api={fakeApi(undefined, { habits: { entries: [{ occurredAt: NOW.toISOString(), kind: 'fed', sawKing: true, foods: ['wet'] }], courts: { 7: [], 30: [{ name: 'Sunny', feedings: 1 }], all: [] } } })} now={NOW} range={30} />],
     ['about', <AboutPage now={NOW} />],
     ['privacy', <PrivacyPage />],
     ['app loading', <App api={fakeApi()} reporterKey="k" now={() => NOW} />],
