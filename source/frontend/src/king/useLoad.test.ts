@@ -26,6 +26,22 @@ describe('useLoad', () => {
     expect(fn).toHaveBeenCalledOnce();
   });
 
+  it('waits until asked, then loads each time it is asked again, keeping the answer in between', async () => {
+    // Home's status: not for a page that doesn't show it, fresh each time Home is opened.
+    const fn = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second');
+    const { result, rerender } = renderHook(({ when }) => useLoad(fn, when), { initialProps: { when: false } });
+    expect(fn).not.toHaveBeenCalled();
+
+    rerender({ when: true });
+    await waitFor(() => expect(result.current.data).toBe('first'));
+    rerender({ when: false });
+    expect(result.current.data).toBe('first');
+    rerender({ when: true });
+
+    await waitFor(() => expect(result.current.data).toBe('second'));
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
   it('lets the latest fn win when an earlier, slower answer arrives after it', async () => {
     const slow = pending();
     const fast = pending();

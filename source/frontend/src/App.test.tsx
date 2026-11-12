@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { ApiError, type KingEventView, type KingStatus } from './king/api';
 import { loadNickname, saveNickname } from './king/reporter';
@@ -788,7 +788,7 @@ describe('App — undo from Lately, the history page and Photos', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
 
-  it('loads Home’s status again after an undo on the history page', async () => {
+  it('loads Home’s status afresh when it is opened after an undo on the history page, not before', async () => {
     const api = renderAt({ now: NOW });
     await logThenHome(api);
     await openHistory();
@@ -796,8 +796,27 @@ describe('App — undo from Lately, the history page and Photos', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await userEvent.click(screen.getByRole('button', { name: 'Undo it' }));
+    expect(api.undo).toHaveBeenCalledWith('new-seen', KEY);
+    expect(api.getStatus).toHaveBeenCalledTimes(loads); // a Home not on screen is not reloaded
+    api.getStatus.mockResolvedValue(emptyStatus);
+    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
 
     await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(loads + 1));
+    await screen.findByRole('button', { name: 'I saw King' });
+    expect(screen.queryByText('Seen by a neighbor')).not.toBeInTheDocument(); // never the status from before the undo
+  });
+
+  it('loads Home’s status afresh when it is opened after a share on Photos', async () => {
+    const api = renderAt({ now: NOW });
+    await screen.findByRole('button', { name: 'I saw King' });
+    await userEvent.click(screen.getByRole('link', { name: 'Photos' }));
+    await userEvent.upload(await screen.findByLabelText('Share a photo'), new File(['camera'], 'IMG_2.jpg', { type: 'image/jpeg' }));
+    await screen.findByRole('button', { name: 'Remove' });
+    expect(api.getStatus).toHaveBeenCalledOnce();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
+
+    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(2));
   });
 
   it('offers nothing more for an entry already undone on the confirmation screen', async () => {
@@ -823,5 +842,69 @@ describe('App — undo from Lately, the history page and Photos', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
 
     expect(api.deletePhoto).toHaveBeenCalledWith('shared-photo', KEY);
+  });
+});
+
+describe('App — what each page loads', () => {
+  // The audit of 2026-11-11: About and Privacy made four API calls they never render, History two it didn't use.
+  const renderAtPath = (path: string) => {
+    window.history.replaceState(null, '', path);
+    return renderApp();
+  };
+  afterEach(() => window.history.replaceState(null, '', '/'));
+
+  const calls = (api: ReturnType<typeof fakeApi>) => ({
+    status: api.getStatus.mock.calls.length,
+    posting: api.getPosting.mock.calls.length,
+    map: api.getMap.mock.calls.length,
+    spots: api.listSpots.mock.calls.length,
+  });
+
+  it('loads the status, the posting check, the map center and the spots for Home', async () => {
+    const api = renderAtPath('/');
+
+    await screen.findByRole('button', { name: 'I fed King' });
+    expect(calls(api)).toEqual({ status: 1, posting: 1, map: 1, spots: 1 });
+  });
+
+  it.each(['/about', '/privacy'])('loads none of them for %s', async (path) => {
+    const api = renderAtPath(path);
+
+    await screen.findByRole('heading', { level: 1 });
+    await act(async () => {}); // let any effect that would load settle
+    expect(calls(api)).toEqual({ status: 0, posting: 0, map: 0, spots: 0 });
+  });
+
+  it('loads the map center and the spots for History, not the status or the posting check', async () => {
+    const api = renderAtPath('/history');
+
+    await screen.findByRole('heading', { level: 1, name: 'King’s history' });
+    await waitFor(() => expect(calls(api)).toEqual({ status: 0, posting: 0, map: 1, spots: 1 }));
+  });
+
+  it('loads the spots and the posting check for Photos (“Share a photo” needs it), not the status or the map center', async () => {
+    const api = renderAtPath('/photos');
+
+    await screen.findByLabelText('Share a photo');
+    expect(calls(api)).toEqual({ status: 0, posting: 1, map: 0, spots: 1 });
+  });
+
+  it('loads only the spots for Admin', async () => {
+    const api = renderAtPath('/admin');
+
+    await screen.findByRole('heading', { level: 1, name: 'Admin' });
+    await waitFor(() => expect(calls(api)).toEqual({ status: 0, posting: 0, map: 0, spots: 1 }));
+  });
+
+  it('loads the status again each time Home is opened, and the rest once', async () => {
+    const api = renderAtPath('/');
+    await screen.findByRole('button', { name: 'I fed King' });
+
+    await userEvent.click(screen.getByRole('link', { name: 'History' }));
+    await screen.findByRole('heading', { level: 1, name: 'King’s history' });
+    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
+    await screen.findByRole('button', { name: 'I fed King' });
+
+    await waitFor(() => expect(calls(api)).toEqual({ status: 2, posting: 1, map: 1, spots: 1 }));
   });
 });

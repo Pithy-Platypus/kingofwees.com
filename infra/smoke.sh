@@ -41,4 +41,8 @@ else
 fi
 if [[ "$(header cache-control <<< "$page")" == "no-cache" ]]; then echo "ok   / no-cache"
 else echo "FAIL /: cache-control '$(header cache-control <<< "$page")' (expected no-cache)"; FAILED=1; fi
+# King's pictures and the icons are unhashed but change only with a deploy: a day, refreshed in the background after.
+avatar=$(curl -sS --max-time 15 -D - -o /dev/null "$BASE/king/king-avatar.jpg") || avatar=""
+if [[ "$(header cache-control <<< "$avatar")" == *max-age=86400* && "$(header cache-control <<< "$avatar")" == *stale-while-revalidate* ]]; then echo "ok   /king/king-avatar.jpg a day"
+else echo "FAIL /king/king-avatar.jpg: cache-control '$(header cache-control <<< "$avatar")' (expected max-age=86400, stale-while-revalidate)"; FAILED=1; fi
 exit $FAILED

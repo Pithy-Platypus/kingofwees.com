@@ -3,7 +3,6 @@
    CLAUDE.md) would otherwise become whole classes. */
 @source not '../build';
 @source not '../**/*.md';
-@import '@fontsource/fredoka/500.css';
 @import '@fontsource/fredoka/600.css';
 @import '@fontsource/fredoka/700.css';
 @import '@fontsource/atkinson-hyperlegible/400.css';

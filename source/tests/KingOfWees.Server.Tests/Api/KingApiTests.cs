@@ -5,6 +5,7 @@ using System.Text.Json;
 using FluentValidation;
 using KingOfWees.Server.Admin;
 using KingOfWees.Server.King;
+using KingOfWees.Server.Photos;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -105,6 +106,49 @@ public sealed class KingApiTests : IAsyncLifetime
         Assert.Equal(JsonValueKind.Null, status.GetProperty("lastFed").ValueKind);
         Assert.Equal(JsonValueKind.Null, status.GetProperty("lastSeen").ValueKind);
         Assert.Equal(0, status.GetProperty("recent").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task A_status_read_lists_the_spots_once_and_asks_for_each_entry_s_photo_once()
+    {
+        // The viewer is per request: the recent entries, the latest two and the newest photo's entry share one spot list
+        // and one photo lookup per entry (a status read was 10 Mongo commands, two of them repeats).
+        var spot = (await Json(await AddSpot(new { reporterKey = DeviceKey, name = "Porch", location = new { latitude = 45.523, longitude = -122.677 } }))).GetProperty("id").GetString();
+        await LogFeeding(new { reporterKey = DeviceKey, spotId = spot });
+        _factory.Clock.Advance(TimeSpan.FromMinutes(5));
+        var sighting = (await Json(await LogSighting(new { reporterKey = DeviceKey }))).GetProperty("id").GetString()!;
+        await _factory.Photos.AddAsync(new Photo(Guid.CreateVersion7().ToString(), sighting, _factory.Clock.GetUtcNow(), DeviceKey, null), Ct);
+        var (lists, lookups) = (_factory.Spots.Lists, _factory.Photos.ForEventsCalls);
+
+        var status = await Status();
+
+        Assert.Equal("Porch", status.GetProperty("lastFed").GetProperty("spotName").GetString());
+        Assert.Equal(sighting, status.GetProperty("latestPhoto").GetProperty("event").GetProperty("id").GetString());
+        Assert.Equal(1, _factory.Spots.Lists - lists);
+        Assert.Equal(1, _factory.Photos.ForEventsCalls - lookups);
+    }
+
+    [Theory]
+    [InlineData("feeding")]
+    [InlineData("sighting")]
+    public async Task The_latest_feeding_or_sighting_is_found_even_when_older_than_the_ten_recent_entries(string older)
+    {
+        // Usually the latest two are among the ten recent entries, so no query is needed for them; here they aren't.
+        var old = await Json(older == "feeding"
+            ? await LogFeeding(new { reporterKey = DeviceKey, reporterName = "Old" })
+            : await LogSighting(new { reporterKey = DeviceKey, reporterName = "Old" }));
+        for (var i = 0; i < 10; i++)
+        {
+            _factory.Clock.Advance(TimeSpan.FromMinutes(1));
+            // Ten sightings hide an older feeding from the recent page; ten left-out feedings hide an older sighting.
+            if (older == "feeding") await LogSighting(new { reporterKey = DeviceKey });
+            else await LogFeeding(new { reporterKey = DeviceKey, sawKing = false });
+        }
+
+        var status = await Status();
+
+        Assert.Equal(10, status.GetProperty("recent").GetArrayLength());
+        Assert.Equal(old.GetProperty("id").GetString(), status.GetProperty(older == "feeding" ? "lastFed" : "lastSeen").GetProperty("id").GetString());
     }
 
     [Fact]

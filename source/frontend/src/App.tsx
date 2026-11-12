@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactEl
 import { defineMessages, useIntl } from 'react-intl';
 import { Footer } from './Footer';
 import { adminApi as liveAdminApi, loadAdminSignIn, saveAdminSignIn, type AdminApi, type AdminSession, type AdminSignIn } from './king/admin';
-import { ApiError, isPostingRefused, kingApi, type Food, type KingEventView, type SpotView } from './king/api';
+import { ApiError, isPostingRefused, kingApi, type Food, type KingEventView } from './king/api';
 import { FeedScreen, type FeedDraft } from './king/FeedScreen';
 import { HomeScreen } from './king/HomeScreen';
 import { LoggedScreen } from './king/LoggedScreen';
@@ -20,6 +20,17 @@ import { HistoryPage } from './pages/HistoryPage';
 import { LoadState } from './pages/LoadState';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { useRoute, type Route } from './routing/routes';
+
+// What each page loads, and nothing more (the audit of 2026-11-11: About and Privacy made four calls they never
+// render). The status is fresh each time Home opens; the rest load once, the first time a page needs them.
+const loads: Record<Route, { status: boolean; posting: boolean; map: boolean; spots: boolean }> = {
+  home: { status: true, posting: true, map: true, spots: true },
+  history: { status: false, posting: false, map: true, spots: true },
+  photos: { status: false, posting: true, map: false, spots: true }, // "Share a photo" needs the posting check
+  admin: { status: false, posting: false, map: false, spots: true },
+  about: { status: false, posting: false, map: false, spots: false },
+  privacy: { status: false, posting: false, map: false, spots: false },
+};
 
 // Only caretakers open /admin, so visitors never download it (it pushed the main bundle past Vite's 500 kB warning).
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
@@ -83,12 +94,9 @@ function App({
   const [renameFailed, setRenameFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [nickname, setNickname] = useState(() => loadNickname(storage));
-  const [mapCenter, setMapCenter] = useState<GeoPoint | null>(null);
-  const [spots, setSpots] = useState<SpotView[]>([]);
   const [spotId, setSpotId] = useState(() => loadLastSpotId(storage));
   const [feedDraft, setFeedDraft] = useState<FeedDraft>(noFeedDraft);
   const [photo, setPhoto] = useState<PhotoState | null>(null);
-  const [postingAllowed, setPostingAllowed] = useState(true);
   const [adminSignIn, setAdminSignIn] = useState(() => loadAdminSignIn(storage));
   const [mine] = useState(() => ownPosts(storage));
   const [, setTick] = useState(0);
@@ -99,16 +107,21 @@ function App({
     document.title = intl.formatMessage(titleOf(route));
   }, [route, intl]);
 
+  const wants = loads[route];
   const getStatus = useCallback(() => api.getStatus(), [api]);
-  const { data: status, failed: loadFailed, retry: load } = useLoad(getStatus);
+  const { data: status, setData: setStatus, failed: loadFailed, retry: load } = useLoad(getStatus, wants.status);
 
-  // Maps and spots are extras: if they fail to load, logging still works without them.
-  useEffect(() => {
-    api.getMap().then(setMapCenter, () => setMapCenter(null));
-    api.listSpots().then(setSpots, () => setSpots([]));
-    // If the check fails, the buttons stay: the server still refuses a post from outside the US.
-    api.getPosting().then(setPostingAllowed, () => setPostingAllowed(true));
-  }, [api]);
+  // Maps and spots are extras: if they fail to load, logging still works without them (a failed load leaves null).
+  const getMap = useCallback(() => api.getMap(), [api]);
+  const { data: mapCenter } = useLoad(getMap, useEverTrue(wants.map));
+  const listSpots = useCallback(() => api.listSpots(), [api]);
+  const { data: loadedSpots, setData: setSpots } = useLoad(listSpots, useEverTrue(wants.spots));
+  const spots = useMemo(() => loadedSpots ?? [], [loadedSpots]);
+  // If the check fails, the buttons stay: the server still refuses a post from outside the US.
+  const getPosting = useCallback(() => api.getPosting(), [api]);
+  const { data: posting, setData: setPosting } = useLoad(getPosting, useEverTrue(wants.posting));
+  const postingAllowed = posting ?? true;
+  const setPostingAllowed = (allowed: boolean) => setPosting(allowed);
 
   // Re-render so "5 minutes ago" keeps moving while the page is open.
   useEffect(() => {
@@ -229,7 +242,7 @@ function App({
   const addSpot = (from: 'feed' | 'seen', name: string, location: GeoPoint) =>
     void run(async () => {
       const added = await api.addSpot({ reporterKey, name, location });
-      setSpots((current) => [...current, added]);
+      setSpots((current) => [...(current ?? []), added]);
       if (from === 'feed') {
         setSpotId(added.id);
         setScreen({ name: 'feed' });
@@ -282,7 +295,7 @@ function App({
   let withFooter = true;
   if (route === 'history') {
     content = (
-      <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} own={own} onUndone={() => void load()} />
+      <HistoryPage api={api} spots={spots} mapCenter={mapCenter} now={now()} admin={admin} own={own} onUndone={() => setStatus(null)} />
     );
   } else if (route === 'photos') {
     content = (
@@ -294,7 +307,7 @@ function App({
           nickname={nickname}
           postingAllowed={postingAllowed}
           onPostingRefused={() => setPostingAllowed(false)}
-          onPhotosChanged={() => void load()}
+          onPhotosChanged={() => setStatus(null)}
           resize={resize}
           admin={admin}
           own={own}
@@ -309,10 +322,10 @@ function App({
           signIn={adminSignIn}
           onSignIn={changeAdminSignIn}
           spots={spots}
-          onSpotRenamed={(id, name) => setSpots((current) => current.map((s) => (s.id === id ? { ...s, name } : s)))}
+          onSpotRenamed={(id, name) => setSpots((current) => current && current.map((s) => (s.id === id ? { ...s, name } : s)))}
           onSpotsMerged={(keptId, name, mergedIds) =>
-            setSpots((current) =>
-              current.filter((s) => !mergedIds.includes(s.id)).map((s) => (s.id === keptId ? { ...s, name } : s)),
+            setSpots(
+              (current) => current && current.filter((s) => !mergedIds.includes(s.id)).map((s) => (s.id === keptId ? { ...s, name } : s)),
             )
           }
           now={now()}
@@ -426,6 +439,14 @@ function App({
       {withFooter && <Footer />}
     </div>
   );
+}
+
+// Sticky: once a page has needed something, it stays loaded for the pages after it (React's "information from previous
+// renders" pattern: a guarded set during render).
+function useEverTrue(value: boolean) {
+  const [ever, setEver] = useState(value);
+  if (value && !ever) setEver(true);
+  return ever || value;
 }
 
 export default App;

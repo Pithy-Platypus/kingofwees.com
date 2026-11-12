@@ -32,8 +32,12 @@ public sealed class InMemorySpotStore : ISpotStore
     public Task<int> CountByReporterAsync(string reporterKey, CancellationToken cancellationToken) =>
         Task.FromResult(_spots.Values.Count(s => s.ReporterKey == reporterKey));
 
+    /// <summary>How many times the public list was read: a request's reads should share one (EventViewer).</summary>
+    public int Lists { get; private set; }
+
     public async Task<IReadOnlyList<Spot>> ListAsync(HiddenSets hidden, CancellationToken cancellationToken)
     {
+        Lists++;
         var hiddenKeys = await hidden.DevicesAsync(cancellationToken);
         return [.. _spots.Values.Where(s => !hiddenKeys.Contains(s.ReporterKey)).OrderBy(s => s.CreatedAt)];
     }

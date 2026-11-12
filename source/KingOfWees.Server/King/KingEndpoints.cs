@@ -44,9 +44,13 @@ public static class KingEndpoints
         HiddenSets hidden, IKingEventStore store, IPhotoStore photos, PhotoVisibility visibility, EventViewer viewer,
         CancellationToken cancellationToken)
     {
-        var lastFed = await store.GetLatestAsync(hidden, KingEventKind.Fed, cancellationToken);
-        var lastSeen = await store.GetLatestSightingAsync(hidden, cancellationToken);
+        // The recent page is newest first, so the latest feeding and sighting are usually in it; a query only when the
+        // page is full and holds none (an empty page means none exist).
         var recent = await store.GetPageAsync(hidden, before: null, RecentCount, cancellationToken);
+        var lastFed = recent.FirstOrDefault(e => e.Kind == KingEventKind.Fed)
+            ?? (recent.Count < RecentCount ? null : await store.GetLatestAsync(hidden, KingEventKind.Fed, cancellationToken));
+        var lastSeen = recent.FirstOrDefault(e => e.SawKing)
+            ?? (recent.Count < RecentCount ? null : await store.GetLatestSightingAsync(hidden, cancellationToken));
         var view = await viewer.ViewsAsync([.. recent, .. new[] { lastFed, lastSeen }.OfType<KingEvent>()], cancellationToken);
         var latestPhoto = await photos.GetPageAsync(hidden, before: null, 1, cancellationToken);
         visibility.Remember(latestPhoto); // Home's avatar asks for its thumbnail next

@@ -292,31 +292,35 @@ describe('App — the photo after the entry is logged', () => {
 });
 
 describe('App — the photos page', () => {
-  it('reloads King’s status after a photo is shared there, so Home wears the new photo', async () => {
+  // The photos page never shows the status, so it doesn't load it (2026-11-12); Home loads it afresh when it opens
+  // after a share or a hide there, so it wears the new photo or drops the hidden one.
+  it('loads King’s status only when Home opens after a photo is shared there', async () => {
     window.history.replaceState(null, '', '/photos');
     const { api } = renderApp();
     await screen.findByRole('heading', { level: 1, name: 'Photos of King' });
-    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(1));
 
     await userEvent.upload(screen.getByLabelText('Share a photo'), picked());
-
     await screen.findByText('Photo shared. Thank you!');
-    expect(api.getStatus).toHaveBeenCalledTimes(2);
+    expect(api.getStatus).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
+
+    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(1));
   });
 
-  it('reloads King’s status after an admin hides a photo there, so Home drops it', async () => {
+  it('loads King’s status only when Home opens after an admin hides a photo there', async () => {
     window.history.replaceState(null, '', '/photos');
     const api = fakeApi(undefined, { photos: { photos: [photo({ id: 'p1' })], next: null } });
     const storage = memoryStorage();
     saveAdminSignIn(storage, SIGN_IN);
     renderInEnglish(<App api={api} adminApi={fakeAdminApi()} reporterKey={KEY} storage={storage} now={() => NOW} resize={async () => RESIZED} />);
-    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(1));
 
     await userEvent.click(await screen.findByRole('button', { name: 'Hide this photo' }));
     await userEvent.click(screen.getByRole('radio', { name: 'Not King' }));
     await userEvent.click(screen.getByRole('button', { name: 'Hide photo' }));
-
     await screen.findByText(/Hidden\./);
-    expect(api.getStatus).toHaveBeenCalledTimes(2);
+    expect(api.getStatus).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('link', { name: 'Back to King' }));
+
+    await waitFor(() => expect(api.getStatus).toHaveBeenCalledTimes(1));
   });
 });

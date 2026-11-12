@@ -35,8 +35,14 @@ public sealed class InMemoryPhotoStore : IPhotoStore
             .Take(count),
     ];
 
-    public async Task<IReadOnlyList<Photo>> ForEventsAsync(HiddenSets hidden, IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken) =>
-        [.. (await Visible(hidden, cancellationToken)).Where(p => p.EventId is { } id && eventIds.Contains(id))];
+    /// <summary>How many times photos were looked up for entries: a request asks once per entry at most (EventViewer).</summary>
+    public int ForEventsCalls { get; private set; }
+
+    public async Task<IReadOnlyList<Photo>> ForEventsAsync(HiddenSets hidden, IReadOnlyCollection<string> eventIds, CancellationToken cancellationToken)
+    {
+        ForEventsCalls++;
+        return [.. (await Visible(hidden, cancellationToken)).Where(p => p.EventId is { } id && eventIds.Contains(id))];
+    }
 
     public Task<bool> HideAsync(string id, PhotoHiding hiding, CancellationToken cancellationToken)
     {

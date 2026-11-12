@@ -32,6 +32,8 @@ public sealed class SpaFilesTests : IAsyncLifetime
         {
             File.WriteAllBytes(Path.Combine(_webRoot, file), [1, 2, 3]);
         }
+        var king = Directory.CreateDirectory(Path.Combine(_webRoot, "king")).FullName;
+        File.WriteAllBytes(Path.Combine(king, "king-avatar.jpg"), [0xFF, 0xD8, 0xFF, 0xD9]);
         _factory = new KingApiFactory();
         // The client sends Accept-Encoding as each test sets it and never decompresses, so the bytes are what was sent.
         _client = _factory.WithWebHostBuilder(b => b.UseWebRoot(_webRoot)).CreateClient();
@@ -118,20 +120,27 @@ public sealed class SpaFilesTests : IAsyncLifetime
         Assert.Null(response.Headers.CacheControl?.MaxAge);
     }
 
-    // From frontend/public, at the site's root: the names browsers and crawlers ask for on their own.
+    // From frontend/public: the names browsers and crawlers ask for on their own, and King's pictures. Unhashed, so not
+    // for good; but they change only with a deploy, so a day, refreshed in the background for a week after
+    // (the audit of 2026-11-11: they were rechecked on every visit).
     [Theory]
     [InlineData("/favicon.ico", "image/x-icon")]
     [InlineData("/favicon.svg", "image/svg+xml")]
     [InlineData("/favicon-32.png", "image/png")]
     [InlineData("/apple-touch-icon.png", "image/png")]
     [InlineData("/robots.txt", "text/plain")]
-    public async Task Root_files_are_served_with_their_type_and_rechecked(string path, string type)
+    [InlineData("/king/king-avatar.jpg", "image/jpeg")]
+    public async Task Root_files_and_pictures_are_served_with_their_type_and_kept_a_day(string path, string type)
     {
         var response = await Get(path);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(type, response.Content.Headers.ContentType?.MediaType);
-        Assert.True(response.Headers.CacheControl?.NoCache);
+        var cache = response.Headers.CacheControl;
+        Assert.True(cache?.Public);
+        Assert.Equal(TimeSpan.FromDays(1), cache?.MaxAge);
+        Assert.Contains(cache!.Extensions, e => e.Name == "stale-while-revalidate" && e.Value == "604800");
+        Assert.False(cache.NoCache);
     }
 
     [Fact]

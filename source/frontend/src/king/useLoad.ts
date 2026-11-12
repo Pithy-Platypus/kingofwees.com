@@ -13,9 +13,10 @@ export type Load<T> = {
 
 /**
  * Loads `fn` on mount and whenever it changes (wrap it in useCallback), and on `retry`. Only the latest call's answer
- * lands: a slow answer to an earlier call, or to an earlier `fn`, is dropped.
+ * lands: a slow answer to an earlier call, or to an earlier `fn`, is dropped. With `when`, it loads only while that is
+ * true — each time it turns true — and keeps the last answer in between (a page that doesn't show the data doesn't load it).
  */
-export function useLoad<T>(fn: () => Promise<T>): Load<T> {
+export function useLoad<T>(fn: () => Promise<T>, when = true): Load<T> {
   const [data, setData] = useState<T | null>(null);
   // The fn that failed: a new fn, or a retry, is not failed until its own answer says so.
   const [failure, setFailure] = useState<(() => Promise<T>) | null>(null);
@@ -34,8 +35,8 @@ export function useLoad<T>(fn: () => Promise<T>): Load<T> {
   }, [fn]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (when) void load();
+  }, [load, when]);
 
   const retry = useCallback(() => {
     setFailure(null);

@@ -14,6 +14,9 @@ internal static class SpaFiles
     private const string AssetCache = "public, max-age=31536000, immutable";
     // Pages keep their address across deploys: always ask again (a 304 when unchanged), so a deploy shows at once.
     private const string PageCache = "no-cache";
+    // The other unhashed files (King's pictures, the icons, robots.txt) change only with a deploy: a day, and for a
+    // week after that the stale copy shows while the browser refreshes it in the background.
+    private const string FileCache = "public, max-age=86400, stale-while-revalidate=604800";
     // Preference order when the browser rates both the same.
     private static readonly (string Encoding, string Extension)[] Copies = [("br", ".br"), ("gzip", ".gz")];
 
@@ -40,7 +43,9 @@ internal static class SpaFiles
     {
         options.ContentTypeProvider = new CopyContentTypes();
         options.OnPrepareResponse = context => context.Context.Response.Headers.CacheControl =
-            context.Context.Request.Path.StartsWithSegments(Assets) ? AssetCache : PageCache;
+            context.Context.Request.Path.StartsWithSegments(Assets) ? AssetCache
+            : context.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ? PageCache
+            : FileCache;
     }
 
     // Points the request at the copy the browser accepts best, and says how it's encoded; the static file middleware
